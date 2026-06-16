@@ -644,6 +644,11 @@ function App() {
     setTokens(null);
     setSessionId(null);
     setDashboard(null);
+    setEvidences([]);
+    setSuspects([]);
+    setTimeline([]);
+    setLocations([]);
+    setHints([]);
     setView("login");
   }
 
@@ -864,6 +869,33 @@ function App() {
       );
     } finally {
       setCaseLoading(false);
+    }
+  }
+
+  async function abandonSession() {
+    if (!sessionId) {
+      setView("library");
+      return;
+    }
+    const confirmed = window.confirm("진행 중인 수사를 중단할까요?");
+    if (!confirmed) return;
+
+    try {
+      await authedRequest<void>(`/api/play-sessions/${sessionId}/abandon`, {
+        method: "POST",
+      });
+      setSessionId(null);
+      setDashboard(null);
+      setEvidences([]);
+      setSuspects([]);
+      setTimeline([]);
+      setLocations([]);
+      setHints([]);
+      setView("library");
+    } catch (error) {
+      setCaseError(
+        error instanceof Error ? error.message : "수사를 중단하지 못했습니다.",
+      );
     }
   }
 
@@ -1172,6 +1204,7 @@ function App() {
           onEvidenceDetail={openEvidenceDetail}
           onSuspectDetail={openSuspectDetail}
           onUseHint={useHint}
+          onAbandon={abandonSession}
           onSubmit={() => setView("submit")}
         />
       )}
@@ -1567,6 +1600,7 @@ function CaseScreen({
   onEvidenceDetail,
   onSuspectDetail,
   onUseHint,
+  onAbandon,
   onSubmit,
 }: {
   caseTab: "scene" | "evidence" | "suspects" | "timeline";
@@ -1583,6 +1617,7 @@ function CaseScreen({
   onEvidenceDetail: (evidence: Evidence) => void;
   onSuspectDetail: (suspect: Suspect) => void;
   onUseHint: (hint: Hint) => void;
+  onAbandon: () => void;
   onSubmit: () => void;
 }) {
   if (loading && !dashboard)
@@ -1656,6 +1691,9 @@ function CaseScreen({
           </div>
           <button className="button primary" onClick={onSubmit} type="button">
             최종 추리 제출
+          </button>
+          <button className="button ghost" onClick={onAbandon} type="button">
+            수사 중단
           </button>
           <LocationPanel locations={locations} />
           <HintPanel hints={hints} onUseHint={onUseHint} />
