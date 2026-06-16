@@ -67,6 +67,26 @@ type Dashboard = {
   };
 };
 
+type CaseLocation = {
+  locationId: number;
+  name: string;
+  floor?: string;
+  description?: string;
+  imageUrl?: string;
+  totalEvidenceCount: number;
+  unlockedEvidenceCount: number;
+};
+
+type Hint = {
+  hintId: number;
+  hintLevel: number;
+  isAvailable: boolean;
+  isUsed: boolean;
+  penaltyScore: number;
+  content?: string;
+  remainingMinutes?: number;
+};
+
 type Evidence = {
   evidenceId: number;
   title: string;
@@ -433,6 +453,50 @@ function normalizeEvidence(raw: Record<string, unknown>): Evidence {
   };
 }
 
+function normalizeLocations(raw: unknown): CaseLocation[] {
+  const list =
+    raw &&
+    typeof raw === "object" &&
+    Array.isArray((raw as Record<string, unknown>).locations)
+      ? ((raw as Record<string, unknown>).locations as unknown[])
+      : Array.isArray(raw)
+        ? raw
+        : [];
+
+  return list.map((item) => {
+    const row = item as Record<string, unknown>;
+    const imageUrl =
+      typeof row.imageUrl === "string" && row.imageUrl.trim()
+        ? row.imageUrl.trim()
+        : undefined;
+    return {
+      locationId: Number(row.locationId ?? row.id ?? 0),
+      name: String(row.name ?? "장소"),
+      floor: typeof row.floor === "string" ? row.floor : undefined,
+      description:
+        typeof row.description === "string" ? row.description : undefined,
+      imageUrl,
+      totalEvidenceCount: Number(row.totalEvidenceCount ?? 0),
+      unlockedEvidenceCount: Number(row.unlockedEvidenceCount ?? 0),
+    };
+  });
+}
+
+function normalizeHint(raw: Record<string, unknown>): Hint {
+  return {
+    hintId: Number(raw.hintId ?? raw.id ?? 0),
+    hintLevel: Number(raw.hintLevel ?? 0),
+    isAvailable: raw.isAvailable === true,
+    isUsed: raw.isUsed === true,
+    penaltyScore: Number(raw.penaltyScore ?? 0),
+    content: typeof raw.content === "string" ? raw.content : undefined,
+    remainingMinutes:
+      typeof raw.remainingMinutes === "number"
+        ? raw.remainingMinutes
+        : undefined,
+  };
+}
+
 function normalizeSuspect(raw: Record<string, unknown>): Suspect {
   const portrait =
     typeof raw.portraitImageUrl === "string" && raw.portraitImageUrl.trim()
@@ -502,6 +566,8 @@ function App() {
   const [evidences, setEvidences] = useState<Evidence[]>([]);
   const [suspects, setSuspects] = useState<Suspect[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [locations, setLocations] = useState<CaseLocation[]>([]);
+  const [hints, setHints] = useState<Hint[]>([]);
   const [caseLoading, setCaseLoading] = useState(false);
   const [caseError, setCaseError] = useState<string | null>(null);
   const [selectedEvidence, setSelectedEvidence] = useState<Evidence | null>(
@@ -759,25 +825,37 @@ function App() {
     setCaseLoading(true);
     setCaseError(null);
     try {
-      const [nextDashboard, evidenceData, suspectData, timelineData] =
-        await Promise.all([
-          authedRequest<Dashboard>(`/api/play-sessions/${id}/dashboard`),
-          authedRequest<Record<string, unknown>[]>(
-            `/api/play-sessions/${id}/evidences`,
-            {
-              query: { includeLocked: true },
-            },
-          ),
-          authedRequest<Record<string, unknown>[]>(
-            `/api/play-sessions/${id}/suspects`,
-          ),
-          authedRequest<TimelineEvent[]>(`/api/play-sessions/${id}/timeline`),
-        ]);
+      const [
+        nextDashboard,
+        evidenceData,
+        suspectData,
+        timelineData,
+        locationData,
+        hintData,
+      ] = await Promise.all([
+        authedRequest<Dashboard>(`/api/play-sessions/${id}/dashboard`),
+        authedRequest<Record<string, unknown>[]>(
+          `/api/play-sessions/${id}/evidences`,
+          {
+            query: { includeLocked: true },
+          },
+        ),
+        authedRequest<Record<string, unknown>[]>(
+          `/api/play-sessions/${id}/suspects`,
+        ),
+        authedRequest<TimelineEvent[]>(`/api/play-sessions/${id}/timeline`),
+        authedRequest<unknown>(`/api/play-sessions/${id}/locations`),
+        authedRequest<Record<string, unknown>[]>(
+          `/api/play-sessions/${id}/hints`,
+        ),
+      ]);
 
       setDashboard(nextDashboard);
       setEvidences(evidenceData.map(normalizeEvidence));
       setSuspects(suspectData.map(normalizeSuspect));
       setTimeline(timelineData);
+      setLocations(normalizeLocations(locationData));
+      setHints(hintData.map(normalizeHint));
     } catch (error) {
       setCaseError(
         error instanceof Error
@@ -813,6 +891,35 @@ function App() {
       );
     } finally {
       setEvidenceDetailLoading(false);
+    }
+  }
+
+  async function useHint(hint: Hint) {
+    if (!sessionId || !authToken || !hint.isAvailable || hint.isUsed) return;
+    try {
+      const used = await authedRequest<Record<string, unknown>>(
+        `/api/play-sessions/${sessionId}/hints/${hint.hintId}/use`,
+        { method: "POST" },
+      );
+      setHints((prev) =>
+        prev.map((item) =>
+          item.hintId === hint.hintId
+            ? {
+                ...item,
+                isUsed: true,
+                content:
+                  typeof used.content === "string"
+                    ? used.content
+                    : item.content,
+              }
+            : item,
+        ),
+      );
+      await loadCase();
+    } catch (error) {
+      setCaseError(
+        error instanceof Error ? error.message : "힌트를 사용할 수 없습니다.",
+      );
     }
   }
 
@@ -1057,11 +1164,14 @@ function App() {
           evidences={evidences}
           suspects={suspects}
           timeline={timeline}
+          locations={locations}
+          hints={hints}
           loading={caseLoading}
           error={caseError}
           onRetry={() => loadCase()}
           onEvidenceDetail={openEvidenceDetail}
           onSuspectDetail={openSuspectDetail}
+          onUseHint={useHint}
           onSubmit={() => setView("submit")}
         />
       )}
@@ -1449,11 +1559,14 @@ function CaseScreen({
   evidences,
   suspects,
   timeline,
+  locations,
+  hints,
   loading,
   error,
   onRetry,
   onEvidenceDetail,
   onSuspectDetail,
+  onUseHint,
   onSubmit,
 }: {
   caseTab: "scene" | "evidence" | "suspects" | "timeline";
@@ -1462,11 +1575,14 @@ function CaseScreen({
   evidences: Evidence[];
   suspects: Suspect[];
   timeline: TimelineEvent[];
+  locations: CaseLocation[];
+  hints: Hint[];
   loading: boolean;
   error: string | null;
   onRetry: () => void;
   onEvidenceDetail: (evidence: Evidence) => void;
   onSuspectDetail: (suspect: Suspect) => void;
+  onUseHint: (hint: Hint) => void;
   onSubmit: () => void;
 }) {
   if (loading && !dashboard)
@@ -1541,6 +1657,8 @@ function CaseScreen({
           <button className="button primary" onClick={onSubmit} type="button">
             최종 추리 제출
           </button>
+          <LocationPanel locations={locations} />
+          <HintPanel hints={hints} onUseHint={onUseHint} />
         </div>
       )}
 
@@ -1557,6 +1675,81 @@ function CaseScreen({
 
       {caseTab === "timeline" && <TimelineList events={timeline} />}
     </section>
+  );
+}
+
+function LocationPanel({ locations }: { locations: CaseLocation[] }) {
+  if (!locations.length) return null;
+
+  return (
+    <article className="info-card">
+      <p className="mini-title">현장 보드</p>
+      <div className="location-grid">
+        {locations.map((location) => (
+          <div className="location-card" key={location.locationId}>
+            {location.imageUrl ? (
+              <img src={location.imageUrl} alt="" />
+            ) : (
+              <span className="location-placeholder">SC</span>
+            )}
+            <div>
+              <strong>{location.name}</strong>
+              <p>
+                {location.description || location.floor || "현장 정보 확인 중"}
+              </p>
+              <span>
+                증거 {location.unlockedEvidenceCount}/
+                {location.totalEvidenceCount}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function HintPanel({
+  hints,
+  onUseHint,
+}: {
+  hints: Hint[];
+  onUseHint: (hint: Hint) => void;
+}) {
+  if (!hints.length) return null;
+
+  return (
+    <article className="info-card">
+      <p className="mini-title">수사 힌트</p>
+      <div className="hint-list">
+        {hints.map((hint) => (
+          <div className="hint-card" key={hint.hintId}>
+            <div>
+              <strong>힌트 {hint.hintLevel}</strong>
+              <p>
+                {hint.isUsed
+                  ? hint.content || "사용한 힌트입니다."
+                  : hint.isAvailable
+                    ? `사용 시 ${hint.penaltyScore}점이 차감됩니다.`
+                    : hint.remainingMinutes != null
+                      ? `${hint.remainingMinutes}분 후 사용할 수 있습니다.`
+                      : "아직 사용할 수 없습니다."}
+              </p>
+            </div>
+            {!hint.isUsed && (
+              <button
+                className="chip"
+                disabled={!hint.isAvailable}
+                onClick={() => onUseHint(hint)}
+                type="button"
+              >
+                사용
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </article>
   );
 }
 
