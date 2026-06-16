@@ -60,3 +60,5 @@ VITE_ENABLE_DEV_LOGIN=false
 ## Upload
 
 앱인토스 콘솔의 앱 출시 화면에는 `.aab`가 아니라 `clueroom-toss-miniapp.ait`를 업로드합니다.
+
+출시 준비 순서는 [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md)를 참고하세요.

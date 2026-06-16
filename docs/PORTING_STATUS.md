@@ -45,6 +45,7 @@ Last updated: 2026-06-16
 - scenario/evidence image full-screen viewer
 - result scoring detail cards
 - result recommendation card rendering when backend provides data
+- release checklist for Apps in Toss and Google Play artifact split
 
 ## Waiting On Backend
 
@@ -61,7 +62,7 @@ Last updated: 2026-06-16
 - actual Apps in Toss sandbox/device login E2E
 - scenario review/write UI
 - backend-backed records API if the product requires cross-device history
-- store review policy copy and game rating metadata
+- final store review metadata entry in external consoles
 - accessibility pass
 - visual QA against Flutter screens
 
