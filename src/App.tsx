@@ -2216,21 +2216,82 @@ function RecordsScreen({
   onLibrary: () => void;
   onResume: (record: RecordItem) => void;
 }) {
+  const [filter, setFilter] = useState<"all" | "completed" | "inProgress">(
+    "all",
+  );
+  const completed = records.filter((record) => record.status === "COMPLETED");
+  const inProgress = records.filter(
+    (record) => record.status === "IN_PROGRESS",
+  );
+  const averageScore =
+    completed.length > 0
+      ? Math.round(
+          completed.reduce((sum, record) => sum + (record.score ?? 0), 0) /
+            completed.length,
+        )
+      : null;
+  const filtered =
+    filter === "completed"
+      ? completed
+      : filter === "inProgress"
+        ? inProgress
+        : records;
+  const emptyTitle =
+    filter === "completed"
+      ? "완료된 사건이 없습니다"
+      : filter === "inProgress"
+        ? "진행 중인 사건이 없습니다"
+        : "아직 기록이 없습니다";
+  const emptyBody =
+    filter === "completed"
+      ? "사건을 끝까지 해결하면 여기에 기록됩니다."
+      : filter === "inProgress"
+        ? "새 사건을 시작하면 여기에 표시됩니다."
+        : "사건을 시작하거나 최종 추리를 제출하면 이곳에 기록됩니다.";
+
   return (
     <section className="stack">
       <button className="icon-button fit" onClick={onBack} type="button">
         내 정보로 돌아가기
       </button>
       <ScreenTitle title="수사 기록" subtitle="MY RECORDS" />
-      {!records.length && (
-        <StateBlock
-          title="아직 기록이 없습니다"
-          body="사건을 시작하거나 최종 추리를 제출하면 이곳에 기록됩니다."
-          action={onLibrary}
+      <div className="detective-grade-card">
+        <div className="grade-mark">{completed.length >= 5 ? "A" : "B"}</div>
+        <div>
+          <h2>{completed.length >= 5 ? "주임 탐정" : "견습 탐정"}</h2>
+          <p className="eyebrow">
+            {completed.length >= 5
+              ? "ASSOCIATE DETECTIVE"
+              : "TRAINEE DETECTIVE"}
+          </p>
+          <p className="card-body">
+            다음 등급까지 {Math.max(0, 5 - completed.length)}건 해결 필요
+          </p>
+        </div>
+      </div>
+      <div className="stats-grid">
+        <Stat label="해결" value={`${completed.length}건`} />
+        <Stat
+          label="평균 점수"
+          value={averageScore != null ? `${averageScore}` : "-"}
         />
+        <Stat label="진행" value={`${inProgress.length}건`} />
+      </div>
+      <FilterChips
+        label="기록 목록"
+        options={[
+          ["all", "전체"],
+          ["completed", "완료"],
+          ["inProgress", "진행 중"],
+        ]}
+        value={filter}
+        onChange={(value) => setFilter(value as typeof filter)}
+      />
+      {!filtered.length && (
+        <StateBlock title={emptyTitle} body={emptyBody} action={onLibrary} />
       )}
       <div className="records-list">
-        {records.map((record) => (
+        {filtered.map((record) => (
           <article className="record-card" key={record.recordId}>
             <div>
               <p className="eyebrow">

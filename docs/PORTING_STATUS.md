@@ -49,6 +49,7 @@ Last updated: 2026-06-16
 - session abandon
 - my page/profile screen
 - local investigation records screen
+- local records filters and detective grade summary
 - scenario/evidence image full-screen viewer
 - result scoring detail cards
 - result recommendation card rendering when backend provides data
