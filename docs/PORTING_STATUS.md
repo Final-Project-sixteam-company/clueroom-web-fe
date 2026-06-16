@@ -13,6 +13,7 @@ Last updated: 2026-06-16
 - startup refresh
 - protected API 401 refresh and retry
 - scenario library
+- scenario keyword search and sort/type/difficulty filters
 - scenario detail
 - case briefing before session start
 - active session lookup before create

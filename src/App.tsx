@@ -63,6 +63,13 @@ type ImagePreview = {
   subtitle?: string;
 };
 
+type ScenarioFilterState = {
+  query: string;
+  sort: "popular" | "latest" | "rating";
+  type: "" | "OFFICIAL" | "CUSTOM";
+  difficulty: "" | "EASY" | "NORMAL" | "HARD";
+};
+
 type Scenario = {
   scenarioId: number;
   title: string;
@@ -798,6 +805,12 @@ function App() {
   const [imagePreview, setImagePreview] = useState<ImagePreview | null>(null);
 
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [scenarioFilter, setScenarioFilter] = useState<ScenarioFilterState>({
+    query: "",
+    sort: "popular",
+    type: "",
+    difficulty: "",
+  });
   const [scenarioLoading, setScenarioLoading] = useState(false);
   const [scenarioError, setScenarioError] = useState<string | null>(null);
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(
@@ -881,6 +894,8 @@ function App() {
 
   useEffect(() => {
     if (authReady) void loadScenarios();
+    // Initial library load only; filter changes call applyScenarioFilter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authReady]);
 
   useEffect(() => {
@@ -1088,15 +1103,21 @@ function App() {
     }
   }
 
-  async function loadScenarios() {
+  async function loadScenarios(filter = scenarioFilter) {
     setScenarioLoading(true);
     setScenarioError(null);
     try {
+      const query: Record<string, string | number> = {
+        sort: filter.sort,
+        page: 0,
+        size: 20,
+      };
+      if (filter.query.trim()) query.keyword = filter.query.trim();
+      if (filter.type) query.type = filter.type;
+      if (filter.difficulty) query.difficulty = filter.difficulty;
       const data = await request<
         { content?: Record<string, unknown>[] } | Record<string, unknown>[]
-      >("/api/scenarios", {
-        query: { sort: "popular", page: 0, size: 20 },
-      });
+      >("/api/scenarios", { query });
       const list = Array.isArray(data) ? data : (data.content ?? []);
       setScenarios(list.map(normalizeScenario));
     } catch (error) {
@@ -1108,6 +1129,11 @@ function App() {
     } finally {
       setScenarioLoading(false);
     }
+  }
+
+  function applyScenarioFilter(next: ScenarioFilterState) {
+    setScenarioFilter(next);
+    void loadScenarios(next);
   }
 
   async function openScenarioDetail(scenario: Scenario) {
@@ -1575,9 +1601,11 @@ function App() {
       {view === "library" && (
         <LibraryScreen
           scenarios={scenarios}
+          filter={scenarioFilter}
           loading={scenarioLoading}
           error={scenarioError}
-          onRefresh={loadScenarios}
+          onRefresh={() => loadScenarios()}
+          onFilterChange={applyScenarioFilter}
           onSelect={openScenarioDetail}
         />
       )}
@@ -2027,26 +2055,88 @@ function RecordsScreen({
 
 function LibraryScreen({
   scenarios,
+  filter,
   loading,
   error,
   onRefresh,
+  onFilterChange,
   onSelect,
 }: {
   scenarios: Scenario[];
+  filter: ScenarioFilterState;
   loading: boolean;
   error: string | null;
   onRefresh: () => void;
+  onFilterChange: (filter: ScenarioFilterState) => void;
   onSelect: (scenario: Scenario) => void;
 }) {
+  const [query, setQuery] = useState(filter.query);
+  const updateFilter = (next: Partial<ScenarioFilterState>) => {
+    onFilterChange({ ...filter, ...next });
+  };
+
   return (
     <section className="stack">
       <ScreenTitle title="시나리오 라이브러리" subtitle="MYSTERY LIBRARY" />
-      <div className="chip-row">
-        {["전체", "공식", "인기", "최신", "보통"].map((label, index) => (
-          <span className={`chip ${index === 0 ? "active" : ""}`} key={label}>
-            {label}
-          </span>
-        ))}
+      <div className="search-row">
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="사건명 또는 키워드"
+          onKeyDown={(event) => {
+            if (event.key === "Enter") updateFilter({ query });
+          }}
+        />
+        <button
+          className="button secondary compact"
+          onClick={() => updateFilter({ query })}
+          type="button"
+        >
+          검색
+        </button>
+      </div>
+      <FilterChips
+        label="정렬"
+        options={[
+          ["popular", "인기"],
+          ["latest", "최신"],
+          ["rating", "평점"],
+        ]}
+        value={filter.sort}
+        onChange={(value) =>
+          updateFilter({ sort: value as ScenarioFilterState["sort"] })
+        }
+      />
+      <FilterChips
+        label="유형"
+        options={[
+          ["", "전체"],
+          ["OFFICIAL", "공식"],
+          ["CUSTOM", "커스텀"],
+        ]}
+        value={filter.type}
+        onChange={(value) =>
+          updateFilter({ type: value as ScenarioFilterState["type"] })
+        }
+      />
+      <FilterChips
+        label="난이도"
+        options={[
+          ["", "전체"],
+          ["EASY", "쉬움"],
+          ["NORMAL", "보통"],
+          ["HARD", "어려움"],
+        ]}
+        value={filter.difficulty}
+        onChange={(value) =>
+          updateFilter({
+            difficulty: value as ScenarioFilterState["difficulty"],
+          })
+        }
+      />
+      <div className="meta-row">
+        <span>{loading ? "검색 중" : `${scenarios.length}건`}</span>
+        {filter.query && <span>키워드: {filter.query}</span>}
       </div>
       {loading && <StateBlock title="사건 목록을 불러오고 있습니다" />}
       {error && (
@@ -2085,6 +2175,36 @@ function LibraryScreen({
         ))}
       </div>
     </section>
+  );
+}
+
+function FilterChips({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: [string, string][];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="filter-group">
+      <span>{label}</span>
+      <div className="chip-row">
+        {options.map(([optionValue, text]) => (
+          <button
+            className={`chip ${value === optionValue ? "active" : ""}`}
+            key={`${label}-${optionValue}`}
+            onClick={() => onChange(optionValue)}
+            type="button"
+          >
+            {text}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
