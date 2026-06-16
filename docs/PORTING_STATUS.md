@@ -15,6 +15,8 @@ Last updated: 2026-06-16
 - scenario library
 - scenario keyword search and sort/type/difficulty filters
 - scenario detail
+- local scenario bookmarks
+- local scenario reviews with spoiler masking
 - case briefing before session start
 - active session lookup before create
 - create-session 409 active-session fallback
@@ -60,7 +62,7 @@ Last updated: 2026-06-16
 ## Still To Port Or Recheck
 
 - actual Apps in Toss sandbox/device login E2E
-- scenario review/write UI
+- backend-backed scenario review API if the product requires shared reviews
 - backend-backed records API if the product requires cross-device history
 - final store review metadata entry in external consoles
 - accessibility pass

@@ -16,6 +16,8 @@ const ACCESS_KEY = "clueroom.accessToken";
 const REFRESH_KEY = "clueroom.refreshToken";
 const DEVICE_KEY = "clueroom.deviceId";
 const RECORDS_KEY = "clueroom.records";
+const BOOKMARKS_KEY = "clueroom.bookmarkedScenarios";
+const REVIEWS_KEY = "clueroom.scenarioReviews";
 
 type View =
   | "login"
@@ -68,6 +70,21 @@ type ScenarioFilterState = {
   sort: "popular" | "latest" | "rating";
   type: "" | "OFFICIAL" | "CUSTOM";
   difficulty: "" | "EASY" | "NORMAL" | "HARD";
+};
+
+type ScenarioReview = {
+  reviewId: string;
+  scenarioId: number;
+  authorName: string;
+  rating: number;
+  body: string;
+  createdAt: string;
+  isSpoiler: boolean;
+};
+
+type ReviewDraftTarget = {
+  scenarioId: number;
+  title: string;
 };
 
 type Scenario = {
@@ -663,6 +680,28 @@ function normalizeRecord(raw: unknown): RecordItem | null {
   };
 }
 
+function normalizeReview(raw: unknown): ScenarioReview | null {
+  if (!raw || typeof raw !== "object") return null;
+  const data = raw as Record<string, unknown>;
+  const scenarioId = Number(data.scenarioId ?? 0);
+  const body = String(data.body ?? data.content ?? "").trim();
+  const createdAt = String(data.createdAt ?? "").trim();
+  if (!scenarioId || !body || !createdAt) return null;
+
+  return {
+    reviewId: String(data.reviewId ?? data.id ?? `review-${createdAt}`),
+    scenarioId,
+    authorName:
+      typeof data.authorName === "string" && data.authorName.trim()
+        ? data.authorName.trim()
+        : "나",
+    rating: Math.max(1, Math.min(5, Number(data.rating ?? 5))),
+    body,
+    createdAt,
+    isSpoiler: data.isSpoiler === true,
+  };
+}
+
 function normalizeResult(raw: unknown): Result {
   const data =
     raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
@@ -811,6 +850,12 @@ function App() {
     type: "",
     difficulty: "",
   });
+  const [bookmarkedScenarioIds, setBookmarkedScenarioIds] = useState<number[]>(
+    [],
+  );
+  const [scenarioReviews, setScenarioReviews] = useState<ScenarioReview[]>([]);
+  const [reviewDraftTarget, setReviewDraftTarget] =
+    useState<ReviewDraftTarget | null>(null);
   const [scenarioLoading, setScenarioLoading] = useState(false);
   const [scenarioError, setScenarioError] = useState<string | null>(null);
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(
@@ -900,6 +945,8 @@ function App() {
 
   useEffect(() => {
     void loadRecords();
+    void loadBookmarks();
+    void loadScenarioReviews();
   }, []);
 
   async function persistTokens(next: Tokens) {
@@ -939,6 +986,83 @@ function App() {
       await safeRemove(RECORDS_KEY);
       setRecords([]);
     }
+  }
+
+  async function loadBookmarks() {
+    const stored = await safeGet(BOOKMARKS_KEY);
+    if (!stored) return;
+    try {
+      const parsed = JSON.parse(stored);
+      const ids = Array.isArray(parsed)
+        ? parsed.map((item) => Number(item)).filter((id) => Number.isFinite(id))
+        : [];
+      setBookmarkedScenarioIds([...new Set(ids)]);
+    } catch {
+      await safeRemove(BOOKMARKS_KEY);
+      setBookmarkedScenarioIds([]);
+    }
+  }
+
+  async function persistBookmarks(ids: number[]) {
+    const uniqueIds = [...new Set(ids)];
+    setBookmarkedScenarioIds(uniqueIds);
+    await safeSet(BOOKMARKS_KEY, JSON.stringify(uniqueIds));
+  }
+
+  async function toggleScenarioBookmark(scenarioId: number) {
+    const next = bookmarkedScenarioIds.includes(scenarioId)
+      ? bookmarkedScenarioIds.filter((id) => id !== scenarioId)
+      : [scenarioId, ...bookmarkedScenarioIds];
+    await persistBookmarks(next);
+  }
+
+  async function loadScenarioReviews() {
+    const stored = await safeGet(REVIEWS_KEY);
+    if (!stored) return;
+    try {
+      const parsed = JSON.parse(stored);
+      const list = Array.isArray(parsed)
+        ? parsed
+            .map(normalizeReview)
+            .filter((item): item is ScenarioReview => !!item)
+        : [];
+      setScenarioReviews(list);
+    } catch {
+      await safeRemove(REVIEWS_KEY);
+      setScenarioReviews([]);
+    }
+  }
+
+  async function persistScenarioReviews(next: ScenarioReview[]) {
+    const sorted = [...next].sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+    setScenarioReviews(sorted);
+    await safeSet(REVIEWS_KEY, JSON.stringify(sorted));
+  }
+
+  async function addScenarioReview(review: ScenarioReview) {
+    const stored = await safeGet(REVIEWS_KEY);
+    const storedReviews = stored
+      ? (() => {
+          try {
+            const parsed = JSON.parse(stored);
+            return Array.isArray(parsed)
+              ? parsed
+                  .map(normalizeReview)
+                  .filter((item): item is ScenarioReview => !!item)
+              : [];
+          } catch {
+            return [];
+          }
+        })()
+      : [];
+    const source = scenarioReviews.length ? scenarioReviews : storedReviews;
+    await persistScenarioReviews([
+      review,
+      ...source.filter((item) => item.reviewId !== review.reviewId),
+    ]);
   }
 
   async function persistRecords(next: RecordItem[]) {
@@ -1613,10 +1737,25 @@ function App() {
       {view === "scenarioDetail" && selectedScenario && (
         <ScenarioDetailScreen
           scenario={selectedScenario}
+          bookmarked={bookmarkedScenarioIds.includes(
+            selectedScenario.scenarioId,
+          )}
+          reviews={scenarioReviews.filter(
+            (review) => review.scenarioId === selectedScenario.scenarioId,
+          )}
           loading={scenarioDetailLoading}
           error={scenarioDetailError}
           onBack={() => setView("library")}
           onStart={() => setView("briefing")}
+          onToggleBookmark={() =>
+            void toggleScenarioBookmark(selectedScenario.scenarioId)
+          }
+          onWriteReview={() =>
+            setReviewDraftTarget({
+              scenarioId: selectedScenario.scenarioId,
+              title: selectedScenario.title,
+            })
+          }
           onOpenImage={(preview) => setImagePreview(preview)}
         />
       )}
@@ -1750,6 +1889,17 @@ function App() {
         <ImageViewer
           preview={imagePreview}
           onClose={() => setImagePreview(null)}
+        />
+      )}
+      {reviewDraftTarget && (
+        <ReviewDialog
+          target={reviewDraftTarget}
+          authorName={profile?.nickname ?? "나"}
+          onCancel={() => setReviewDraftTarget(null)}
+          onSubmit={(review) => {
+            void addScenarioReview(review);
+            setReviewDraftTarget(null);
+          }}
         />
       )}
     </Shell>
@@ -2210,24 +2360,46 @@ function FilterChips({
 
 function ScenarioDetailScreen({
   scenario,
+  bookmarked,
+  reviews,
   loading,
   error,
   onBack,
   onStart,
+  onToggleBookmark,
+  onWriteReview,
   onOpenImage,
 }: {
   scenario: Scenario;
+  bookmarked: boolean;
+  reviews: ScenarioReview[];
   loading: boolean;
   error: string | null;
   onBack: () => void;
   onStart: () => void;
+  onToggleBookmark: () => void;
+  onWriteReview: () => void;
   onOpenImage: (preview: ImagePreview) => void;
 }) {
+  const averageLocalRating =
+    reviews.length > 0
+      ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
+      : null;
+
   return (
     <section className="stack">
-      <button className="icon-button fit" onClick={onBack} type="button">
-        라이브러리로 돌아가기
-      </button>
+      <div className="detail-actions">
+        <button className="icon-button fit" onClick={onBack} type="button">
+          라이브러리로 돌아가기
+        </button>
+        <button
+          className={`icon-button fit ${bookmarked ? "active" : ""}`}
+          onClick={onToggleBookmark}
+          type="button"
+        >
+          {bookmarked ? "저장됨" : "저장"}
+        </button>
+      </div>
       <button
         className="image-button scenario-hero"
         disabled={!scenario.thumbnailUrl}
@@ -2265,7 +2437,10 @@ function ScenarioDetailScreen({
           label="예상 시간"
           value={`${scenario.estimatedPlayTimeMinutes}분`}
         />
-        <Stat label="평점" value={scenario.averageRating.toFixed(1)} />
+        <Stat
+          label="평점"
+          value={(averageLocalRating ?? scenario.averageRating).toFixed(1)}
+        />
       </div>
       <div className="stats-grid">
         <Stat label="인물" value={`${scenario.suspectCount}명`} />
@@ -2288,6 +2463,11 @@ function ScenarioDetailScreen({
         </div>
       )}
       {scenario.author && <InfoPanel title="제작자" body={scenario.author} />}
+      <ScenarioReviews
+        scenario={scenario}
+        reviews={reviews}
+        onWriteReview={onWriteReview}
+      />
       <button
         className="button primary"
         onClick={onStart}
@@ -2297,6 +2477,146 @@ function ScenarioDetailScreen({
         {scenario.canPlay === false ? "플레이할 수 없는 사건" : "수사 시작"}
       </button>
     </section>
+  );
+}
+
+function ScenarioReviews({
+  scenario,
+  reviews,
+  onWriteReview,
+}: {
+  scenario: Scenario;
+  reviews: ScenarioReview[];
+  onWriteReview: () => void;
+}) {
+  return (
+    <article className="info-card">
+      <div className="section-header">
+        <div>
+          <p className="mini-title">평점 · 리뷰</p>
+          <p className="card-body">
+            평균 {scenario.averageRating.toFixed(1)} · 플레이{" "}
+            {scenario.playCount}회
+          </p>
+        </div>
+        <button className="chip" onClick={onWriteReview} type="button">
+          작성
+        </button>
+      </div>
+      {!reviews.length && (
+        <p className="card-body review-empty">
+          아직 이 기기에 저장된 리뷰가 없습니다.
+        </p>
+      )}
+      <div className="review-list">
+        {reviews.map((review) => (
+          <ReviewCard review={review} key={review.reviewId} />
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function ReviewCard({ review }: { review: ScenarioReview }) {
+  const [revealed, setRevealed] = useState(!review.isSpoiler);
+  return (
+    <article className={`review-card ${review.isSpoiler ? "spoiler" : ""}`}>
+      <div className="review-head">
+        <div>
+          <strong>{review.authorName}</strong>
+          <span>{formatDateTime(review.createdAt)}</span>
+        </div>
+        <b>★ {review.rating.toFixed(1)}</b>
+      </div>
+      {review.isSpoiler && !revealed ? (
+        <button
+          className="spoiler-cover"
+          onClick={() => setRevealed(true)}
+          type="button"
+        >
+          스포일러가 포함된 리뷰입니다. 눌러서 보기
+        </button>
+      ) : (
+        <p>{review.body}</p>
+      )}
+    </article>
+  );
+}
+
+function ReviewDialog({
+  target,
+  authorName,
+  onCancel,
+  onSubmit,
+}: {
+  target: ReviewDraftTarget;
+  authorName: string;
+  onCancel: () => void;
+  onSubmit: (review: ScenarioReview) => void;
+}) {
+  const [rating, setRating] = useState(5);
+  const [body, setBody] = useState("");
+  const [isSpoiler, setIsSpoiler] = useState(false);
+  const canSubmit = body.trim().length > 0;
+
+  return (
+    <div className="modal-shell" role="dialog" aria-modal="true">
+      <button
+        className="modal-backdrop"
+        onClick={onCancel}
+        type="button"
+        aria-label="닫기"
+      />
+      <div className="review-dialog">
+        <div className="modal-handle" />
+        <p className="eyebrow">REVIEW</p>
+        <h2>{target.title}</h2>
+        <label className="field-label" htmlFor="review-rating">
+          평점 {rating.toFixed(1)}
+        </label>
+        <input
+          id="review-rating"
+          type="range"
+          min="1"
+          max="5"
+          step="0.5"
+          value={rating}
+          onChange={(event) => setRating(Number(event.target.value))}
+        />
+        <TextArea label="리뷰" value={body} onChange={setBody} />
+        <label className="toggle-row">
+          <input
+            type="checkbox"
+            checked={isSpoiler}
+            onChange={(event) => setIsSpoiler(event.target.checked)}
+          />
+          <span>스포일러 포함</span>
+        </label>
+        <div className="dialog-actions">
+          <button className="button ghost" onClick={onCancel} type="button">
+            취소
+          </button>
+          <button
+            className="button primary"
+            disabled={!canSubmit}
+            onClick={() =>
+              onSubmit({
+                reviewId: `review-${Date.now()}`,
+                scenarioId: target.scenarioId,
+                authorName,
+                rating,
+                body: body.trim(),
+                createdAt: new Date().toISOString(),
+                isSpoiler,
+              })
+            }
+            type="button"
+          >
+            등록
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
