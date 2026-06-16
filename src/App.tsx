@@ -15,10 +15,13 @@ const ENABLE_DEV_LOGIN =
 const ACCESS_KEY = "clueroom.accessToken";
 const REFRESH_KEY = "clueroom.refreshToken";
 const DEVICE_KEY = "clueroom.deviceId";
+const RECORDS_KEY = "clueroom.records";
 
 type View =
   | "login"
   | "home"
+  | "profile"
+  | "records"
   | "library"
   | "scenarioDetail"
   | "briefing"
@@ -32,6 +35,32 @@ type View =
 type Tokens = {
   accessToken: string;
   refreshToken?: string;
+};
+
+type UserProfile = {
+  userId?: number;
+  email?: string;
+  nickname: string;
+  provider?: string;
+  profileImageUrl?: string;
+};
+
+type RecordItem = {
+  recordId: string;
+  sessionId?: number;
+  scenarioId?: number;
+  scenarioTitle: string;
+  status: "IN_PROGRESS" | "COMPLETED";
+  score?: number;
+  grade?: string;
+  updatedAt: string;
+  completedAt?: string;
+};
+
+type ImagePreview = {
+  url: string;
+  title: string;
+  subtitle?: string;
 };
 
 type Scenario = {
@@ -170,6 +199,23 @@ type Result = {
   grade: string;
   feedback?: string;
   fullExplanation?: string;
+  correctCulprit?: {
+    suspectId?: number;
+    name: string;
+    role?: string;
+  };
+  matchedParts?: string[];
+  missedParts?: string[];
+  keyEvidences?: {
+    evidenceId?: number;
+    title: string;
+  }[];
+  nextRecommendedScenarios?: {
+    scenarioId: number;
+    title: string;
+    description?: string;
+    thumbnailUrl?: string;
+  }[];
   matched?: {
     culprit?: boolean;
     motive?: boolean;
@@ -526,6 +572,176 @@ function normalizeSuspect(raw: Record<string, unknown>): Suspect {
   };
 }
 
+function normalizeUserProfile(raw: unknown): UserProfile {
+  const data =
+    raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  return {
+    userId:
+      typeof data.userId === "number"
+        ? data.userId
+        : data.id
+          ? Number(data.id)
+          : undefined,
+    email: typeof data.email === "string" ? data.email : undefined,
+    nickname:
+      typeof data.nickname === "string" && data.nickname.trim()
+        ? data.nickname.trim()
+        : typeof data.name === "string" && data.name.trim()
+          ? data.name.trim()
+          : "탐정 견습생",
+    provider: typeof data.provider === "string" ? data.provider : undefined,
+    profileImageUrl:
+      typeof data.profileImageUrl === "string" && data.profileImageUrl.trim()
+        ? data.profileImageUrl.trim()
+        : undefined,
+  };
+}
+
+function normalizeRecord(raw: unknown): RecordItem | null {
+  if (!raw || typeof raw !== "object") return null;
+  const data = raw as Record<string, unknown>;
+  const scenarioTitle = String(data.scenarioTitle ?? "").trim();
+  const updatedAt = String(data.updatedAt ?? "").trim();
+  if (!scenarioTitle || !updatedAt) return null;
+
+  const status =
+    data.status === "COMPLETED" || data.status === "IN_PROGRESS"
+      ? data.status
+      : "IN_PROGRESS";
+  const sessionId =
+    typeof data.sessionId === "number"
+      ? data.sessionId
+      : data.sessionId
+        ? Number(data.sessionId)
+        : undefined;
+  const scenarioId =
+    typeof data.scenarioId === "number"
+      ? data.scenarioId
+      : data.scenarioId
+        ? Number(data.scenarioId)
+        : undefined;
+
+  return {
+    recordId: String(data.recordId ?? `record-${sessionId ?? updatedAt}`),
+    sessionId,
+    scenarioId,
+    scenarioTitle,
+    status,
+    score:
+      typeof data.score === "number"
+        ? data.score
+        : data.score
+          ? Number(data.score)
+          : undefined,
+    grade: typeof data.grade === "string" ? data.grade : undefined,
+    updatedAt,
+    completedAt:
+      typeof data.completedAt === "string" ? data.completedAt : undefined,
+  };
+}
+
+function normalizeResult(raw: unknown): Result {
+  const data =
+    raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const matched =
+    data.matched && typeof data.matched === "object"
+      ? (data.matched as Record<string, unknown>)
+      : {};
+  const correctCulprit =
+    data.correctCulprit && typeof data.correctCulprit === "object"
+      ? (data.correctCulprit as Record<string, unknown>)
+      : null;
+  const keyEvidences = Array.isArray(data.keyEvidences)
+    ? data.keyEvidences
+        .map((item) => {
+          const row = item as Record<string, unknown>;
+          const title = String(row.title ?? row.name ?? "").trim();
+          if (!title) return null;
+          return {
+            evidenceId:
+              typeof row.evidenceId === "number"
+                ? row.evidenceId
+                : row.evidenceId
+                  ? Number(row.evidenceId)
+                  : undefined,
+            title,
+          };
+        })
+        .filter(
+          (item): item is { evidenceId?: number; title: string } => !!item,
+        )
+    : undefined;
+  const recommendations = Array.isArray(data.nextRecommendedScenarios)
+    ? data.nextRecommendedScenarios
+        .map((item) => {
+          const row = item as Record<string, unknown>;
+          const scenarioId = Number(row.scenarioId ?? row.id ?? 0);
+          const title = String(row.title ?? "").trim();
+          if (!scenarioId || !title) return null;
+          return {
+            scenarioId,
+            title,
+            description:
+              typeof row.description === "string" ? row.description : undefined,
+            thumbnailUrl:
+              typeof row.thumbnailUrl === "string"
+                ? row.thumbnailUrl
+                : undefined,
+          };
+        })
+        .filter(
+          (item): item is NonNullable<Result["nextRecommendedScenarios"]>[0] =>
+            !!item,
+        )
+    : undefined;
+
+  return {
+    sessionId: Number(data.sessionId ?? sessionIdFallback(data) ?? 0),
+    score: Number(data.score ?? 0),
+    grade: String(data.grade ?? "-"),
+    feedback: typeof data.feedback === "string" ? data.feedback : undefined,
+    fullExplanation:
+      typeof data.fullExplanation === "string"
+        ? data.fullExplanation
+        : undefined,
+    correctCulprit:
+      correctCulprit && String(correctCulprit.name ?? "").trim()
+        ? {
+            suspectId:
+              typeof correctCulprit.suspectId === "number"
+                ? correctCulprit.suspectId
+                : correctCulprit.suspectId
+                  ? Number(correctCulprit.suspectId)
+                  : undefined,
+            name: String(correctCulprit.name),
+            role:
+              typeof correctCulprit.role === "string"
+                ? correctCulprit.role
+                : undefined,
+          }
+        : undefined,
+    matchedParts: Array.isArray(data.matchedParts)
+      ? data.matchedParts.map((part) => String(part)).filter(Boolean)
+      : undefined,
+    missedParts: Array.isArray(data.missedParts)
+      ? data.missedParts.map((part) => String(part)).filter(Boolean)
+      : undefined,
+    keyEvidences,
+    nextRecommendedScenarios: recommendations,
+    matched: {
+      culprit: matched.culprit === true,
+      motive: matched.motive === true,
+      method: matched.method === true,
+      coverUp: matched.coverUp === true,
+      keyEvidences: Number(matched.keyEvidences ?? 0),
+    },
+  };
+}
+
+function sessionIdFallback(data: Record<string, unknown>) {
+  return data.playSessionId ?? data.id;
+}
+
 function formatDifficulty(value: string) {
   if (value === "EASY") return "쉬움";
   if (value === "HARD") return "어려움";
@@ -542,11 +758,28 @@ function initials(name: string) {
   return name.trim().slice(0, 2).toUpperCase() || "CR";
 }
 
+function formatDateTime(value?: string) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("ko-KR", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 function App() {
   const [view, setView] = useState<View>("home");
   const [tokens, setTokens] = useState<Tokens | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [records, setRecords] = useState<RecordItem[]>([]);
+  const [imagePreview, setImagePreview] = useState<ImagePreview | null>(null);
 
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [scenarioLoading, setScenarioLoading] = useState(false);
@@ -633,6 +866,10 @@ function App() {
     if (authReady) void loadScenarios();
   }, [authReady]);
 
+  useEffect(() => {
+    void loadRecords();
+  }, []);
+
   async function persistTokens(next: Tokens) {
     await safeSet(ACCESS_KEY, next.accessToken);
     if (next.refreshToken) await safeSet(REFRESH_KEY, next.refreshToken);
@@ -643,6 +880,7 @@ function App() {
     await safeRemove(ACCESS_KEY);
     await safeRemove(REFRESH_KEY);
     setTokens(null);
+    setProfile(null);
     setSessionId(null);
     setDashboard(null);
     setEvidences([]);
@@ -651,6 +889,108 @@ function App() {
     setLocations([]);
     setHints([]);
     setView("login");
+  }
+
+  async function loadRecords() {
+    const stored = await safeGet(RECORDS_KEY);
+    if (!stored) return;
+    try {
+      const parsed = JSON.parse(stored);
+      const list = Array.isArray(parsed)
+        ? parsed
+            .map(normalizeRecord)
+            .filter((item): item is RecordItem => !!item)
+        : [];
+      setRecords(list);
+    } catch {
+      await safeRemove(RECORDS_KEY);
+      setRecords([]);
+    }
+  }
+
+  async function persistRecords(next: RecordItem[]) {
+    const sorted = [...next]
+      .sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      )
+      .slice(0, 30);
+    setRecords(sorted);
+    await safeSet(RECORDS_KEY, JSON.stringify(sorted));
+  }
+
+  async function upsertRecord(record: RecordItem) {
+    const stored = await safeGet(RECORDS_KEY);
+    const storedRecords = stored
+      ? (() => {
+          try {
+            const parsed = JSON.parse(stored);
+            return Array.isArray(parsed)
+              ? parsed
+                  .map(normalizeRecord)
+                  .filter((item): item is RecordItem => !!item)
+              : [];
+          } catch {
+            return [];
+          }
+        })()
+      : [];
+    const source = records.length ? records : storedRecords;
+    const next = [
+      record,
+      ...source.filter((item) => item.recordId !== record.recordId),
+    ];
+    await persistRecords(next);
+  }
+
+  async function saveInProgressRecord(
+    nextSessionId: number,
+    scenario: Scenario,
+  ) {
+    await upsertRecord({
+      recordId: `session-${nextSessionId}`,
+      sessionId: nextSessionId,
+      scenarioId: scenario.scenarioId,
+      scenarioTitle: scenario.title,
+      status: "IN_PROGRESS",
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  async function saveCompletedRecord(finalResult: Result) {
+    await upsertRecord({
+      recordId: `session-${finalResult.sessionId || sessionId || Date.now()}`,
+      sessionId: finalResult.sessionId || sessionId || undefined,
+      scenarioId: dashboard?.scenarioId ?? selectedScenario?.scenarioId,
+      scenarioTitle:
+        dashboard?.scenarioTitle ?? selectedScenario?.title ?? "완료한 사건",
+      status: "COMPLETED",
+      score: finalResult.score,
+      grade: finalResult.grade,
+      updatedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+    });
+  }
+
+  async function loadProfile() {
+    setProfileLoading(true);
+    setProfileError(null);
+    try {
+      const data = await authedRequest<unknown>("/api/auth/me");
+      setProfile(normalizeUserProfile(data));
+    } catch (error) {
+      setProfileError(
+        error instanceof Error
+          ? error.message
+          : "내 정보를 불러오지 못했습니다.",
+      );
+      setProfile({
+        nickname: "탐정 견습생",
+        provider: "TOSS",
+      });
+    } finally {
+      setProfileLoading(false);
+    }
   }
 
   async function refreshTokens() {
@@ -816,6 +1156,7 @@ function App() {
       setSessionId(nextSessionId);
       setCaseTab("scene");
       setView("case");
+      await saveInProgressRecord(nextSessionId, scenario);
       await loadCase(nextSessionId);
     } catch (error) {
       setCaseError(
@@ -1065,7 +1406,10 @@ function App() {
     let lastError: unknown;
     for (let attempt = 0; attempt < 8; attempt += 1) {
       try {
-        return await authedRequest<Result>(`/api/play-sessions/${id}/result`);
+        const data = await authedRequest<unknown>(
+          `/api/play-sessions/${id}/result`,
+        );
+        return normalizeResult(data);
       } catch (error) {
         lastError = error;
         await delay(1500);
@@ -1083,26 +1427,30 @@ function App() {
 
     setSubmitting(true);
     try {
-      const submitted = await authedRequest<Result>(
-        `/api/play-sessions/${sessionId}/final-deduction`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            selectedCulpritId,
-            motiveText,
-            methodText,
-            coverUpText,
-            selectedEvidenceIds,
-          }),
-        },
+      const submitted = normalizeResult(
+        await authedRequest<unknown>(
+          `/api/play-sessions/${sessionId}/final-deduction`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              selectedCulpritId,
+              motiveText,
+              methodText,
+              coverUpText,
+              selectedEvidenceIds,
+            }),
+          },
+        ),
       );
-      setResult(submitted);
+      let displayResult = submitted;
+      setResult(displayResult);
       try {
-        const finalResult = await pollResult(sessionId);
-        setResult(finalResult);
+        displayResult = await pollResult(sessionId);
+        setResult(displayResult);
       } catch {
         // 제출 응답만으로도 결과 화면을 구성할 수 있다.
       }
+      await saveCompletedRecord(displayResult);
       setView("result");
     } catch (error) {
       if (
@@ -1111,6 +1459,7 @@ function App() {
       ) {
         const finalResult = await pollResult(sessionId);
         setResult(finalResult);
+        await saveCompletedRecord(finalResult);
         setView("result");
       } else {
         setCaseError(
@@ -1133,6 +1482,15 @@ function App() {
     [suspects],
   );
 
+  function openProfile() {
+    if (!tokens) {
+      setView("login");
+      return;
+    }
+    void loadProfile();
+    setView("profile");
+  }
+
   if (!authReady) {
     return (
       <Shell title="ClueRoom">
@@ -1146,6 +1504,7 @@ function App() {
       title="ClueRoom"
       onHome={() => setView("home")}
       onLibrary={() => setView("library")}
+      onProfile={tokens ? openProfile : undefined}
       onLogout={tokens ? logout : undefined}
     >
       {view === "login" && (
@@ -1162,10 +1521,33 @@ function App() {
           scenarioCount={scenarios.length}
           onLogin={() => setView("login")}
           onBrowse={() => setView("library")}
+          onProfile={openProfile}
+          onRecords={() => setView(tokens ? "records" : "login")}
           onResume={() => {
             if (sessionId) setView("case");
           }}
           hasSession={!!sessionId}
+        />
+      )}
+
+      {view === "profile" && (
+        <ProfileScreen
+          profile={profile}
+          loading={profileLoading}
+          error={profileError}
+          records={records}
+          onRefresh={loadProfile}
+          onRecords={() => setView("records")}
+          onLibrary={() => setView("library")}
+          onLogout={logout}
+        />
+      )}
+
+      {view === "records" && (
+        <RecordsScreen
+          records={records}
+          onBack={() => setView("profile")}
+          onLibrary={() => setView("library")}
         />
       )}
 
@@ -1186,6 +1568,7 @@ function App() {
           error={scenarioDetailError}
           onBack={() => setView("library")}
           onStart={() => setView("briefing")}
+          onOpenImage={(preview) => setImagePreview(preview)}
         />
       )}
 
@@ -1226,6 +1609,7 @@ function App() {
           loading={evidenceDetailLoading}
           error={evidenceDetailError}
           onBack={() => setView("case")}
+          onOpenImage={(preview) => setImagePreview(preview)}
           onCompareEvidence={(evidenceId) => {
             const target = evidences.find((e) => e.evidenceId === evidenceId);
             if (target) void openEvidenceDetail(target);
@@ -1311,6 +1695,12 @@ function App() {
           onLibrary={() => setView("library")}
         />
       )}
+      {imagePreview && (
+        <ImageViewer
+          preview={imagePreview}
+          onClose={() => setImagePreview(null)}
+        />
+      )}
     </Shell>
   );
 }
@@ -1320,12 +1710,14 @@ function Shell({
   title,
   onHome,
   onLibrary,
+  onProfile,
   onLogout,
 }: {
   children: React.ReactNode;
   title: string;
   onHome?: () => void;
   onLibrary?: () => void;
+  onProfile?: () => void;
   onLogout?: () => void;
 }) {
   return (
@@ -1344,6 +1736,16 @@ function Shell({
               title="사건"
             >
               사건
+            </button>
+          )}
+          {onProfile && (
+            <button
+              className="icon-button"
+              onClick={onProfile}
+              type="button"
+              title="내 정보"
+            >
+              내 정보
             </button>
           )}
           {onLogout && (
@@ -1414,6 +1816,8 @@ function HomeScreen({
   hasSession,
   onLogin,
   onBrowse,
+  onProfile,
+  onRecords,
   onResume,
 }: {
   isLoggedIn: boolean;
@@ -1421,6 +1825,8 @@ function HomeScreen({
   hasSession: boolean;
   onLogin: () => void;
   onBrowse: () => void;
+  onProfile: () => void;
+  onRecords: () => void;
   onResume: () => void;
 }) {
   return (
@@ -1445,11 +1851,153 @@ function HomeScreen({
         <Stat label="진행" value={hasSession ? "수사 중" : "대기"} />
         <Stat label="방식" value="AI 심문" />
       </div>
+      <div className="quick-actions">
+        <button className="button secondary" onClick={onProfile} type="button">
+          내 정보
+        </button>
+        <button className="button ghost" onClick={onRecords} type="button">
+          수사 기록
+        </button>
+      </div>
       {hasSession && (
         <button className="button secondary" onClick={onResume} type="button">
           진행 중인 수사로 돌아가기
         </button>
       )}
+    </section>
+  );
+}
+
+function ProfileScreen({
+  profile,
+  loading,
+  error,
+  records,
+  onRefresh,
+  onRecords,
+  onLibrary,
+  onLogout,
+}: {
+  profile: UserProfile | null;
+  loading: boolean;
+  error: string | null;
+  records: RecordItem[];
+  onRefresh: () => void;
+  onRecords: () => void;
+  onLibrary: () => void;
+  onLogout: () => void;
+}) {
+  const completed = records.filter((record) => record.status === "COMPLETED");
+  const bestScore = completed.reduce(
+    (max, record) => Math.max(max, record.score ?? 0),
+    0,
+  );
+  const displayName = profile?.nickname ?? "탐정 견습생";
+
+  return (
+    <section className="stack">
+      <ScreenTitle title="내 정보" subtitle="MY PAGE" />
+      <article className="profile-card">
+        <div className="profile-avatar">
+          {profile?.profileImageUrl ? (
+            <img src={profile.profileImageUrl} alt="" />
+          ) : (
+            <span>{initials(displayName)}</span>
+          )}
+        </div>
+        <div>
+          <h2>{displayName}</h2>
+          <p className="muted">{profile?.email ?? "토스 로그인 사용자"}</p>
+          <div className="meta-row">
+            <span>{profile?.provider ?? "TOSS"}</span>
+            <span>{loading ? "동기화 중" : "인증됨"}</span>
+          </div>
+        </div>
+      </article>
+      {error && (
+        <article className="info-card">
+          <p className="mini-title">동기화 안내</p>
+          <p className="card-body">{error}</p>
+          <button className="chip" onClick={onRefresh} type="button">
+            다시 확인
+          </button>
+        </article>
+      )}
+      <div className="stats-grid">
+        <Stat label="완료" value={`${completed.length}건`} />
+        <Stat label="최고 점수" value={bestScore ? `${bestScore}` : "-"} />
+        <Stat
+          label="진행"
+          value={
+            records.some((record) => record.status === "IN_PROGRESS")
+              ? "있음"
+              : "없음"
+          }
+        />
+      </div>
+      <div className="menu-list">
+        <button className="menu-item" onClick={onRecords} type="button">
+          <span>수사 기록</span>
+          <small>완료한 사건과 진행 중인 사건을 확인합니다</small>
+        </button>
+        <button className="menu-item" onClick={onLibrary} type="button">
+          <span>사건 라이브러리</span>
+          <small>새로운 사건을 선택합니다</small>
+        </button>
+        <button className="menu-item danger" onClick={onLogout} type="button">
+          <span>로그아웃</span>
+          <small>이 기기의 로그인 세션을 종료합니다</small>
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function RecordsScreen({
+  records,
+  onBack,
+  onLibrary,
+}: {
+  records: RecordItem[];
+  onBack: () => void;
+  onLibrary: () => void;
+}) {
+  return (
+    <section className="stack">
+      <button className="icon-button fit" onClick={onBack} type="button">
+        내 정보로 돌아가기
+      </button>
+      <ScreenTitle title="수사 기록" subtitle="MY RECORDS" />
+      {!records.length && (
+        <StateBlock
+          title="아직 기록이 없습니다"
+          body="사건을 시작하거나 최종 추리를 제출하면 이곳에 기록됩니다."
+          action={onLibrary}
+        />
+      )}
+      <div className="records-list">
+        {records.map((record) => (
+          <article className="record-card" key={record.recordId}>
+            <div>
+              <p className="eyebrow">
+                {record.status === "COMPLETED" ? "COMPLETED" : "IN PROGRESS"}
+              </p>
+              <h2>{record.scenarioTitle}</h2>
+              <p className="muted">
+                {record.status === "COMPLETED"
+                  ? `${formatDateTime(record.completedAt ?? record.updatedAt)} 완료`
+                  : `${formatDateTime(record.updatedAt)} 업데이트`}
+              </p>
+            </div>
+            <div className="record-score">
+              <strong>{record.grade ?? "-"}</strong>
+              <span>
+                {record.score != null ? `${record.score}점` : "진행 중"}
+              </span>
+            </div>
+          </article>
+        ))}
+      </div>
     </section>
   );
 }
@@ -1523,25 +2071,40 @@ function ScenarioDetailScreen({
   error,
   onBack,
   onStart,
+  onOpenImage,
 }: {
   scenario: Scenario;
   loading: boolean;
   error: string | null;
   onBack: () => void;
   onStart: () => void;
+  onOpenImage: (preview: ImagePreview) => void;
 }) {
   return (
     <section className="stack">
       <button className="icon-button fit" onClick={onBack} type="button">
         라이브러리로 돌아가기
       </button>
-      <div className="scenario-hero">
+      <button
+        className="image-button scenario-hero"
+        disabled={!scenario.thumbnailUrl}
+        onClick={() => {
+          if (scenario.thumbnailUrl) {
+            onOpenImage({
+              url: scenario.thumbnailUrl,
+              title: scenario.title,
+              subtitle: "시나리오 이미지",
+            });
+          }
+        }}
+        type="button"
+      >
         {scenario.thumbnailUrl ? (
           <img src={scenario.thumbnailUrl} alt="" />
         ) : (
           <span>CL-{String(scenario.scenarioId).padStart(3, "0")}</span>
         )}
-      </div>
+      </button>
       <div className="screen-title">
         <p className="eyebrow">
           {scenario.scenarioType === "CUSTOM" ? "CUSTOM CASE" : "OFFICIAL CASE"}
@@ -1978,6 +2541,7 @@ function EvidenceDetailScreen({
   loading,
   error,
   onBack,
+  onOpenImage,
   onCompareEvidence,
   onChat,
 }: {
@@ -1987,6 +2551,7 @@ function EvidenceDetailScreen({
   loading: boolean;
   error: string | null;
   onBack: () => void;
+  onOpenImage: (preview: ImagePreview) => void;
   onCompareEvidence: (evidenceId: number) => void;
   onChat: (suspect: Suspect, prefill?: SuggestedQuestion) => void;
 }) {
@@ -1999,13 +2564,26 @@ function EvidenceDetailScreen({
       <button className="icon-button fit" onClick={onBack} type="button">
         증거 목록으로 돌아가기
       </button>
-      <div className="evidence-hero">
+      <button
+        className="image-button evidence-hero"
+        disabled={!evidence.imageUrl}
+        onClick={() => {
+          if (evidence.imageUrl) {
+            onOpenImage({
+              url: evidence.imageUrl,
+              title: evidence.isUnlocked ? evidence.title : "잠긴 증거",
+              subtitle: evidence.locationName ?? "증거 이미지",
+            });
+          }
+        }}
+        type="button"
+      >
         {evidence.imageUrl ? (
           <img src={evidence.imageUrl} alt="" />
         ) : (
           <span>{evidence.isUnlocked ? "EV" : "LOCKED"}</span>
         )}
-      </div>
+      </button>
       <ScreenTitle
         title={evidence.isUnlocked ? evidence.title : "잠긴 증거"}
         subtitle="EVIDENCE"
@@ -2503,11 +3081,93 @@ function ResultScreen({
       {result.fullExplanation && (
         <InfoPanel title="해설" body={result.fullExplanation} />
       )}
-      <div className="stats-grid">
-        <Stat label="범인" value={result.matched?.culprit ? "일치" : "확인"} />
-        <Stat label="동기" value={result.matched?.motive ? "일치" : "확인"} />
-        <Stat label="증거" value={`${result.matched?.keyEvidences ?? 0}개`} />
-      </div>
+      {result.correctCulprit && (
+        <InfoPanel
+          title="정답 범인"
+          body={`${result.correctCulprit.name}${result.correctCulprit.role ? ` · ${result.correctCulprit.role}` : ""}`}
+        />
+      )}
+      <article className="info-card">
+        <p className="mini-title">채점 요약</p>
+        <div className="result-match-list">
+          <ResultMatchRow
+            label="범인"
+            matched={result.matched?.culprit === true}
+          />
+          <ResultMatchRow
+            label="동기"
+            matched={result.matched?.motive === true}
+          />
+          <ResultMatchRow
+            label="수법"
+            matched={result.matched?.method === true}
+          />
+          <ResultMatchRow
+            label="은폐"
+            matched={result.matched?.coverUp === true}
+          />
+        </div>
+      </article>
+      {!!result.matchedParts?.length && (
+        <article className="info-card">
+          <p className="mini-title">맞힌 항목</p>
+          <div className="chip-row">
+            {result.matchedParts.map((part) => (
+              <span className="chip active" key={part}>
+                {part}
+              </span>
+            ))}
+          </div>
+        </article>
+      )}
+      {!!result.missedParts?.length && (
+        <article className="info-card">
+          <p className="mini-title">보완할 항목</p>
+          <div className="chip-row">
+            {result.missedParts.map((part) => (
+              <span className="chip" key={part}>
+                {part}
+              </span>
+            ))}
+          </div>
+        </article>
+      )}
+      {!!result.keyEvidences?.length && (
+        <article className="info-card">
+          <p className="mini-title">핵심 증거 회고</p>
+          <div className="card-list compact">
+            {result.keyEvidences.map((evidence, index) => (
+              <div
+                className="evidence-row static"
+                key={`${evidence.evidenceId ?? index}-${evidence.title}`}
+              >
+                <span>{evidence.title}</span>
+                <small>결과 기준</small>
+              </div>
+            ))}
+          </div>
+        </article>
+      )}
+      {!!result.nextRecommendedScenarios?.length && (
+        <article className="info-card">
+          <p className="mini-title">다음 추천 사건</p>
+          <div className="recommendation-list">
+            {result.nextRecommendedScenarios.map((scenario) => (
+              <div className="recommendation-card" key={scenario.scenarioId}>
+                {scenario.thumbnailUrl ? (
+                  <img src={scenario.thumbnailUrl} alt="" />
+                ) : (
+                  <span>CL</span>
+                )}
+                <div>
+                  <strong>{scenario.title}</strong>
+                  {scenario.description && <p>{scenario.description}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </article>
+      )}
       <button className="button primary" onClick={onLibrary} type="button">
         다른 사건 보기
       </button>
@@ -2515,6 +3175,21 @@ function ResultScreen({
         홈으로
       </button>
     </section>
+  );
+}
+
+function ResultMatchRow({
+  label,
+  matched,
+}: {
+  label: string;
+  matched: boolean;
+}) {
+  return (
+    <div className={`result-match-row ${matched ? "matched" : ""}`}>
+      <span>{label}</span>
+      <strong>{matched ? "일치" : "확인 필요"}</strong>
+    </div>
   );
 }
 
@@ -2612,6 +3287,37 @@ function StateBlock({
           다시 시도
         </button>
       )}
+    </div>
+  );
+}
+
+function ImageViewer({
+  preview,
+  onClose,
+}: {
+  preview: ImagePreview;
+  onClose: () => void;
+}) {
+  return (
+    <div className="image-viewer" role="dialog" aria-modal="true">
+      <button
+        className="image-viewer-backdrop"
+        onClick={onClose}
+        type="button"
+        aria-label="닫기"
+      />
+      <div className="image-viewer-panel">
+        <div className="image-viewer-topbar">
+          <div>
+            <p className="eyebrow">{preview.subtitle ?? "IMAGE"}</p>
+            <h2>{preview.title}</h2>
+          </div>
+          <button className="icon-button" onClick={onClose} type="button">
+            닫기
+          </button>
+        </div>
+        <img src={preview.url} alt="" />
+      </div>
     </div>
   );
 }

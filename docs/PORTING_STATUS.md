@@ -37,6 +37,11 @@ Last updated: 2026-06-16
 - result polling
 - result screen neutral empty state
 - session abandon
+- my page/profile screen
+- local investigation records screen
+- scenario/evidence image full-screen viewer
+- result scoring detail cards
+- result recommendation card rendering when backend provides data
 
 ## Waiting On Backend
 
@@ -46,15 +51,14 @@ Last updated: 2026-06-16
 - TOSS provider user mapping
 - ClueRoom JWT issuance for Toss login
 - production CORS check for Apps in Toss WebView
+- production `/api/auth/me` response smoke from Toss-issued JWT
 
 ## Still To Port Or Recheck
 
 - actual Apps in Toss sandbox/device login E2E
 - scenario review/write UI
-- my page/profile/records
-- image full-screen viewer
 - richer location map interaction
-- result recommendation cards
+- backend-backed records API if the product requires cross-device history
 - store review policy copy and game rating metadata
 - accessibility pass
 - visual QA against Flutter screens
