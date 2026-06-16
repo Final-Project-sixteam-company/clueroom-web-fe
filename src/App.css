@@ -1288,6 +1288,66 @@ textarea {
   padding: 16px;
 }
 
+.evidence-picker-dialog {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  max-height: 82vh;
+  box-sizing: border-box;
+  flex-direction: column;
+  gap: 14px;
+  border: 1px solid #334155;
+  border-radius: 18px 18px 0 0;
+  background: #1e293b;
+  padding: 16px;
+}
+
+.evidence-picker-dialog .state-block {
+  min-height: 160px;
+}
+
+.picker-list {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  padding-bottom: 8px;
+}
+
+.picker-row {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #f1f5f9;
+  padding: 10px;
+  text-align: left;
+}
+
+.picker-row.active {
+  border-color: rgba(56, 189, 248, 0.58);
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.picker-row strong {
+  display: block;
+  color: #e2e8f0;
+  font-size: 13px;
+}
+
+.picker-row p {
+  margin-top: 4px;
+  color: #94a3b8;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .modal-handle {
   width: 42px;
   height: 4px;

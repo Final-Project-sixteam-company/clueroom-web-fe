@@ -27,6 +27,7 @@ Last updated: 2026-06-16
 - location detail image viewer
 - hints list and use-hint action
 - evidence list
+- evidence search and unlocked/locked filter
 - evidence detail
 - evidence guidance reading points
 - locked compare evidence masking
@@ -35,6 +36,7 @@ Last updated: 2026-06-16
 - suspect detail
 - suspect interrogation logs
 - interrogation chat
+- searchable evidence-present picker in interrogation chat
 - evidence-presented question send
 - recommended question prefill-only behavior
 - final deduction submit

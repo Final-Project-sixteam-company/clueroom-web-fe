@@ -2968,45 +2968,95 @@ function EvidenceList({
   evidences: Evidence[];
   onEvidenceDetail: (evidence: Evidence) => void;
 }) {
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<"all" | "unlocked" | "locked">("all");
+  const filtered = [...evidences]
+    .sort((a, b) => {
+      if (a.isUnlocked !== b.isUnlocked) return a.isUnlocked ? -1 : 1;
+      return a.title.localeCompare(b.title);
+    })
+    .filter((evidence) => {
+      const keyword = query.trim();
+      const matchesQuery =
+        !keyword ||
+        evidence.title.includes(keyword) ||
+        (evidence.locationName ?? "").includes(keyword) ||
+        (evidence.categoryLabel ?? evidence.category ?? "").includes(keyword);
+      const matchesFilter =
+        filter === "all" ||
+        (filter === "unlocked" && evidence.isUnlocked) ||
+        (filter === "locked" && !evidence.isUnlocked);
+      return matchesQuery && matchesFilter;
+    });
+
   return (
-    <div className="card-list">
-      {evidences.map((evidence) => (
-        <button
-          className={`info-card evidence-card ${evidence.isUnlocked ? "" : "locked"}`}
-          key={evidence.evidenceId}
-          onClick={() => onEvidenceDetail(evidence)}
-          type="button"
-        >
-          <div className="row">
-            <div className="evidence-thumb">
-              {evidence.imageUrl ? (
-                <img src={evidence.imageUrl} alt="" />
-              ) : (
-                "EV"
-              )}
-            </div>
-            <div>
-              <div className="card-title">
-                {evidence.isUnlocked ? evidence.title : "잠긴 증거"}
+    <div className="stack">
+      <div className="search-row">
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="증거 이름 · 장소 검색"
+        />
+      </div>
+      <FilterChips
+        label="상태"
+        options={[
+          ["all", "전체"],
+          ["unlocked", "확보됨"],
+          ["locked", "잠김"],
+        ]}
+        value={filter}
+        onChange={(value) => setFilter(value as typeof filter)}
+      />
+      <div className="meta-row">
+        <span>{filtered.length}개</span>
+        {query.trim() && <span>검색: {query.trim()}</span>}
+      </div>
+      {!filtered.length && (
+        <StateBlock
+          title="일치하는 증거가 없습니다"
+          body="검색어나 필터를 바꿔 보세요."
+        />
+      )}
+      <div className="card-list">
+        {filtered.map((evidence) => (
+          <button
+            className={`info-card evidence-card ${evidence.isUnlocked ? "" : "locked"}`}
+            key={evidence.evidenceId}
+            onClick={() => onEvidenceDetail(evidence)}
+            type="button"
+          >
+            <div className="row">
+              <div className="evidence-thumb">
+                {evidence.imageUrl ? (
+                  <img src={evidence.imageUrl} alt="" />
+                ) : (
+                  "EV"
+                )}
               </div>
-              <p className="card-body">
-                {evidence.isUnlocked
-                  ? evidence.oneLine ||
-                    evidence.description ||
-                    "증거 설명이 없습니다."
-                  : evidence.unlockHint ||
-                    "수사를 진행하면 확인할 수 있습니다."}
-              </p>
-              <div className="meta-row">
-                <span>{evidence.locationName ?? "위치 미상"}</span>
-                <span>
-                  {evidence.categoryLabel ?? evidence.category ?? "증거"}
-                </span>
+              <div>
+                <div className="card-title">
+                  {evidence.isUnlocked ? evidence.title : "잠긴 증거"}
+                </div>
+                <p className="card-body">
+                  {evidence.isUnlocked
+                    ? evidence.oneLine ||
+                      evidence.description ||
+                      "증거 설명이 없습니다."
+                    : evidence.unlockHint ||
+                      "수사를 진행하면 확인할 수 있습니다."}
+                </p>
+                <div className="meta-row">
+                  <span>{evidence.locationName ?? "위치 미상"}</span>
+                  <span>
+                    {evidence.categoryLabel ?? evidence.category ?? "증거"}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-        </button>
-      ))}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -3401,6 +3451,7 @@ function ChatScreen({
   onClearEvidence: () => void;
   onSend: () => void;
 }) {
+  const [evidencePickerOpen, setEvidencePickerOpen] = useState(false);
   const canned = [
     "그 시간에 어디에 있었나요?",
     "피해자와 마지막으로 나눈 대화는 무엇인가요?",
@@ -3444,20 +3495,14 @@ function ChatScreen({
           </button>
         ))}
       </div>
-      <select
-        className="select"
-        onChange={(e) => {
-          if (e.target.value) onAttachEvidence(Number(e.target.value));
-        }}
-        value={pendingEvidence?.evidenceId ?? ""}
+      <button
+        className="button ghost"
+        onClick={() => setEvidencePickerOpen(true)}
+        disabled={!evidences.length}
+        type="button"
       >
-        <option value="">증거 선택 안 함</option>
-        {evidences.map((evidence) => (
-          <option key={evidence.evidenceId} value={evidence.evidenceId}>
-            {evidence.title}
-          </option>
-        ))}
-      </select>
+        {pendingEvidence ? "제시 증거 변경" : "제시할 증거 선택"}
+      </button>
       {pendingEvidence && (
         <div className="attached-evidence">
           증거 연동됨: {pendingEvidence.title}
@@ -3481,7 +3526,102 @@ function ChatScreen({
           전송
         </button>
       </div>
+      {evidencePickerOpen && (
+        <EvidencePickerDialog
+          evidences={evidences}
+          selectedEvidenceId={pendingEvidence?.evidenceId}
+          onCancel={() => setEvidencePickerOpen(false)}
+          onSelect={(evidenceId) => {
+            onAttachEvidence(evidenceId);
+            setEvidencePickerOpen(false);
+          }}
+        />
+      )}
     </section>
+  );
+}
+
+function EvidencePickerDialog({
+  evidences,
+  selectedEvidenceId,
+  onCancel,
+  onSelect,
+}: {
+  evidences: Evidence[];
+  selectedEvidenceId?: number;
+  onCancel: () => void;
+  onSelect: (evidenceId: number) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const filtered = evidences.filter((evidence) => {
+    const keyword = query.trim();
+    return (
+      !keyword ||
+      evidence.title.includes(keyword) ||
+      (evidence.locationName ?? "").includes(keyword) ||
+      (evidence.categoryLabel ?? evidence.category ?? "").includes(keyword)
+    );
+  });
+
+  return (
+    <div className="modal-shell" role="dialog" aria-modal="true">
+      <button
+        className="modal-backdrop"
+        onClick={onCancel}
+        type="button"
+        aria-label="닫기"
+      />
+      <div className="evidence-picker-dialog">
+        <div className="modal-handle" />
+        <div className="section-header">
+          <div>
+            <p className="eyebrow">PRESENT EVIDENCE</p>
+            <h2>제시할 증거 선택</h2>
+          </div>
+          <button className="icon-button" onClick={onCancel} type="button">
+            닫기
+          </button>
+        </div>
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="보유한 증거 검색"
+        />
+        {!filtered.length && (
+          <StateBlock
+            title="일치하는 증거가 없습니다"
+            body="다른 검색어를 입력하세요."
+          />
+        )}
+        <div className="picker-list">
+          {filtered.map((evidence) => (
+            <button
+              className={`picker-row ${
+                evidence.evidenceId === selectedEvidenceId ? "active" : ""
+              }`}
+              key={evidence.evidenceId}
+              onClick={() => onSelect(evidence.evidenceId)}
+              type="button"
+            >
+              <div className="evidence-thumb">
+                {evidence.imageUrl ? (
+                  <img src={evidence.imageUrl} alt="" />
+                ) : (
+                  "EV"
+                )}
+              </div>
+              <div>
+                <strong>{evidence.title}</strong>
+                <p>
+                  {evidence.locationName ?? "위치 미상"} ·{" "}
+                  {evidence.categoryLabel ?? evidence.category ?? "증거"}
+                </p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
