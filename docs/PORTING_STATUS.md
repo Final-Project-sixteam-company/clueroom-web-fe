@@ -40,6 +40,7 @@ Last updated: 2026-06-16
 - evidence-presented question send
 - recommended question prefill-only behavior
 - final deduction submit
+- final deduction checklist and confirmation dialog
 - duplicate/final-submitted result recovery
 - result polling
 - result screen neutral empty state
@@ -49,6 +50,7 @@ Last updated: 2026-06-16
 - scenario/evidence image full-screen viewer
 - result scoring detail cards
 - result recommendation card rendering when backend provides data
+- post-result local review entry point
 - release checklist for Apps in Toss and Google Play artifact split
 
 ## Waiting On Backend

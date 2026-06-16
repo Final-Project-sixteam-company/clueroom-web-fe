@@ -1652,6 +1652,15 @@ function App() {
     () => suspects.filter((s) => !s.isWitness),
     [suspects],
   );
+  const currentReviewTarget =
+    dashboard != null
+      ? { scenarioId: dashboard.scenarioId, title: dashboard.scenarioTitle }
+      : selectedScenario
+        ? {
+            scenarioId: selectedScenario.scenarioId,
+            title: selectedScenario.title,
+          }
+        : null;
 
   function openProfile() {
     if (!tokens) {
@@ -1883,6 +1892,11 @@ function App() {
           result={result}
           onHome={() => setView("home")}
           onLibrary={() => setView("library")}
+          onWriteReview={
+            currentReviewTarget
+              ? () => setReviewDraftTarget(currentReviewTarget)
+              : undefined
+          }
         />
       )}
       {imagePreview && (
@@ -3660,6 +3674,13 @@ function SubmitScreen({
   onBack: () => void;
   onSubmit: () => void;
 }) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const selectedSuspect = suspects.find(
+    (suspect) => suspect.suspectId === selectedCulpritId,
+  );
+  const selectedEvidences = evidences.filter((evidence) =>
+    selectedEvidenceIds.includes(evidence.evidenceId),
+  );
   const canSubmit =
     !!selectedCulpritId &&
     motiveText.trim() &&
@@ -3683,6 +3704,18 @@ function SubmitScreen({
         title="제출 조건"
         body="범인, 동기, 수법, 은폐 방식, 증거를 입력하세요."
       />
+      <SubmitChecklist
+        items={[
+          ["진범 지목", !!selectedCulpritId],
+          ["동기 입력", !!motiveText.trim()],
+          ["수법 입력", !!methodText.trim()],
+          ["은폐 입력", !!coverUpText.trim()],
+          [
+            "제출 증거 1~15개",
+            selectedEvidenceIds.length >= 1 && selectedEvidenceIds.length <= 15,
+          ],
+        ]}
+      />
       <label className="field-label">범인 지목</label>
       <select
         className="select"
@@ -3699,13 +3732,37 @@ function SubmitScreen({
       <TextArea label="동기" value={motiveText} onChange={setMotiveText} />
       <TextArea label="수법" value={methodText} onChange={setMethodText} />
       <TextArea label="은폐" value={coverUpText} onChange={setCoverUpText} />
-      <label className="field-label">제출 증거</label>
+      <label className="field-label">
+        제출 증거 {selectedEvidenceIds.length}/15
+      </label>
+      {!!selectedEvidences.length && (
+        <div className="selected-summary">
+          {selectedEvidences.map((evidence) => (
+            <button
+              className="chip active"
+              key={evidence.evidenceId}
+              onClick={() =>
+                setSelectedEvidenceIds(
+                  selectedEvidenceIds.filter(
+                    (id) => id !== evidence.evidenceId,
+                  ),
+                )
+              }
+              type="button"
+            >
+              {evidence.title}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="evidence-picker">
         {evidences.map((evidence) => {
           const active = selectedEvidenceIds.includes(evidence.evidenceId);
+          const disabled = !active && selectedEvidenceIds.length >= 15;
           return (
             <button
               className={`chip ${active ? "active" : ""}`}
+              disabled={disabled}
               key={evidence.evidenceId}
               onClick={() => {
                 setSelectedEvidenceIds(
@@ -3726,13 +3783,94 @@ function SubmitScreen({
       {error && <p className="error-text">{error}</p>}
       <button
         className="button primary"
-        onClick={onSubmit}
+        onClick={() => setConfirmOpen(true)}
         disabled={!canSubmit || submitting}
         type="button"
       >
         {submitting ? "제출 중" : "최종 추리 제출"}
       </button>
+      {confirmOpen && (
+        <SubmitConfirmDialog
+          suspectName={selectedSuspect?.name ?? "선택한 인물"}
+          evidenceCount={selectedEvidenceIds.length}
+          submitting={submitting}
+          onCancel={() => setConfirmOpen(false)}
+          onConfirm={() => {
+            setConfirmOpen(false);
+            onSubmit();
+          }}
+        />
+      )}
     </section>
+  );
+}
+
+function SubmitChecklist({ items }: { items: [string, boolean][] }) {
+  return (
+    <div className="submit-checklist">
+      {items.map(([label, met]) => (
+        <div className={`submit-check ${met ? "met" : ""}`} key={label}>
+          <span>{met ? "OK" : "대기"}</span>
+          <strong>{label}</strong>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SubmitConfirmDialog({
+  suspectName,
+  evidenceCount,
+  submitting,
+  onCancel,
+  onConfirm,
+}: {
+  suspectName: string;
+  evidenceCount: number;
+  submitting: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="modal-shell" role="dialog" aria-modal="true">
+      <button
+        className="modal-backdrop"
+        onClick={onCancel}
+        disabled={submitting}
+        type="button"
+        aria-label="닫기"
+      />
+      <div className="confirm-dialog">
+        <p className="eyebrow">FINAL DEDUCTION</p>
+        <h2>최종 추리를 제출할까요?</h2>
+        <p className="card-body">
+          제출 후에는 이 세션의 답안을 다시 수정할 수 없습니다.
+        </p>
+        <div className="stats-grid">
+          <Stat label="지목" value={suspectName} />
+          <Stat label="증거" value={`${evidenceCount}개`} />
+          <Stat label="상태" value="채점" />
+        </div>
+        <div className="dialog-actions">
+          <button
+            className="button ghost"
+            onClick={onCancel}
+            disabled={submitting}
+            type="button"
+          >
+            더 확인
+          </button>
+          <button
+            className="button primary"
+            onClick={onConfirm}
+            disabled={submitting}
+            type="button"
+          >
+            제출
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -3740,10 +3878,12 @@ function ResultScreen({
   result,
   onHome,
   onLibrary,
+  onWriteReview,
 }: {
   result: Result | null;
   onHome: () => void;
   onLibrary: () => void;
+  onWriteReview?: () => void;
 }) {
   if (!result) {
     return (
@@ -3860,6 +4000,15 @@ function ResultScreen({
       <button className="button primary" onClick={onLibrary} type="button">
         다른 사건 보기
       </button>
+      {onWriteReview && (
+        <button
+          className="button secondary"
+          onClick={onWriteReview}
+          type="button"
+        >
+          리뷰 작성
+        </button>
+      )}
       <button className="button ghost" onClick={onHome} type="button">
         홈으로
       </button>

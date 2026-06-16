@@ -1101,10 +1101,58 @@ textarea {
   font-weight: 800;
 }
 
+.submit-checklist {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.submit-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #1e293b;
+  padding: 9px 10px;
+}
+
+.submit-check span {
+  min-width: 32px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.submit-check strong {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.submit-check.met {
+  border-color: rgba(56, 189, 248, 0.38);
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.submit-check.met span,
+.submit-check.met strong {
+  color: #7dd3fc;
+}
+
 .evidence-picker {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.selected-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  border-radius: 10px;
+  background: rgba(56, 189, 248, 0.08);
+  padding: 10px;
 }
 
 .timeline {
@@ -1301,6 +1349,22 @@ textarea {
   border-radius: 18px 18px 0 0;
   background: #1e293b;
   padding: 16px;
+}
+
+.confirm-dialog {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: min(100%, 448px);
+  box-sizing: border-box;
+  flex-direction: column;
+  gap: 14px;
+  justify-self: center;
+  align-self: center;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  background: #1e293b;
+  padding: 18px;
 }
 
 .evidence-picker-dialog .state-block {
