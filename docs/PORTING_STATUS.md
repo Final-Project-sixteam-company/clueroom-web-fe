@@ -34,6 +34,7 @@ Last updated: 2026-06-16
 - locked compare evidence masking
 - suggested question prefill navigation
 - suspect list
+- suspect search and suspect/witness filter
 - suspect detail
 - suspect interrogation logs
 - interrogation chat

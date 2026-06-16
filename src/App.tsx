@@ -3369,29 +3369,92 @@ function SuspectList({
   suspects: Suspect[];
   onSuspectDetail: (suspect: Suspect) => void;
 }) {
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<"all" | "suspect" | "witness">("all");
+  const suspectCount = suspects.filter((suspect) => !suspect.isWitness).length;
+  const witnessCount = suspects.filter((suspect) => suspect.isWitness).length;
+  const interrogationCount = suspects.reduce(
+    (sum, suspect) => sum + (suspect.interrogationCount ?? 0),
+    0,
+  );
+  const filtered = [...suspects]
+    .sort((a, b) => {
+      if ((a.isWitness ?? false) !== (b.isWitness ?? false)) {
+        return a.isWitness ? 1 : -1;
+      }
+      return a.name.localeCompare(b.name);
+    })
+    .filter((suspect) => {
+      const keyword = query.trim();
+      const matchesQuery =
+        !keyword ||
+        suspect.name.includes(keyword) ||
+        (suspect.role ?? "").includes(keyword) ||
+        (suspect.relationToVictim ?? "").includes(keyword);
+      const matchesFilter =
+        filter === "all" ||
+        (filter === "suspect" && !suspect.isWitness) ||
+        (filter === "witness" && suspect.isWitness);
+      return matchesQuery && matchesFilter;
+    });
+
   return (
-    <div className="card-list">
-      {suspects.map((suspect) => (
-        <button
-          className="suspect-card"
-          key={suspect.suspectId}
-          onClick={() => onSuspectDetail(suspect)}
-          type="button"
-        >
-          <Avatar suspect={suspect} />
-          <div>
-            <div className="card-title">{suspect.name}</div>
-            <p className="card-body">
-              {suspect.role ?? "역할 미상"}
-              {suspect.relationToVictim ? ` · ${suspect.relationToVictim}` : ""}
-            </p>
-            <div className="meta-row">
-              <span>{suspect.isWitness ? "증인" : "용의자"}</span>
-              <span>심문 {suspect.interrogationCount ?? 0}회</span>
+    <div className="stack">
+      <input
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="인물 이름 · 역할 검색"
+      />
+      <FilterChips
+        label="인물 유형"
+        options={[
+          ["all", "전체"],
+          ["suspect", "용의자"],
+          ["witness", "증인"],
+        ]}
+        value={filter}
+        onChange={(value) => setFilter(value as typeof filter)}
+      />
+      <div className="stats-grid">
+        <Stat label="용의자" value={`${suspectCount}명`} />
+        <Stat label="증인" value={`${witnessCount}명`} />
+        <Stat label="심문" value={`${interrogationCount}회`} />
+      </div>
+      <div className="meta-row">
+        <span>{filtered.length}명</span>
+        {query.trim() && <span>검색: {query.trim()}</span>}
+      </div>
+      {!filtered.length && (
+        <StateBlock
+          title="일치하는 인물이 없습니다"
+          body="검색어나 필터를 바꿔 보세요."
+        />
+      )}
+      <div className="card-list">
+        {filtered.map((suspect) => (
+          <button
+            className="suspect-card"
+            key={suspect.suspectId}
+            onClick={() => onSuspectDetail(suspect)}
+            type="button"
+          >
+            <Avatar suspect={suspect} />
+            <div>
+              <div className="card-title">{suspect.name}</div>
+              <p className="card-body">
+                {suspect.role ?? "역할 미상"}
+                {suspect.relationToVictim
+                  ? ` · ${suspect.relationToVictim}`
+                  : ""}
+              </p>
+              <div className="meta-row">
+                <span>{suspect.isWitness ? "증인" : "용의자"}</span>
+                <span>심문 {suspect.interrogationCount ?? 0}회</span>
+              </div>
             </div>
-          </div>
-        </button>
-      ))}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
