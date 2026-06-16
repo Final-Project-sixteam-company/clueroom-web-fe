@@ -20,6 +20,8 @@ Last updated: 2026-06-16
 - case scene tab
 - dashboard briefing
 - location board
+- scene map image with location markers
+- location detail image viewer
 - hints list and use-hint action
 - evidence list
 - evidence detail
@@ -57,7 +59,6 @@ Last updated: 2026-06-16
 
 - actual Apps in Toss sandbox/device login E2E
 - scenario review/write UI
-- richer location map interaction
 - backend-backed records API if the product requires cross-device history
 - store review policy copy and game rating metadata
 - accessibility pass

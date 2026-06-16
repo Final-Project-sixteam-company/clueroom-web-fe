@@ -626,6 +626,58 @@ textarea {
   margin-top: 10px;
 }
 
+.scene-map {
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-height: 180px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(56, 189, 248, 0.08), transparent), #0f172a;
+  color: #38bdf8;
+  font-size: 18px;
+  font-weight: 900;
+  margin-top: 10px;
+  padding: 0;
+}
+
+.scene-map:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.scene-map img {
+  width: 100%;
+  height: 100%;
+  min-height: 180px;
+  object-fit: cover;
+}
+
+.map-marker {
+  position: absolute;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  border: 2px solid #0f172a;
+  border-radius: 999px;
+  background: #f59e0b;
+  color: #111827;
+  font-size: 11px;
+  font-weight: 900;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+}
+
+.map-marker.active {
+  width: 30px;
+  height: 30px;
+  background: #38bdf8;
+}
+
 .location-card,
 .hint-card {
   display: grid;
@@ -636,6 +688,17 @@ textarea {
   border-radius: 10px;
   background: #0f172a;
   padding: 10px;
+}
+
+.location-card {
+  width: 100%;
+  color: #f1f5f9;
+  text-align: left;
+}
+
+.location-card.active {
+  border-color: rgba(56, 189, 248, 0.58);
+  background: rgba(56, 189, 248, 0.1);
 }
 
 .hint-card {
@@ -684,6 +747,16 @@ textarea {
   color: #7dd3fc;
   font-size: 11px;
   font-weight: 900;
+}
+
+.location-detail {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  border-top: 1px solid #334155;
+  padding-top: 12px;
 }
 
 .evidence-thumb,

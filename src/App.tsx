@@ -103,6 +103,8 @@ type CaseLocation = {
   floor?: string;
   description?: string;
   imageUrl?: string;
+  mapX?: number;
+  mapY?: number;
   totalEvidenceCount: number;
   unlockedEvidenceCount: number;
 };
@@ -523,10 +525,24 @@ function normalizeLocations(raw: unknown): CaseLocation[] {
       description:
         typeof row.description === "string" ? row.description : undefined,
       imageUrl,
+      mapX: typeof row.mapX === "number" ? row.mapX : undefined,
+      mapY: typeof row.mapY === "number" ? row.mapY : undefined,
       totalEvidenceCount: Number(row.totalEvidenceCount ?? 0),
       unlockedEvidenceCount: Number(row.unlockedEvidenceCount ?? 0),
     };
   });
+}
+
+function normalizeLocationPayload(raw: unknown) {
+  const data =
+    raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  return {
+    mapImageUrl:
+      typeof data.mapImageUrl === "string" && data.mapImageUrl.trim()
+        ? data.mapImageUrl.trim()
+        : undefined,
+    locations: normalizeLocations(raw),
+  };
 }
 
 function normalizeHint(raw: Record<string, unknown>): Hint {
@@ -801,6 +817,7 @@ function App() {
   const [suspects, setSuspects] = useState<Suspect[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [locations, setLocations] = useState<CaseLocation[]>([]);
+  const [caseMapImageUrl, setCaseMapImageUrl] = useState<string | undefined>();
   const [hints, setHints] = useState<Hint[]>([]);
   const [caseLoading, setCaseLoading] = useState(false);
   const [caseError, setCaseError] = useState<string | null>(null);
@@ -887,6 +904,7 @@ function App() {
     setSuspects([]);
     setTimeline([]);
     setLocations([]);
+    setCaseMapImageUrl(undefined);
     setHints([]);
     setView("login");
   }
@@ -1197,11 +1215,13 @@ function App() {
         ),
       ]);
 
+      const locationPayload = normalizeLocationPayload(locationData);
       setDashboard(nextDashboard);
       setEvidences(evidenceData.map(normalizeEvidence));
       setSuspects(suspectData.map(normalizeSuspect));
       setTimeline(timelineData);
-      setLocations(normalizeLocations(locationData));
+      setCaseMapImageUrl(locationPayload.mapImageUrl);
+      setLocations(locationPayload.locations);
       setHints(hintData.map(normalizeHint));
     } catch (error) {
       setCaseError(
@@ -1232,6 +1252,7 @@ function App() {
       setSuspects([]);
       setTimeline([]);
       setLocations([]);
+      setCaseMapImageUrl(undefined);
       setHints([]);
       setView("library");
     } catch (error) {
@@ -1589,12 +1610,14 @@ function App() {
           suspects={suspects}
           timeline={timeline}
           locations={locations}
+          mapImageUrl={caseMapImageUrl}
           hints={hints}
           loading={caseLoading}
           error={caseError}
           onRetry={() => loadCase()}
           onEvidenceDetail={openEvidenceDetail}
           onSuspectDetail={openSuspectDetail}
+          onOpenImage={(preview) => setImagePreview(preview)}
           onUseHint={useHint}
           onAbandon={abandonSession}
           onSubmit={() => setView("submit")}
@@ -2214,12 +2237,14 @@ function CaseScreen({
   suspects,
   timeline,
   locations,
+  mapImageUrl,
   hints,
   loading,
   error,
   onRetry,
   onEvidenceDetail,
   onSuspectDetail,
+  onOpenImage,
   onUseHint,
   onAbandon,
   onSubmit,
@@ -2231,12 +2256,14 @@ function CaseScreen({
   suspects: Suspect[];
   timeline: TimelineEvent[];
   locations: CaseLocation[];
+  mapImageUrl?: string;
   hints: Hint[];
   loading: boolean;
   error: string | null;
   onRetry: () => void;
   onEvidenceDetail: (evidence: Evidence) => void;
   onSuspectDetail: (suspect: Suspect) => void;
+  onOpenImage: (preview: ImagePreview) => void;
   onUseHint: (hint: Hint) => void;
   onAbandon: () => void;
   onSubmit: () => void;
@@ -2316,7 +2343,11 @@ function CaseScreen({
           <button className="button ghost" onClick={onAbandon} type="button">
             수사 중단
           </button>
-          <LocationPanel locations={locations} />
+          <LocationPanel
+            locations={locations}
+            mapImageUrl={mapImageUrl}
+            onOpenImage={onOpenImage}
+          />
           <HintPanel hints={hints} onUseHint={onUseHint} />
         </div>
       )}
@@ -2337,15 +2368,68 @@ function CaseScreen({
   );
 }
 
-function LocationPanel({ locations }: { locations: CaseLocation[] }) {
+function LocationPanel({
+  locations,
+  mapImageUrl,
+  onOpenImage,
+}: {
+  locations: CaseLocation[];
+  mapImageUrl?: string;
+  onOpenImage: (preview: ImagePreview) => void;
+}) {
+  const [selectedLocationId, setSelectedLocationId] = useState<number | null>(
+    null,
+  );
   if (!locations.length) return null;
+  const selected =
+    locations.find((location) => location.locationId === selectedLocationId) ??
+    locations[0];
+  const markerLocations = locations.filter(
+    (location) =>
+      typeof location.mapX === "number" && typeof location.mapY === "number",
+  );
 
   return (
     <article className="info-card">
       <p className="mini-title">현장 보드</p>
+      <button
+        className="scene-map"
+        disabled={!mapImageUrl}
+        onClick={() => {
+          if (mapImageUrl) {
+            onOpenImage({
+              url: mapImageUrl,
+              title: "현장 지도",
+              subtitle: "CRIME SCENE",
+            });
+          }
+        }}
+        type="button"
+      >
+        {mapImageUrl ? <img src={mapImageUrl} alt="" /> : <span>MAP</span>}
+        {markerLocations.map((location) => (
+          <span
+            className={`map-marker ${location.locationId === selected.locationId ? "active" : ""}`}
+            key={location.locationId}
+            style={{
+              left: `${Math.max(0, Math.min(1, location.mapX ?? 0)) * 100}%`,
+              top: `${Math.max(0, Math.min(1, location.mapY ?? 0)) * 100}%`,
+            }}
+          >
+            {location.unlockedEvidenceCount}
+          </span>
+        ))}
+      </button>
       <div className="location-grid">
         {locations.map((location) => (
-          <div className="location-card" key={location.locationId}>
+          <button
+            className={`location-card ${
+              location.locationId === selected.locationId ? "active" : ""
+            }`}
+            key={location.locationId}
+            onClick={() => setSelectedLocationId(location.locationId)}
+            type="button"
+          >
             {location.imageUrl ? (
               <img src={location.imageUrl} alt="" />
             ) : (
@@ -2361,9 +2445,34 @@ function LocationPanel({ locations }: { locations: CaseLocation[] }) {
                 {location.totalEvidenceCount}
               </span>
             </div>
-          </div>
+          </button>
         ))}
       </div>
+      {selected && (
+        <div className="location-detail">
+          <div>
+            <p className="mini-title">{selected.name}</p>
+            <p className="card-body">
+              {selected.description || selected.floor || "현장 정보 확인 중"}
+            </p>
+          </div>
+          {selected.imageUrl && (
+            <button
+              className="chip"
+              onClick={() =>
+                onOpenImage({
+                  url: selected.imageUrl!,
+                  title: selected.name,
+                  subtitle: selected.floor ?? "장소 이미지",
+                })
+              }
+              type="button"
+            >
+              이미지 보기
+            </button>
+          )}
+        </div>
+      )}
     </article>
   );
 }
