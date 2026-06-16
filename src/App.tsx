@@ -20,7 +20,10 @@ type View =
   | "login"
   | "home"
   | "library"
+  | "scenarioDetail"
   | "case"
+  | "evidenceDetail"
+  | "suspectDetail"
   | "chat"
   | "submit"
   | "result";
@@ -42,6 +45,10 @@ type Scenario = {
   averageRating: number;
   playCount: number;
   thumbnailUrl?: string;
+  synopsis?: string;
+  tags?: string[];
+  author?: string;
+  canPlay?: boolean;
 };
 
 type Dashboard = {
@@ -72,6 +79,8 @@ type Evidence = {
   imageUrl?: string;
   oneLine?: string;
   guidance?: Guidance;
+  relatedSuspects?: { suspectId: number; name: string }[];
+  relatedTimelineEvents?: TimelineEvent[];
 };
 
 type Guidance = {
@@ -91,6 +100,20 @@ type SuggestedQuestion = {
   question: string;
   presentedEvidenceId?: number;
   questionType?: string;
+};
+
+type InterrogationLog = {
+  interrogationId: number;
+  suspectId: number;
+  suspectName: string;
+  question: string;
+  answer: string;
+  questionType?: string;
+  presentedEvidence?: {
+    evidenceId: number;
+    title: string;
+  };
+  createdAt?: string;
 };
 
 type Suspect = {
@@ -170,6 +193,10 @@ async function safeRemove(key: string) {
   }
 }
 
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function getDeviceId() {
   const stored = await safeGet(DEVICE_KEY);
   if (stored) return stored;
@@ -221,17 +248,40 @@ async function request<T>(
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
   if (!res.ok) {
+    const error = data?.error;
     throw new ApiError(
-      data?.message ?? `요청에 실패했습니다. (${res.status})`,
-      data?.code,
+      error?.message ??
+        error?.reason ??
+        data?.message ??
+        `요청에 실패했습니다. (${res.status})`,
+      error?.code ?? error?.errorCode ?? data?.code ?? data?.error,
       res.status,
     );
   }
+
+  if (data && typeof data === "object" && "success" in data) {
+    if (data.success === true) return data.data as T;
+
+    const error = data.error;
+    throw new ApiError(
+      error?.message ?? error?.reason ?? "요청에 실패했습니다.",
+      error?.code ?? error?.errorCode ?? "UNKNOWN",
+      error?.status ?? res.status,
+    );
+  }
+
   return data as T;
 }
 
 function normalizeScenario(raw: Record<string, unknown>): Scenario {
   const id = Number(raw.scenarioId ?? raw.id ?? 0);
+  const tags = Array.isArray(raw.tags)
+    ? raw.tags.map((tag) => String(tag)).filter(Boolean)
+    : undefined;
+  const creator =
+    raw.creator && typeof raw.creator === "object"
+      ? (raw.creator as Record<string, unknown>)
+      : null;
   return {
     scenarioId: id,
     title: String(raw.title ?? "제목 없음"),
@@ -245,7 +295,87 @@ function normalizeScenario(raw: Record<string, unknown>): Scenario {
     playCount: Number(raw.playCount ?? 0),
     thumbnailUrl:
       typeof raw.thumbnailUrl === "string" ? raw.thumbnailUrl : undefined,
+    synopsis:
+      typeof raw.synopsis === "string"
+        ? raw.synopsis
+        : typeof raw.description === "string"
+          ? raw.description
+          : undefined,
+    tags,
+    author:
+      typeof creator?.nickname === "string"
+        ? creator.nickname
+        : typeof raw.author === "string"
+          ? raw.author
+          : undefined,
+    canPlay: typeof raw.canPlay === "boolean" ? raw.canPlay : undefined,
   };
+}
+
+function normalizeGuidance(raw: unknown): Guidance | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const data = raw as Record<string, unknown>;
+
+  const readingPoints = Array.isArray(data.readingPoints)
+    ? data.readingPoints.map((point) => String(point).trim()).filter(Boolean)
+    : undefined;
+
+  const compareEvidences = Array.isArray(data.compareEvidences)
+    ? data.compareEvidences.map((item) => {
+        const row = item as Record<string, unknown>;
+        return {
+          evidenceId:
+            typeof row.evidenceId === "number"
+              ? row.evidenceId
+              : row.evidenceId
+                ? Number(row.evidenceId)
+                : undefined,
+          title: typeof row.title === "string" ? row.title : undefined,
+          isUnlocked: row.isUnlocked === true,
+          unlockHint:
+            typeof row.unlockHint === "string" ? row.unlockHint : undefined,
+        };
+      })
+    : undefined;
+
+  const suggestedQuestions = Array.isArray(data.suggestedQuestions)
+    ? data.suggestedQuestions
+        .map((item) => {
+          const row = item as Record<string, unknown>;
+          return {
+            targetSuspectId:
+              typeof row.targetSuspectId === "number"
+                ? row.targetSuspectId
+                : row.targetSuspectId
+                  ? Number(row.targetSuspectId)
+                  : undefined,
+            targetName:
+              typeof row.targetName === "string" ? row.targetName : undefined,
+            question: String(row.question ?? "").trim(),
+            presentedEvidenceId:
+              typeof row.presentedEvidenceId === "number"
+                ? row.presentedEvidenceId
+                : row.presentedEvidenceId
+                  ? Number(row.presentedEvidenceId)
+                  : undefined,
+            questionType:
+              typeof row.questionType === "string"
+                ? row.questionType
+                : undefined,
+          };
+        })
+        .filter((item) => item.question)
+    : undefined;
+
+  if (
+    !readingPoints?.length &&
+    !compareEvidences?.length &&
+    !suggestedQuestions?.length
+  ) {
+    return undefined;
+  }
+
+  return { readingPoints, compareEvidences, suggestedQuestions };
 }
 
 function normalizeEvidence(raw: Record<string, unknown>): Evidence {
@@ -253,6 +383,30 @@ function normalizeEvidence(raw: Record<string, unknown>): Evidence {
     typeof raw.imageUrl === "string" && raw.imageUrl.trim()
       ? raw.imageUrl.trim()
       : undefined;
+  const relatedSuspects = Array.isArray(raw.relatedSuspects)
+    ? raw.relatedSuspects.map((item) => {
+        const row = item as Record<string, unknown>;
+        return {
+          suspectId: Number(row.suspectId ?? 0),
+          name: String(row.name ?? ""),
+        };
+      })
+    : undefined;
+  const relatedTimelineEvents = Array.isArray(raw.relatedTimelineEvents)
+    ? raw.relatedTimelineEvents.map((item) => {
+        const row = item as Record<string, unknown>;
+        return {
+          time: String(row.time ?? ""),
+          title: String(row.title ?? ""),
+          description:
+            typeof row.description === "string" ? row.description : undefined,
+          relatedEvidenceId:
+            typeof row.relatedEvidenceId === "number"
+              ? row.relatedEvidenceId
+              : undefined,
+        };
+      })
+    : undefined;
 
   return {
     evidenceId: Number(raw.evidenceId ?? raw.id ?? 0),
@@ -273,6 +427,9 @@ function normalizeEvidence(raw: Record<string, unknown>): Evidence {
       typeof raw.categoryLabel === "string" ? raw.categoryLabel : undefined,
     imageUrl,
     oneLine: typeof raw.oneLine === "string" ? raw.oneLine : undefined,
+    guidance: normalizeGuidance(raw.guidance),
+    relatedSuspects,
+    relatedTimelineEvents,
   };
 }
 
@@ -329,6 +486,13 @@ function App() {
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [scenarioLoading, setScenarioLoading] = useState(false);
   const [scenarioError, setScenarioError] = useState<string | null>(null);
+  const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(
+    null,
+  );
+  const [scenarioDetailLoading, setScenarioDetailLoading] = useState(false);
+  const [scenarioDetailError, setScenarioDetailError] = useState<string | null>(
+    null,
+  );
 
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [caseTab, setCaseTab] = useState<
@@ -340,6 +504,16 @@ function App() {
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [caseLoading, setCaseLoading] = useState(false);
   const [caseError, setCaseError] = useState<string | null>(null);
+  const [selectedEvidence, setSelectedEvidence] = useState<Evidence | null>(
+    null,
+  );
+  const [evidenceDetailLoading, setEvidenceDetailLoading] = useState(false);
+  const [evidenceDetailError, setEvidenceDetailError] = useState<string | null>(
+    null,
+  );
+  const [selectedSuspect, setSelectedSuspect] = useState<Suspect | null>(null);
+  const [suspectLogs, setSuspectLogs] = useState<InterrogationLog[]>([]);
+  const [suspectDetailLoading, setSuspectDetailLoading] = useState(false);
 
   const [chatSuspect, setChatSuspect] = useState<Suspect | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -368,8 +542,22 @@ function App() {
     void (async () => {
       const accessToken = await safeGet(ACCESS_KEY);
       const refreshToken = await safeGet(REFRESH_KEY);
-      if (accessToken)
+      if (accessToken) {
         setTokens({ accessToken, refreshToken: refreshToken ?? undefined });
+      } else if (refreshToken) {
+        try {
+          const next = await request<Tokens>("/api/auth/refresh", {
+            method: "POST",
+            body: JSON.stringify({ refreshToken }),
+          });
+          await safeSet(ACCESS_KEY, next.accessToken);
+          if (next.refreshToken) await safeSet(REFRESH_KEY, next.refreshToken);
+          setTokens(next);
+        } catch {
+          await safeRemove(ACCESS_KEY);
+          await safeRemove(REFRESH_KEY);
+        }
+      }
       setAuthReady(true);
     })();
   }, []);
@@ -391,6 +579,46 @@ function App() {
     setSessionId(null);
     setDashboard(null);
     setView("login");
+  }
+
+  async function refreshTokens() {
+    const refreshToken = tokens?.refreshToken ?? (await safeGet(REFRESH_KEY));
+    if (!refreshToken) return null;
+
+    try {
+      const next = await request<Tokens>("/api/auth/refresh", {
+        method: "POST",
+        body: JSON.stringify({ refreshToken }),
+      });
+      await persistTokens(next);
+      return next.accessToken;
+    } catch {
+      await safeRemove(ACCESS_KEY);
+      await safeRemove(REFRESH_KEY);
+      setTokens(null);
+      return null;
+    }
+  }
+
+  async function authedRequest<T>(
+    path: string,
+    options: RequestInit & {
+      query?: Record<string, string | number | boolean>;
+    } = {},
+  ) {
+    const token = tokens?.accessToken ?? (await safeGet(ACCESS_KEY));
+    if (!token) {
+      throw new ApiError("로그인이 필요합니다.", "AUTH_REQUIRED", 401);
+    }
+
+    try {
+      return await request<T>(path, { ...options, token });
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 401) throw error;
+      const refreshed = await refreshTokens();
+      if (!refreshed) throw error;
+      return request<T>(path, { ...options, token: refreshed });
+    }
   }
 
   async function handleTossLogin() {
@@ -452,6 +680,38 @@ function App() {
     }
   }
 
+  async function openScenarioDetail(scenario: Scenario) {
+    setSelectedScenario(scenario);
+    setScenarioDetailError(null);
+    setView("scenarioDetail");
+    setScenarioDetailLoading(true);
+    try {
+      const detail = await request<Record<string, unknown>>(
+        `/api/scenarios/${scenario.scenarioId}`,
+      );
+      setSelectedScenario(normalizeScenario(detail));
+    } catch (error) {
+      setScenarioDetailError(
+        error instanceof Error
+          ? error.message
+          : "시나리오 상세를 불러오지 못했습니다.",
+      );
+    } finally {
+      setScenarioDetailLoading(false);
+    }
+  }
+
+  async function findActiveSession(scenarioId: number) {
+    if (!authToken) return null;
+    const active = await authedRequest<{
+      hasActiveSession?: boolean;
+      activeSessionId?: number;
+    }>("/api/play-sessions/active", {
+      query: { scenarioId },
+    });
+    return active.hasActiveSession ? Number(active.activeSessionId) : null;
+  }
+
   async function startSession(scenario: Scenario) {
     if (!authToken) {
       setView("login");
@@ -461,28 +721,24 @@ function App() {
     setCaseLoading(true);
     setCaseError(null);
     try {
-      const active = await request<{
-        hasActiveSession?: boolean;
-        activeSessionId?: number;
-      }>("/api/play-sessions/active", {
-        token: authToken,
-        query: { scenarioId: scenario.scenarioId },
-      });
-
-      let nextSessionId = active.hasActiveSession
-        ? Number(active.activeSessionId)
-        : null;
+      let nextSessionId = await findActiveSession(scenario.scenarioId);
 
       if (!nextSessionId) {
-        const created = await request<{ sessionId: number }>(
-          "/api/play-sessions",
-          {
-            token: authToken,
-            method: "POST",
-            body: JSON.stringify({ scenarioId: scenario.scenarioId }),
-          },
-        );
-        nextSessionId = created.sessionId;
+        try {
+          const created = await authedRequest<{ sessionId: number }>(
+            "/api/play-sessions",
+            {
+              method: "POST",
+              body: JSON.stringify({ scenarioId: scenario.scenarioId }),
+            },
+          );
+          nextSessionId = created.sessionId;
+        } catch (error) {
+          if (error instanceof ApiError && error.status === 409) {
+            nextSessionId = await findActiveSession(scenario.scenarioId);
+          }
+          if (!nextSessionId) throw error;
+        }
       }
 
       setSessionId(nextSessionId);
@@ -505,23 +761,17 @@ function App() {
     try {
       const [nextDashboard, evidenceData, suspectData, timelineData] =
         await Promise.all([
-          request<Dashboard>(`/api/play-sessions/${id}/dashboard`, {
-            token: authToken,
-          }),
-          request<Record<string, unknown>[]>(
+          authedRequest<Dashboard>(`/api/play-sessions/${id}/dashboard`),
+          authedRequest<Record<string, unknown>[]>(
             `/api/play-sessions/${id}/evidences`,
             {
-              token: authToken,
               query: { includeLocked: true },
             },
           ),
-          request<Record<string, unknown>[]>(
+          authedRequest<Record<string, unknown>[]>(
             `/api/play-sessions/${id}/suspects`,
-            { token: authToken },
           ),
-          request<TimelineEvent[]>(`/api/play-sessions/${id}/timeline`, {
-            token: authToken,
-          }),
+          authedRequest<TimelineEvent[]>(`/api/play-sessions/${id}/timeline`),
         ]);
 
       setDashboard(nextDashboard);
@@ -536,6 +786,55 @@ function App() {
       );
     } finally {
       setCaseLoading(false);
+    }
+  }
+
+  async function openEvidenceDetail(evidence: Evidence) {
+    setSelectedEvidence(evidence);
+    setEvidenceDetailError(null);
+    setView("evidenceDetail");
+    if (!sessionId || !authToken || !evidence.isUnlocked) return;
+
+    setEvidenceDetailLoading(true);
+    try {
+      const detail = await authedRequest<Record<string, unknown>>(
+        `/api/play-sessions/${sessionId}/evidences/${evidence.evidenceId}`,
+      );
+      setSelectedEvidence({
+        ...evidence,
+        ...normalizeEvidence(detail),
+        isUnlocked: true,
+      });
+    } catch (error) {
+      setEvidenceDetailError(
+        error instanceof Error
+          ? error.message
+          : "증거 상세를 불러오지 못했습니다.",
+      );
+    } finally {
+      setEvidenceDetailLoading(false);
+    }
+  }
+
+  async function openSuspectDetail(suspect: Suspect) {
+    setSelectedSuspect(suspect);
+    setSuspectLogs([]);
+    setView("suspectDetail");
+    if (!sessionId || !authToken) return;
+
+    setSuspectDetailLoading(true);
+    try {
+      const logs = await authedRequest<InterrogationLog[]>(
+        `/api/play-sessions/${sessionId}/interrogations`,
+        {
+          query: { suspectId: suspect.suspectId },
+        },
+      );
+      setSuspectLogs(logs);
+    } catch {
+      setSuspectLogs([]);
+    } finally {
+      setSuspectDetailLoading(false);
     }
   }
 
@@ -582,11 +881,10 @@ function App() {
     setQuestion("");
 
     try {
-      const answer = await request<{
+      const answer = await authedRequest<{
         answer?: string;
         unlockedEvidences?: { evidenceId: number; title: string }[];
       }>(`/api/play-sessions/${sessionId}/interrogations`, {
-        token: authToken,
         method: "POST",
         body: JSON.stringify({
           suspectId: chatSuspect.suspectId,
@@ -623,6 +921,19 @@ function App() {
     }
   }
 
+  async function pollResult(id: number) {
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      try {
+        return await authedRequest<Result>(`/api/play-sessions/${id}/result`);
+      } catch (error) {
+        lastError = error;
+        await delay(1500);
+      }
+    }
+    throw lastError;
+  }
+
   async function submitDeduction() {
     if (!sessionId || !authToken || !selectedCulpritId || submitting) return;
     if (!motiveText.trim() || !methodText.trim() || !coverUpText.trim()) return;
@@ -632,10 +943,9 @@ function App() {
 
     setSubmitting(true);
     try {
-      const submitted = await request<Result>(
+      const submitted = await authedRequest<Result>(
         `/api/play-sessions/${sessionId}/final-deduction`,
         {
-          token: authToken,
           method: "POST",
           body: JSON.stringify({
             selectedCulpritId,
@@ -648,10 +958,7 @@ function App() {
       );
       setResult(submitted);
       try {
-        const finalResult = await request<Result>(
-          `/api/play-sessions/${sessionId}/result`,
-          { token: authToken },
-        );
+        const finalResult = await pollResult(sessionId);
         setResult(finalResult);
       } catch {
         // 제출 응답만으로도 결과 화면을 구성할 수 있다.
@@ -662,10 +969,7 @@ function App() {
         error instanceof ApiError &&
         (error.code === "AI010" || error.status === 409)
       ) {
-        const finalResult = await request<Result>(
-          `/api/play-sessions/${sessionId}/result`,
-          { token: authToken },
-        );
+        const finalResult = await pollResult(sessionId);
         setResult(finalResult);
         setView("result");
       } else {
@@ -731,7 +1035,17 @@ function App() {
           loading={scenarioLoading}
           error={scenarioError}
           onRefresh={loadScenarios}
-          onStart={startSession}
+          onSelect={openScenarioDetail}
+        />
+      )}
+
+      {view === "scenarioDetail" && selectedScenario && (
+        <ScenarioDetailScreen
+          scenario={selectedScenario}
+          loading={scenarioDetailLoading}
+          error={scenarioDetailError}
+          onBack={() => setView("library")}
+          onStart={() => startSession(selectedScenario)}
         />
       )}
 
@@ -746,8 +1060,41 @@ function App() {
           loading={caseLoading}
           error={caseError}
           onRetry={() => loadCase()}
-          onChat={openChat}
+          onEvidenceDetail={openEvidenceDetail}
+          onSuspectDetail={openSuspectDetail}
           onSubmit={() => setView("submit")}
+        />
+      )}
+
+      {view === "evidenceDetail" && selectedEvidence && (
+        <EvidenceDetailScreen
+          evidence={selectedEvidence}
+          suspects={suspects}
+          evidences={evidences}
+          loading={evidenceDetailLoading}
+          error={evidenceDetailError}
+          onBack={() => setView("case")}
+          onCompareEvidence={(evidenceId) => {
+            const target = evidences.find((e) => e.evidenceId === evidenceId);
+            if (target) void openEvidenceDetail(target);
+          }}
+          onChat={openChat}
+        />
+      )}
+
+      {view === "suspectDetail" && selectedSuspect && (
+        <SuspectDetailScreen
+          suspect={selectedSuspect}
+          evidences={evidences}
+          logs={suspectLogs}
+          loading={suspectDetailLoading}
+          onBack={() => setView("case")}
+          onChat={() => openChat(selectedSuspect)}
+          onSelectCulprit={() => {
+            setSelectedCulpritId(selectedSuspect.suspectId);
+            setView("submit");
+          }}
+          onEvidenceDetail={openEvidenceDetail}
         />
       )}
 
@@ -960,13 +1307,13 @@ function LibraryScreen({
   loading,
   error,
   onRefresh,
-  onStart,
+  onSelect,
 }: {
   scenarios: Scenario[];
   loading: boolean;
   error: string | null;
   onRefresh: () => void;
-  onStart: (scenario: Scenario) => void;
+  onSelect: (scenario: Scenario) => void;
 }) {
   return (
     <section className="stack">
@@ -991,7 +1338,7 @@ function LibraryScreen({
           <button
             className="scenario-card"
             key={scenario.scenarioId}
-            onClick={() => onStart(scenario)}
+            onClick={() => onSelect(scenario)}
             type="button"
           >
             <div className="scenario-thumb">
@@ -1018,6 +1365,83 @@ function LibraryScreen({
   );
 }
 
+function ScenarioDetailScreen({
+  scenario,
+  loading,
+  error,
+  onBack,
+  onStart,
+}: {
+  scenario: Scenario;
+  loading: boolean;
+  error: string | null;
+  onBack: () => void;
+  onStart: () => void;
+}) {
+  return (
+    <section className="stack">
+      <button className="icon-button fit" onClick={onBack} type="button">
+        라이브러리로 돌아가기
+      </button>
+      <div className="scenario-hero">
+        {scenario.thumbnailUrl ? (
+          <img src={scenario.thumbnailUrl} alt="" />
+        ) : (
+          <span>CL-{String(scenario.scenarioId).padStart(3, "0")}</span>
+        )}
+      </div>
+      <div className="screen-title">
+        <p className="eyebrow">
+          {scenario.scenarioType === "CUSTOM" ? "CUSTOM CASE" : "OFFICIAL CASE"}
+        </p>
+        <h1>{scenario.title}</h1>
+        <p className="muted">
+          CL-{String(scenario.scenarioId).padStart(3, "0")}
+        </p>
+      </div>
+      {loading && <StateBlock title="상세 정보를 불러오고 있습니다" />}
+      {error && <p className="error-text">{error}</p>}
+      <div className="stats-grid">
+        <Stat label="난이도" value={formatDifficulty(scenario.difficulty)} />
+        <Stat
+          label="예상 시간"
+          value={`${scenario.estimatedPlayTimeMinutes}분`}
+        />
+        <Stat label="평점" value={scenario.averageRating.toFixed(1)} />
+      </div>
+      <div className="stats-grid">
+        <Stat label="인물" value={`${scenario.suspectCount}명`} />
+        <Stat label="증거" value={`${scenario.evidenceCount}개`} />
+        <Stat label="플레이" value={`${scenario.playCount}회`} />
+      </div>
+      <InfoPanel
+        title="시놉시스"
+        body={
+          scenario.synopsis || scenario.description || "사건 설명이 없습니다."
+        }
+      />
+      {!!scenario.tags?.length && (
+        <div className="chip-row">
+          {scenario.tags.map((tag) => (
+            <span className="chip" key={tag}>
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+      {scenario.author && <InfoPanel title="제작자" body={scenario.author} />}
+      <button
+        className="button primary"
+        onClick={onStart}
+        disabled={scenario.canPlay === false}
+        type="button"
+      >
+        {scenario.canPlay === false ? "플레이할 수 없는 사건" : "수사 시작"}
+      </button>
+    </section>
+  );
+}
+
 function CaseScreen({
   caseTab,
   setCaseTab,
@@ -1028,7 +1452,8 @@ function CaseScreen({
   loading,
   error,
   onRetry,
-  onChat,
+  onEvidenceDetail,
+  onSuspectDetail,
   onSubmit,
 }: {
   caseTab: "scene" | "evidence" | "suspects" | "timeline";
@@ -1040,7 +1465,8 @@ function CaseScreen({
   loading: boolean;
   error: string | null;
   onRetry: () => void;
-  onChat: (suspect: Suspect, prefill?: SuggestedQuestion) => void;
+  onEvidenceDetail: (evidence: Evidence) => void;
+  onSuspectDetail: (suspect: Suspect) => void;
   onSubmit: () => void;
 }) {
   if (loading && !dashboard)
@@ -1121,16 +1547,12 @@ function CaseScreen({
       {caseTab === "evidence" && (
         <EvidenceList
           evidences={evidences}
-          suspects={suspects}
-          onChat={onChat}
+          onEvidenceDetail={onEvidenceDetail}
         />
       )}
 
       {caseTab === "suspects" && (
-        <SuspectList
-          suspects={suspects}
-          onChat={(suspect) => onChat(suspect)}
-        />
+        <SuspectList suspects={suspects} onSuspectDetail={onSuspectDetail} />
       )}
 
       {caseTab === "timeline" && <TimelineList events={timeline} />}
@@ -1140,19 +1562,19 @@ function CaseScreen({
 
 function EvidenceList({
   evidences,
-  suspects,
-  onChat,
+  onEvidenceDetail,
 }: {
   evidences: Evidence[];
-  suspects: Suspect[];
-  onChat: (suspect: Suspect, prefill?: SuggestedQuestion) => void;
+  onEvidenceDetail: (evidence: Evidence) => void;
 }) {
   return (
     <div className="card-list">
       {evidences.map((evidence) => (
-        <article
+        <button
           className={`info-card evidence-card ${evidence.isUnlocked ? "" : "locked"}`}
           key={evidence.evidenceId}
+          onClick={() => onEvidenceDetail(evidence)}
+          type="button"
         >
           <div className="row">
             <div className="evidence-thumb">
@@ -1182,14 +1604,7 @@ function EvidenceList({
               </div>
             </div>
           </div>
-          {evidence.isUnlocked && evidence.guidance && (
-            <GuidanceBlock
-              guidance={evidence.guidance}
-              suspects={suspects}
-              onChat={onChat}
-            />
-          )}
-        </article>
+        </button>
       ))}
     </div>
   );
@@ -1199,10 +1614,12 @@ function GuidanceBlock({
   guidance,
   suspects,
   onChat,
+  onCompareEvidence,
 }: {
   guidance: Guidance;
   suspects: Suspect[];
   onChat: (suspect: Suspect, prefill?: SuggestedQuestion) => void;
+  onCompareEvidence?: (evidenceId: number) => void;
 }) {
   return (
     <div className="guidance">
@@ -1221,11 +1638,19 @@ function GuidanceBlock({
           <p className="mini-title">함께 비교할 증거</p>
           <div className="chip-row">
             {guidance.compareEvidences.map((item, index) => (
-              <span className="chip" key={`${item.evidenceId ?? index}`}>
+              <button
+                className="chip"
+                disabled={!item.isUnlocked || !item.evidenceId}
+                key={`${item.evidenceId ?? index}`}
+                onClick={() => {
+                  if (item.evidenceId) onCompareEvidence?.(item.evidenceId);
+                }}
+                type="button"
+              >
                 {item.isUnlocked
                   ? item.title || "증거"
                   : item.unlockHint || "잠긴 증거"}
-              </span>
+              </button>
             ))}
           </div>
         </>
@@ -1257,12 +1682,145 @@ function GuidanceBlock({
   );
 }
 
-function SuspectList({
+function EvidenceDetailScreen({
+  evidence,
   suspects,
+  evidences,
+  loading,
+  error,
+  onBack,
+  onCompareEvidence,
   onChat,
 }: {
+  evidence: Evidence;
   suspects: Suspect[];
-  onChat: (suspect: Suspect) => void;
+  evidences: Evidence[];
+  loading: boolean;
+  error: string | null;
+  onBack: () => void;
+  onCompareEvidence: (evidenceId: number) => void;
+  onChat: (suspect: Suspect, prefill?: SuggestedQuestion) => void;
+}) {
+  const relatedSuspects = evidence.relatedSuspects
+    ?.map((related) => suspects.find((s) => s.suspectId === related.suspectId))
+    .filter((suspect): suspect is Suspect => !!suspect);
+
+  return (
+    <section className="stack">
+      <button className="icon-button fit" onClick={onBack} type="button">
+        증거 목록으로 돌아가기
+      </button>
+      <div className="evidence-hero">
+        {evidence.imageUrl ? (
+          <img src={evidence.imageUrl} alt="" />
+        ) : (
+          <span>{evidence.isUnlocked ? "EV" : "LOCKED"}</span>
+        )}
+      </div>
+      <ScreenTitle
+        title={evidence.isUnlocked ? evidence.title : "잠긴 증거"}
+        subtitle="EVIDENCE"
+      />
+      <div className="meta-row">
+        <span>{evidence.isUnlocked ? "확보됨" : "잠김"}</span>
+        <span>{evidence.locationName ?? "위치 미상"}</span>
+        <span>{evidence.categoryLabel ?? evidence.category ?? "증거"}</span>
+      </div>
+      {loading && <StateBlock title="증거 상세를 불러오고 있습니다" />}
+      {error && <p className="error-text">{error}</p>}
+      <InfoPanel
+        title="관찰 기록"
+        body={
+          evidence.isUnlocked
+            ? evidence.description ||
+              evidence.oneLine ||
+              "아직 공개된 설명이 없습니다."
+            : evidence.unlockHint || "수사를 진행하면 확인할 수 있습니다."
+        }
+      />
+      {!!relatedSuspects?.length && (
+        <article className="info-card">
+          <p className="mini-title">관련 인물</p>
+          <div className="chip-row">
+            {relatedSuspects.map((suspect) => (
+              <button
+                className="chip"
+                key={suspect.suspectId}
+                onClick={() =>
+                  onChat(suspect, {
+                    targetSuspectId: suspect.suspectId,
+                    question: `${evidence.title}에 대해 알고 있는 것을 말해 주세요.`,
+                    presentedEvidenceId: evidence.evidenceId,
+                    questionType: "EVIDENCE_PRESENTED",
+                  })
+                }
+                type="button"
+              >
+                {suspect.name}
+              </button>
+            ))}
+          </div>
+        </article>
+      )}
+      {!!evidence.relatedTimelineEvents?.length && (
+        <article className="info-card">
+          <p className="mini-title">관련 타임라인</p>
+          <TimelineList events={evidence.relatedTimelineEvents} />
+        </article>
+      )}
+      {evidence.guidance && (
+        <article className="info-card">
+          <GuidanceBlock
+            guidance={evidence.guidance}
+            suspects={suspects}
+            onChat={onChat}
+            onCompareEvidence={onCompareEvidence}
+          />
+        </article>
+      )}
+      {evidence.isUnlocked && (
+        <article className="info-card">
+          <p className="mini-title">증거 제시</p>
+          <p className="card-body">
+            심문 대상에게 이 증거를 제시하려면 관련 인물 또는 질문을 선택하세요.
+          </p>
+          <div className="chip-row">
+            {suspects
+              .filter((suspect) => !suspect.isWitness)
+              .slice(0, 6)
+              .map((suspect) => (
+                <button
+                  className="chip"
+                  key={suspect.suspectId}
+                  onClick={() =>
+                    onChat(suspect, {
+                      targetSuspectId: suspect.suspectId,
+                      question: `${evidence.title}을 보고 설명해 주세요.`,
+                      presentedEvidenceId: evidence.evidenceId,
+                      questionType: "EVIDENCE_PRESENTED",
+                    })
+                  }
+                  type="button"
+                >
+                  {suspect.name}
+                </button>
+              ))}
+          </div>
+        </article>
+      )}
+      {!!evidences.length && (
+        <p className="muted">확보/잠긴 증거 {evidences.length}개 중 선택됨</p>
+      )}
+    </section>
+  );
+}
+
+function SuspectList({
+  suspects,
+  onSuspectDetail,
+}: {
+  suspects: Suspect[];
+  onSuspectDetail: (suspect: Suspect) => void;
 }) {
   return (
     <div className="card-list">
@@ -1270,7 +1828,7 @@ function SuspectList({
         <button
           className="suspect-card"
           key={suspect.suspectId}
-          onClick={() => onChat(suspect)}
+          onClick={() => onSuspectDetail(suspect)}
           type="button"
         >
           <Avatar suspect={suspect} />
@@ -1288,6 +1846,115 @@ function SuspectList({
         </button>
       ))}
     </div>
+  );
+}
+
+function SuspectDetailScreen({
+  suspect,
+  evidences,
+  logs,
+  loading,
+  onBack,
+  onChat,
+  onSelectCulprit,
+  onEvidenceDetail,
+}: {
+  suspect: Suspect;
+  evidences: Evidence[];
+  logs: InterrogationLog[];
+  loading: boolean;
+  onBack: () => void;
+  onChat: () => void;
+  onSelectCulprit: () => void;
+  onEvidenceDetail: (evidence: Evidence) => void;
+}) {
+  const relatedEvidences = evidences.filter((evidence) =>
+    evidence.relatedSuspects?.some(
+      (related) => related.suspectId === suspect.suspectId,
+    ),
+  );
+
+  return (
+    <section className="stack">
+      <button className="icon-button fit" onClick={onBack} type="button">
+        인물 목록으로 돌아가기
+      </button>
+      <div className="suspect-profile">
+        <Avatar suspect={suspect} />
+        <p className="eyebrow">{suspect.isWitness ? "WITNESS" : "SUSPECT"}</p>
+        <h1>{suspect.name}</h1>
+        <p className="muted">
+          {suspect.role ?? "역할 미상"}
+          {suspect.relationToVictim ? ` · ${suspect.relationToVictim}` : ""}
+        </p>
+        {suspect.personalityTone && (
+          <span className="chip active">{suspect.personalityTone}</span>
+        )}
+      </div>
+      {suspect.relationToVictim && (
+        <InfoPanel title="피해자와의 관계" body={suspect.relationToVictim} />
+      )}
+      <InfoPanel
+        title="진술"
+        body={suspect.publicStatement || "아직 공개된 진술이 없습니다."}
+      />
+      <InfoPanel
+        title="알리바이"
+        body={
+          suspect.publicAlibi || suspect.alibi || "확인된 알리바이가 없습니다."
+        }
+      />
+      {!!relatedEvidences.length && (
+        <article className="info-card">
+          <p className="mini-title">관련 증거</p>
+          <div className="card-list compact">
+            {relatedEvidences.map((evidence) => (
+              <button
+                className="evidence-row"
+                key={evidence.evidenceId}
+                onClick={() => onEvidenceDetail(evidence)}
+                type="button"
+              >
+                <span>
+                  {evidence.isUnlocked ? evidence.title : "잠긴 증거"}
+                </span>
+                <small>{evidence.locationName ?? "위치 미상"}</small>
+              </button>
+            ))}
+          </div>
+        </article>
+      )}
+      <article className="info-card">
+        <p className="mini-title">이전 심문</p>
+        {loading && <p className="card-body">심문 기록을 불러오고 있습니다.</p>}
+        {!loading && !logs.length && (
+          <p className="card-body">아직 이 인물에게 진행한 심문이 없습니다.</p>
+        )}
+        <div className="log-list">
+          {logs.map((log) => (
+            <div className="log-item" key={log.interrogationId}>
+              <strong>Q. {log.question}</strong>
+              <p>{log.answer}</p>
+              {log.presentedEvidence && (
+                <span>제시 증거: {log.presentedEvidence.title}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </article>
+      <button className="button primary" onClick={onChat} type="button">
+        심문하기
+      </button>
+      {!suspect.isWitness && (
+        <button
+          className="button secondary"
+          onClick={onSelectCulprit}
+          type="button"
+        >
+          최종 추리 후보로 선택
+        </button>
+      )}
+    </section>
   );
 }
 

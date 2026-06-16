@@ -271,6 +271,10 @@ textarea {
   color: #7dd3fc;
 }
 
+.chip:disabled {
+  opacity: 0.55;
+}
+
 .button-chip {
   border: 1px solid #334155;
 }
@@ -279,6 +283,11 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.card-list.compact {
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .scenario-card,
@@ -319,6 +328,34 @@ textarea {
   width: 54px;
   height: 54px;
   border-radius: 8px;
+}
+
+.scenario-hero,
+.evidence-hero {
+  display: grid;
+  place-items: center;
+  min-height: 190px;
+  overflow: hidden;
+  border: 1px solid #334155;
+  border-radius: 14px;
+  background:
+    radial-gradient(
+      circle at 20% 20%,
+      rgba(56, 189, 248, 0.18),
+      transparent 34%
+    ),
+    linear-gradient(135deg, #1e293b, #0f172a);
+  color: #38bdf8;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.scenario-hero img,
+.evidence-hero img {
+  width: 100%;
+  height: 100%;
+  min-height: 190px;
+  object-fit: cover;
 }
 
 .scenario-thumb img,
@@ -441,6 +478,22 @@ textarea {
   border-radius: 999px;
 }
 
+.suspect-profile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  text-align: center;
+}
+
+.suspect-profile .avatar {
+  width: 86px;
+  height: 86px;
+  font-size: 22px;
+  box-shadow: 0 0 28px rgba(56, 189, 248, 0.18);
+}
+
 .evidence-card.locked {
   opacity: 0.75;
 }
@@ -480,6 +533,66 @@ textarea {
   justify-content: flex-start;
   white-space: normal;
   text-align: left;
+}
+
+.evidence-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #f1f5f9;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.evidence-row span {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.evidence-row small {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.log-item {
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #0f172a;
+  padding: 11px 12px;
+}
+
+.log-item strong {
+  display: block;
+  color: #e2e8f0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.log-item p {
+  margin-top: 8px;
+  color: #94a3b8;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.log-item span {
+  display: inline-flex;
+  margin-top: 8px;
+  color: #7dd3fc;
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .chat-header {
