@@ -619,6 +619,10 @@ textarea {
   font-weight: 800;
 }
 
+.record-score .chip {
+  margin-top: 8px;
+}
+
 .review-empty {
   margin-top: 12px;
 }

@@ -1652,6 +1652,10 @@ function App() {
     () => suspects.filter((s) => !s.isWitness),
     [suspects],
   );
+  const resumableRecord = useMemo(
+    () => records.find((record) => record.status === "IN_PROGRESS"),
+    [records],
+  );
   const currentReviewTarget =
     dashboard != null
       ? { scenarioId: dashboard.scenarioId, title: dashboard.scenarioTitle }
@@ -1669,6 +1673,37 @@ function App() {
     }
     void loadProfile();
     setView("profile");
+  }
+
+  function scenarioFromRecord(record: RecordItem): Scenario | null {
+    if (!record.scenarioId) return null;
+    return (
+      scenarios.find(
+        (scenario) => scenario.scenarioId === record.scenarioId,
+      ) ?? {
+        scenarioId: record.scenarioId,
+        title: record.scenarioTitle,
+        description: "",
+        difficulty: "NORMAL",
+        scenarioType: "OFFICIAL",
+        estimatedPlayTimeMinutes: 0,
+        suspectCount: 0,
+        evidenceCount: 0,
+        averageRating: 0,
+        playCount: 0,
+        canPlay: true,
+      }
+    );
+  }
+
+  async function resumeRecord(record: RecordItem) {
+    const scenario = scenarioFromRecord(record);
+    if (!scenario) {
+      setView("library");
+      return;
+    }
+    setSelectedScenario(scenario);
+    await startSession(scenario);
   }
 
   if (!authReady) {
@@ -1705,8 +1740,9 @@ function App() {
           onRecords={() => setView(tokens ? "records" : "login")}
           onResume={() => {
             if (sessionId) setView("case");
+            else if (resumableRecord) void resumeRecord(resumableRecord);
           }}
-          hasSession={!!sessionId}
+          hasSession={!!sessionId || !!resumableRecord}
         />
       )}
 
@@ -1728,6 +1764,7 @@ function App() {
           records={records}
           onBack={() => setView("profile")}
           onLibrary={() => setView("library")}
+          onResume={(record) => void resumeRecord(record)}
         />
       )}
 
@@ -2172,10 +2209,12 @@ function RecordsScreen({
   records,
   onBack,
   onLibrary,
+  onResume,
 }: {
   records: RecordItem[];
   onBack: () => void;
   onLibrary: () => void;
+  onResume: (record: RecordItem) => void;
 }) {
   return (
     <section className="stack">
@@ -2209,6 +2248,15 @@ function RecordsScreen({
               <span>
                 {record.score != null ? `${record.score}점` : "진행 중"}
               </span>
+              {record.status === "IN_PROGRESS" && (
+                <button
+                  className="chip"
+                  onClick={() => onResume(record)}
+                  type="button"
+                >
+                  이어하기
+                </button>
+              )}
             </div>
           </article>
         ))}

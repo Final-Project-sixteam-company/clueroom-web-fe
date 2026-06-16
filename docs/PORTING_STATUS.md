@@ -20,6 +20,7 @@ Last updated: 2026-06-16
 - case briefing before session start
 - active session lookup before create
 - create-session 409 active-session fallback
+- active session recovery from local in-progress records
 - case scene tab
 - dashboard briefing
 - location board
