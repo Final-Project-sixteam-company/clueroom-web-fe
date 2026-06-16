@@ -53,6 +53,7 @@ Last updated: 2026-06-16
 - result recommendation card rendering when backend provides data
 - post-result local review entry point
 - release checklist for Apps in Toss and Google Play artifact split
+- accessibility focus states, ARIA pressed states, and meaningful image alt text
 
 ## Waiting On Backend
 
@@ -70,7 +71,7 @@ Last updated: 2026-06-16
 - backend-backed scenario review API if the product requires shared reviews
 - backend-backed records API if the product requires cross-device history
 - final store review metadata entry in external consoles
-- accessibility pass
+- screen-reader QA in actual Toss WebView
 - visual QA against Flutter screens
 
 ## Build

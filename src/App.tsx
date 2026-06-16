@@ -2152,7 +2152,7 @@ function ProfileScreen({
       <article className="profile-card">
         <div className="profile-avatar">
           {profile?.profileImageUrl ? (
-            <img src={profile.profileImageUrl} alt="" />
+            <img src={profile.profileImageUrl} alt={`${displayName} 프로필`} />
           ) : (
             <span>{initials(displayName)}</span>
           )}
@@ -2368,7 +2368,10 @@ function LibraryScreen({
           >
             <div className="scenario-thumb">
               {scenario.thumbnailUrl ? (
-                <img src={scenario.thumbnailUrl} alt="" />
+                <img
+                  src={scenario.thumbnailUrl}
+                  alt={`${scenario.title} 대표 이미지`}
+                />
               ) : (
                 <span>CL</span>
               )}
@@ -2410,6 +2413,7 @@ function FilterChips({
             className={`chip ${value === optionValue ? "active" : ""}`}
             key={`${label}-${optionValue}`}
             onClick={() => onChange(optionValue)}
+            aria-pressed={value === optionValue}
             type="button"
           >
             {text}
@@ -2465,6 +2469,7 @@ function ScenarioDetailScreen({
       <button
         className="image-button scenario-hero"
         disabled={!scenario.thumbnailUrl}
+        aria-label={`${scenario.title} 이미지 크게 보기`}
         onClick={() => {
           if (scenario.thumbnailUrl) {
             onOpenImage({
@@ -2477,7 +2482,10 @@ function ScenarioDetailScreen({
         type="button"
       >
         {scenario.thumbnailUrl ? (
-          <img src={scenario.thumbnailUrl} alt="" />
+          <img
+            src={scenario.thumbnailUrl}
+            alt={`${scenario.title} 대표 이미지`}
+          />
         ) : (
           <span>CL-{String(scenario.scenarioId).padStart(3, "0")}</span>
         )}
@@ -2812,6 +2820,7 @@ function CaseScreen({
             className={caseTab === key ? "active" : ""}
             key={key}
             onClick={() => setCaseTab(key as typeof caseTab)}
+            aria-pressed={caseTab === key}
             type="button"
           >
             {label}
@@ -2897,6 +2906,7 @@ function LocationPanel({
       <button
         className="scene-map"
         disabled={!mapImageUrl}
+        aria-label="현장 지도 크게 보기"
         onClick={() => {
           if (mapImageUrl) {
             onOpenImage({
@@ -2908,7 +2918,11 @@ function LocationPanel({
         }}
         type="button"
       >
-        {mapImageUrl ? <img src={mapImageUrl} alt="" /> : <span>MAP</span>}
+        {mapImageUrl ? (
+          <img src={mapImageUrl} alt="현장 지도" />
+        ) : (
+          <span>MAP</span>
+        )}
         {markerLocations.map((location) => (
           <span
             className={`map-marker ${location.locationId === selected.locationId ? "active" : ""}`}
@@ -2933,7 +2947,7 @@ function LocationPanel({
             type="button"
           >
             {location.imageUrl ? (
-              <img src={location.imageUrl} alt="" />
+              <img src={location.imageUrl} alt={`${location.name} 이미지`} />
             ) : (
               <span className="location-placeholder">SC</span>
             )}
@@ -2961,6 +2975,7 @@ function LocationPanel({
           {selected.imageUrl && (
             <button
               className="chip"
+              aria-label={`${selected.name} 이미지 크게 보기`}
               onClick={() =>
                 onOpenImage({
                   url: selected.imageUrl!,
@@ -3091,7 +3106,10 @@ function EvidenceList({
             <div className="row">
               <div className="evidence-thumb">
                 {evidence.imageUrl ? (
-                  <img src={evidence.imageUrl} alt="" />
+                  <img
+                    src={evidence.imageUrl}
+                    alt={`${evidence.title} 이미지`}
+                  />
                 ) : (
                   "EV"
                 )}
@@ -3228,6 +3246,7 @@ function EvidenceDetailScreen({
       <button
         className="image-button evidence-hero"
         disabled={!evidence.imageUrl}
+        aria-label={`${evidence.title} 이미지 크게 보기`}
         onClick={() => {
           if (evidence.imageUrl) {
             onOpenImage({
@@ -3240,7 +3259,7 @@ function EvidenceDetailScreen({
         type="button"
       >
         {evidence.imageUrl ? (
-          <img src={evidence.imageUrl} alt="" />
+          <img src={evidence.imageUrl} alt={`${evidence.title} 이미지`} />
         ) : (
           <span>{evidence.isUnlocked ? "EV" : "LOCKED"}</span>
         )}
@@ -3667,7 +3686,10 @@ function EvidencePickerDialog({
             >
               <div className="evidence-thumb">
                 {evidence.imageUrl ? (
-                  <img src={evidence.imageUrl} alt="" />
+                  <img
+                    src={evidence.imageUrl}
+                    alt={`${evidence.title} 이미지`}
+                  />
                 ) : (
                   "EV"
                 )}
@@ -4032,7 +4054,10 @@ function ResultScreen({
             {result.nextRecommendedScenarios.map((scenario) => (
               <div className="recommendation-card" key={scenario.scenarioId}>
                 {scenario.thumbnailUrl ? (
-                  <img src={scenario.thumbnailUrl} alt="" />
+                  <img
+                    src={scenario.thumbnailUrl}
+                    alt={`${scenario.title} 대표 이미지`}
+                  />
                 ) : (
                   <span>CL</span>
                 )}
@@ -4102,7 +4127,7 @@ function Avatar({ suspect }: { suspect: Suspect }) {
   return (
     <div className="avatar">
       {suspect.portraitImageUrl ? (
-        <img src={suspect.portraitImageUrl} alt="" />
+        <img src={suspect.portraitImageUrl} alt={`${suspect.name} 프로필`} />
       ) : (
         <span>{initials(suspect.name)}</span>
       )}
@@ -4164,7 +4189,7 @@ function StateBlock({
   action?: () => void;
 }) {
   return (
-    <div className="state-block">
+    <div className="state-block" role="status" aria-live="polite">
       <div className="state-icon">CR</div>
       <h2>{title}</h2>
       {body && <p>{body}</p>}
@@ -4202,7 +4227,7 @@ function ImageViewer({
             닫기
           </button>
         </div>
-        <img src={preview.url} alt="" />
+        <img src={preview.url} alt={preview.title} />
       </div>
     </div>
   );
