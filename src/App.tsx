@@ -21,6 +21,7 @@ type View =
   | "home"
   | "library"
   | "scenarioDetail"
+  | "briefing"
   | "case"
   | "evidenceDetail"
   | "suspectDetail"
@@ -1184,6 +1185,14 @@ function App() {
           loading={scenarioDetailLoading}
           error={scenarioDetailError}
           onBack={() => setView("library")}
+          onStart={() => setView("briefing")}
+        />
+      )}
+
+      {view === "briefing" && selectedScenario && (
+        <CaseBriefingScreen
+          scenario={selectedScenario}
+          onBack={() => setView("scenarioDetail")}
           onStart={() => startSession(selectedScenario)}
         />
       )}
@@ -1580,6 +1589,55 @@ function ScenarioDetailScreen({
         type="button"
       >
         {scenario.canPlay === false ? "플레이할 수 없는 사건" : "수사 시작"}
+      </button>
+    </section>
+  );
+}
+
+function CaseBriefingScreen({
+  scenario,
+  onBack,
+  onStart,
+}: {
+  scenario: Scenario;
+  onBack: () => void;
+  onStart: () => void;
+}) {
+  return (
+    <section className="stack">
+      <button className="icon-button fit" onClick={onBack} type="button">
+        사건 상세로 돌아가기
+      </button>
+      <ScreenTitle title="수사 브리핑" subtitle="CASE BRIEFING" />
+      <div className="briefing-panel">
+        <p className="eyebrow">
+          CL-{String(scenario.scenarioId).padStart(3, "0")}
+        </p>
+        <h1>{scenario.title}</h1>
+        <p>
+          {scenario.synopsis ||
+            scenario.description ||
+            "사건 개요를 확인하세요."}
+        </p>
+      </div>
+      <div className="stats-grid">
+        <Stat label="난이도" value={formatDifficulty(scenario.difficulty)} />
+        <Stat
+          label="예상 시간"
+          value={`${scenario.estimatedPlayTimeMinutes}분`}
+        />
+        <Stat label="제출 증거" value="1~15개" />
+      </div>
+      <InfoPanel
+        title="수사 목표"
+        body="인물을 심문하고 증거를 비교해 범인, 동기, 수법, 은폐 방식을 정리하세요."
+      />
+      <InfoPanel
+        title="주의"
+        body="추천 질문은 입력창에만 채워집니다. 전송 버튼을 눌러야 AI 심문이 진행됩니다."
+      />
+      <button className="button primary" onClick={onStart} type="button">
+        수사 시작
       </button>
     </section>
   );

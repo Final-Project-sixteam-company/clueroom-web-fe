@@ -172,6 +172,36 @@ h2 {
   font-size: 14px;
 }
 
+.briefing-panel {
+  display: flex;
+  min-height: 220px;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 10px;
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.1), rgba(15, 23, 42, 0.94)),
+    radial-gradient(
+      circle at top right,
+      rgba(244, 63, 94, 0.18),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at top left,
+      rgba(56, 189, 248, 0.2),
+      transparent 34%
+    ),
+    #1e293b;
+  padding: 18px;
+}
+
+.briefing-panel p:not(.eyebrow) {
+  color: #cbd5e1;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
 .hero-actions,
 .dev-login,
 .input-row {

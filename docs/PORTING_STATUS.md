@@ -14,6 +14,7 @@ Last updated: 2026-06-16
 - protected API 401 refresh and retry
 - scenario library
 - scenario detail
+- case briefing before session start
 - active session lookup before create
 - create-session 409 active-session fallback
 - case scene tab
@@ -51,7 +52,6 @@ Last updated: 2026-06-16
 - actual Apps in Toss sandbox/device login E2E
 - scenario review/write UI
 - my page/profile/records
-- polished case briefing modal before session start
 - image full-screen viewer
 - richer location map interaction
 - result recommendation cards
