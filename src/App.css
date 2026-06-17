@@ -6,22 +6,16 @@
 .app-frame {
   width: 100%;
   min-height: 100vh;
-  background: #0f172a;
+  background:
+    radial-gradient(circle at top right, rgba(56, 189, 248, 0.14), transparent 30%),
+    #0f172a;
   color: #f1f5f9;
 }
 
-@media (min-width: 481px) {
-  .app-frame {
-    max-width: 480px;
-    margin: 0 auto;
-    min-height: 100vh;
-    border-left: 1px solid #243044;
-    border-right: 1px solid #243044;
-  }
-}
-
 main {
-  padding: 16px 16px 40px;
+  width: min(100%, 1180px);
+  margin: 0 auto;
+  padding: 20px 20px 48px;
 }
 
 button:focus-visible,
@@ -52,7 +46,7 @@ select:focus-visible {
   justify-content: space-between;
   gap: 12px;
   min-height: 56px;
-  padding: 8px 16px;
+  padding: 8px max(20px, calc((100vw - 1180px) / 2 + 20px));
   background: rgba(15, 23, 42, 0.94);
   border-bottom: 1px solid #243044;
   backdrop-filter: blur(16px);
@@ -123,6 +117,8 @@ select:focus-visible {
   min-height: calc(100vh - 96px);
   justify-content: center;
   text-align: center;
+  max-width: 520px;
+  margin: 0 auto;
 }
 
 .logo-orb {
@@ -242,6 +238,22 @@ h2 {
 
 .dev-login {
   flex-direction: column;
+}
+
+.google-login-box {
+  display: flex;
+  justify-content: center;
+  min-height: 44px;
+}
+
+.auth-notice {
+  border: 1px solid rgba(251, 191, 36, 0.34);
+  border-radius: 8px;
+  background: rgba(251, 191, 36, 0.1);
+  color: #fde68a;
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .button {
@@ -1519,4 +1531,60 @@ textarea {
   border-radius: 10px;
   object-fit: contain;
   background: #020617;
+}
+
+@media (min-width: 760px) {
+  main {
+    padding: 28px 28px 56px;
+  }
+
+  .login-screen {
+    max-width: 640px;
+  }
+
+  .hero-actions,
+  .dev-login {
+    max-width: 420px;
+    margin-right: auto;
+    margin-left: auto;
+  }
+
+  .card-list:not(.compact),
+  .records-list,
+  .recommendation-list,
+  .menu-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .scenario-hero,
+  .evidence-hero {
+    min-height: 320px;
+  }
+
+  .scenario-hero img,
+  .evidence-hero img {
+    min-height: 320px;
+  }
+
+  .submit-checklist,
+  .stats-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1040px) {
+  .card-list:not(.compact) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .case-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.75fr);
+    align-items: start;
+  }
+
+  .chat-screen {
+    min-height: calc(100vh - 140px);
+  }
 }

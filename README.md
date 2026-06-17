@@ -1,8 +1,6 @@
-# ClueRoom Apps in Toss Miniapp
+# ClueRoom Web
 
-ClueRoom Flutter 앱을 앱인토스 Web 미니앱으로 재구현하는 프로젝트입니다.
-
-기존 Flutter 코드는 복사하지 않고, 앱인토스 `.ait` 빌드에 필요한 React/Vite 소스와 ClueRoom API 연동만 유지합니다.
+ClueRoom을 일반 브라우저에서 실행하는 React/Vite 웹 앱입니다.
 
 ## Scripts
 
@@ -11,9 +9,8 @@ npm install
 npm run dev
 npm run lint
 npm run build
+npm run preview
 ```
-
-`npm run build`가 성공하면 프로젝트 루트에 `clueroom-toss-miniapp.ait`가 생성됩니다.
 
 ## Environment
 
@@ -21,21 +18,39 @@ npm run build
 
 ```bash
 VITE_API_BASE_URL=https://api.clueroom.xyz
-VITE_TOSS_AUTH_PATH=/api/auth/toss
+VITE_GOOGLE_CLIENT_ID=<Google Web OAuth client id>
 VITE_ENABLE_DEV_LOGIN=false
 ```
 
-현재 백엔드에는 Google/Kakao OAuth가 붙어 있고, 앱인토스 토스 로그인용 authorizationCode 교환 endpoint는 별도로 필요합니다. 미니앱은 기본적으로 `POST /api/auth/toss`에 아래 값을 보냅니다.
+Google 로그인은 Google Identity Services가 반환한 ID token을 기존 백엔드 OAuth endpoint로 전달합니다.
+
+```http
+POST /api/auth/oauth
+```
 
 ```json
 {
-  "authorizationCode": "<appLogin result>",
-  "referrer": "<appLogin result>",
-  "deviceId": "<Apps in Toss anonymous key or generated id>"
+  "provider": "GOOGLE",
+  "idToken": "<Google ID token>",
+  "deviceId": "<browser installation id>"
 }
 ```
 
-백엔드가 이 endpoint를 제공하면 기존 ClueRoom access/refresh token 흐름으로 이어집니다.
+QA나 staging에서만 개발 로그인을 켤 수 있습니다.
+
+```bash
+VITE_ENABLE_DEV_LOGIN=true
+```
+
+개발 로그인은 백엔드 `AUTH_DEV_LOGIN_ENABLED=true`가 켜져 있어야 동작합니다. 운영 공개 배포에서는 끄는 것을 기본으로 합니다.
+
+## Build Output
+
+```bash
+npm run build
+```
+
+정적 웹 산출물은 `dist/`에 생성됩니다. Vercel, Netlify, S3/CloudFront, Nginx 같은 정적 호스팅에 배포할 수 있습니다.
 
 ## Scope
 
@@ -49,16 +64,11 @@ VITE_ENABLE_DEV_LOGIN=false
 - 심문 채팅
 - 최종 추리 제출
 - 결과
+- 내 정보/기록/북마크/리뷰 로컬 저장
 
-의도적으로 제외한 것:
+제외한 것:
 
-- Flutter/Android native OAuth SDK
+- Apps in Toss `.ait` 빌드
+- Toss `appLogin()`
+- Android APK/AAB
 - FCM
-- AAB/APK signing 설정
-- Flutter build artifact
-
-## Upload
-
-앱인토스 콘솔의 앱 출시 화면에는 `.aab`가 아니라 `clueroom-toss-miniapp.ait`를 업로드합니다.
-
-출시 준비 순서는 [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md)를 참고하세요.

@@ -1,14 +1,13 @@
-import {
-  appLogin,
-  getAnonymousKey,
-  Storage,
-} from "@apps-in-toss/web-framework";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "https://api.clueroom.xyz";
-const TOSS_AUTH_PATH = import.meta.env.VITE_TOSS_AUTH_PATH ?? "/api/auth/toss";
+const GOOGLE_CLIENT_ID =
+  import.meta.env.VITE_GOOGLE_CLIENT_ID ??
+  import.meta.env.VITE_GOOGLE_SERVER_CLIENT_ID ??
+  "";
+const ENABLE_GOOGLE_LOGIN = !!GOOGLE_CLIENT_ID;
 const ENABLE_DEV_LOGIN =
   import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_LOGIN === "true";
 
@@ -18,6 +17,39 @@ const DEVICE_KEY = "clueroom.deviceId";
 const RECORDS_KEY = "clueroom.records";
 const BOOKMARKS_KEY = "clueroom.bookmarkedScenarios";
 const REVIEWS_KEY = "clueroom.scenarioReviews";
+
+type GoogleCredentialResponse = {
+  credential?: string;
+};
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (options: {
+            client_id: string;
+            callback: (response: GoogleCredentialResponse) => void;
+            auto_select?: boolean;
+            cancel_on_tap_outside?: boolean;
+          }) => void;
+          renderButton: (
+            parent: HTMLElement,
+            options: {
+              theme?: "outline" | "filled_blue" | "filled_black";
+              size?: "large" | "medium" | "small";
+              text?: "signin_with" | "signup_with" | "continue_with";
+              shape?: "rectangular" | "pill" | "circle" | "square";
+              width?: number;
+            },
+          ) => void;
+        };
+      };
+    };
+  }
+}
+
+let googleIdentityScriptPromise: Promise<void> | null = null;
 
 type View =
   | "login"
@@ -264,25 +296,25 @@ class ApiError extends Error {
 
 async function safeGet(key: string) {
   try {
-    return await Storage.getItem(key);
-  } catch {
     return localStorage.getItem(key);
+  } catch {
+    return null;
   }
 }
 
 async function safeSet(key: string, value: string) {
   try {
-    await Storage.setItem(key, value);
-  } catch {
     localStorage.setItem(key, value);
+  } catch {
+    // Storage may be blocked in private browsing.
   }
 }
 
 async function safeRemove(key: string) {
   try {
-    await Storage.removeItem(key);
-  } catch {
     localStorage.removeItem(key);
+  } catch {
+    // Storage may be blocked in private browsing.
   }
 }
 
@@ -294,21 +326,44 @@ async function getDeviceId() {
   const stored = await safeGet(DEVICE_KEY);
   if (stored) return stored;
 
-  try {
-    const anonymous = await getAnonymousKey();
-    if (anonymous && anonymous !== "ERROR" && anonymous.hash) {
-      await safeSet(DEVICE_KEY, anonymous.hash);
-      return anonymous.hash;
-    }
-  } catch {
-    // 브라우저 단독 실행에서는 토스 브릿지가 없을 수 있다.
-  }
-
   const generated =
     globalThis.crypto?.randomUUID?.() ??
     `web-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   await safeSet(DEVICE_KEY, generated);
   return generated;
+}
+
+function loadGoogleIdentityScript() {
+  if (window.google?.accounts?.id) return Promise.resolve();
+  if (googleIdentityScriptPromise) return googleIdentityScriptPromise;
+
+  googleIdentityScriptPromise = new Promise<void>((resolve, reject) => {
+    const existingScript = document.getElementById("google-identity-script");
+    if (existingScript) {
+      existingScript.addEventListener("load", () => resolve(), { once: true });
+      existingScript.addEventListener(
+        "error",
+        () => reject(new Error("Google 로그인 스크립트를 불러오지 못했습니다.")),
+        { once: true },
+      );
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = "google-identity-script";
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.addEventListener("load", () => resolve(), { once: true });
+    script.addEventListener(
+      "error",
+      () => reject(new Error("Google 로그인 스크립트를 불러오지 못했습니다.")),
+      { once: true },
+    );
+    document.head.appendChild(script);
+  });
+
+  return googleIdentityScriptPromise;
 }
 
 function apiUrl(
@@ -320,6 +375,26 @@ function apiUrl(
     url.searchParams.set(key, String(value));
   });
   return url.toString();
+}
+
+function publicImageUrl(value: unknown) {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith("/")) return new URL(trimmed, API_BASE_URL).toString();
+  return undefined;
+}
+
+function firstPublicImageUrl(
+  raw: Record<string, unknown>,
+  keys: string[],
+) {
+  for (const key of keys) {
+    const value = publicImageUrl(raw[key]);
+    if (value) return value;
+  }
+  return undefined;
 }
 
 async function request<T>(
@@ -368,6 +443,13 @@ async function request<T>(
 
 function normalizeScenario(raw: Record<string, unknown>): Scenario {
   const id = Number(raw.scenarioId ?? raw.id ?? 0);
+  const thumbnailUrl = firstPublicImageUrl(raw, [
+    "thumbnailUrl",
+    "coverImageUrl",
+    "coverUrl",
+    "scenarioImageUrl",
+    "imageUrl",
+  ]);
   const tags = Array.isArray(raw.tags)
     ? raw.tags.map((tag) => String(tag)).filter(Boolean)
     : undefined;
@@ -386,8 +468,7 @@ function normalizeScenario(raw: Record<string, unknown>): Scenario {
     evidenceCount: Number(raw.evidenceCount ?? 0),
     averageRating: Number(raw.averageRating ?? 0),
     playCount: Number(raw.playCount ?? 0),
-    thumbnailUrl:
-      typeof raw.thumbnailUrl === "string" ? raw.thumbnailUrl : undefined,
+    thumbnailUrl,
     synopsis:
       typeof raw.synopsis === "string"
         ? raw.synopsis
@@ -472,10 +553,13 @@ function normalizeGuidance(raw: unknown): Guidance | undefined {
 }
 
 function normalizeEvidence(raw: Record<string, unknown>): Evidence {
-  const imageUrl =
-    typeof raw.imageUrl === "string" && raw.imageUrl.trim()
-      ? raw.imageUrl.trim()
-      : undefined;
+  const imageUrl = firstPublicImageUrl(raw, [
+    "imageUrl",
+    "resolvedImageUrl",
+    "evidenceImageUrl",
+    "photoUrl",
+    "thumbnailUrl",
+  ]);
   const relatedSuspects = Array.isArray(raw.relatedSuspects)
     ? raw.relatedSuspects.map((item) => {
         const row = item as Record<string, unknown>;
@@ -526,6 +610,25 @@ function normalizeEvidence(raw: Record<string, unknown>): Evidence {
   };
 }
 
+function normalizeTimelineEvent(raw: Record<string, unknown>): TimelineEvent {
+  return {
+    time: String(raw.time ?? raw.eventTime ?? raw.occurredAt ?? ""),
+    title: String(raw.title ?? raw.name ?? "타임라인"),
+    description:
+      typeof raw.description === "string"
+        ? raw.description
+        : typeof raw.detail === "string"
+          ? raw.detail
+          : undefined,
+    relatedEvidenceId:
+      typeof raw.relatedEvidenceId === "number"
+        ? raw.relatedEvidenceId
+        : raw.relatedEvidenceId
+          ? Number(raw.relatedEvidenceId)
+          : undefined,
+  };
+}
+
 function normalizeLocations(raw: unknown): CaseLocation[] {
   const list =
     raw &&
@@ -538,10 +641,12 @@ function normalizeLocations(raw: unknown): CaseLocation[] {
 
   return list.map((item) => {
     const row = item as Record<string, unknown>;
-    const imageUrl =
-      typeof row.imageUrl === "string" && row.imageUrl.trim()
-        ? row.imageUrl.trim()
-        : undefined;
+    const imageUrl = firstPublicImageUrl(row, [
+      "imageUrl",
+      "resolvedImageUrl",
+      "locationImageUrl",
+      "photoUrl",
+    ]);
     return {
       locationId: Number(row.locationId ?? row.id ?? 0),
       name: String(row.name ?? "장소"),
@@ -561,10 +666,11 @@ function normalizeLocationPayload(raw: unknown) {
   const data =
     raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   return {
-    mapImageUrl:
-      typeof data.mapImageUrl === "string" && data.mapImageUrl.trim()
-        ? data.mapImageUrl.trim()
-        : undefined,
+    mapImageUrl: firstPublicImageUrl(data, [
+      "mapImageUrl",
+      "resolvedMapImageUrl",
+      "imageUrl",
+    ]),
     locations: normalizeLocations(raw),
   };
 }
@@ -585,10 +691,12 @@ function normalizeHint(raw: Record<string, unknown>): Hint {
 }
 
 function normalizeSuspect(raw: Record<string, unknown>): Suspect {
-  const portrait =
-    typeof raw.portraitImageUrl === "string" && raw.portraitImageUrl.trim()
-      ? raw.portraitImageUrl.trim()
-      : undefined;
+  const portrait = firstPublicImageUrl(raw, [
+    "portraitImageUrl",
+    "profileImageUrl",
+    "imageUrl",
+    "resolvedImageUrl",
+  ]);
 
   return {
     suspectId: Number(raw.suspectId ?? raw.id ?? 0),
@@ -610,6 +718,70 @@ function normalizeSuspect(raw: Record<string, unknown>): Suspect {
       raw.isWitness === true || raw.characterType === "NEUTRAL_WITNESS",
     interrogationCount: Number(raw.interrogationCount ?? 0),
   };
+}
+
+function normalizeInterrogationLog(raw: Record<string, unknown>): InterrogationLog {
+  const presented =
+    raw.presentedEvidence && typeof raw.presentedEvidence === "object"
+      ? (raw.presentedEvidence as Record<string, unknown>)
+      : null;
+  const evidenceId =
+    typeof presented?.evidenceId === "number"
+      ? presented.evidenceId
+      : typeof raw.presentedEvidenceId === "number"
+        ? raw.presentedEvidenceId
+        : raw.presentedEvidenceId
+          ? Number(raw.presentedEvidenceId)
+          : undefined;
+  const evidenceTitle =
+    typeof presented?.title === "string"
+      ? presented.title
+      : typeof raw.presentedEvidenceTitle === "string"
+        ? raw.presentedEvidenceTitle
+        : undefined;
+
+  return {
+    interrogationId: Number(raw.interrogationId ?? raw.id ?? Date.now()),
+    suspectId: Number(raw.suspectId ?? 0),
+    suspectName: String(raw.suspectName ?? raw.targetName ?? ""),
+    question: String(raw.question ?? raw.userQuestion ?? "").trim(),
+    answer: String(raw.answer ?? raw.response ?? "").trim(),
+    questionType:
+      typeof raw.questionType === "string" ? raw.questionType : undefined,
+    presentedEvidence:
+      evidenceId && evidenceTitle
+        ? {
+            evidenceId,
+            title: evidenceTitle,
+          }
+        : undefined,
+    createdAt: typeof raw.createdAt === "string" ? raw.createdAt : undefined,
+  };
+}
+
+function messagesFromLogs(logs: InterrogationLog[], fallback: string) {
+  if (!logs.length) {
+    return [{ sender: "suspect" as const, text: fallback }];
+  }
+
+  return logs.flatMap((log) => {
+    const rows: ChatMessage[] = [];
+    if (log.question) {
+      rows.push({
+        sender: "detective",
+        text: log.question,
+        presentedEvidenceId: log.presentedEvidence?.evidenceId,
+      });
+    }
+    if (log.answer) {
+      rows.push({
+        sender: "suspect",
+        text: log.answer,
+        presentedEvidenceId: log.presentedEvidence?.evidenceId,
+      });
+    }
+    return rows;
+  });
 }
 
 function normalizeUserProfile(raw: unknown): UserProfile {
@@ -949,6 +1121,25 @@ function App() {
     void loadScenarioReviews();
   }, []);
 
+  const dashboardSessionId = dashboard?.sessionId;
+  const dashboardStatus = dashboard?.status;
+
+  useEffect(() => {
+    if (view !== "case" || !dashboardSessionId || dashboardStatus === "COMPLETED") {
+      return;
+    }
+
+    const timerId = window.setInterval(() => {
+      setDashboard((current) =>
+        current && current.sessionId === dashboardSessionId
+          ? { ...current, elapsedSeconds: current.elapsedSeconds + 1 }
+          : current,
+      );
+    }, 1000);
+
+    return () => window.clearInterval(timerId);
+  }, [dashboardSessionId, dashboardStatus, view]);
+
   async function persistTokens(next: Tokens) {
     await safeSet(ACCESS_KEY, next.accessToken);
     if (next.refreshToken) await safeSet(REFRESH_KEY, next.refreshToken);
@@ -1143,7 +1334,7 @@ function App() {
       );
       setProfile({
         nickname: "탐정 견습생",
-        provider: "TOSS",
+        provider: "WEB",
       });
     } finally {
       setProfileLoading(false);
@@ -1190,14 +1381,13 @@ function App() {
     }
   }
 
-  async function handleTossLogin() {
+  async function handleGoogleCredential(idToken: string) {
     setAuthError(null);
     try {
-      const { authorizationCode, referrer } = await appLogin();
       const deviceId = await getDeviceId();
-      const data = await request<Tokens>(TOSS_AUTH_PATH, {
+      const data = await request<Tokens>("/api/auth/oauth", {
         method: "POST",
-        body: JSON.stringify({ authorizationCode, referrer, deviceId }),
+        body: JSON.stringify({ provider: "GOOGLE", idToken, deviceId }),
       });
       await persistTokens(data);
       setView("home");
@@ -1205,7 +1395,7 @@ function App() {
       setAuthError(
         error instanceof Error
           ? error.message
-          : "토스 로그인 연동에 실패했습니다.",
+          : "Google 로그인 연동에 실패했습니다.",
       );
     }
   }
@@ -1269,7 +1459,12 @@ function App() {
       const detail = await request<Record<string, unknown>>(
         `/api/scenarios/${scenario.scenarioId}`,
       );
-      setSelectedScenario(normalizeScenario(detail));
+      const normalizedDetail = normalizeScenario(detail);
+      setSelectedScenario({
+        ...scenario,
+        ...normalizedDetail,
+        thumbnailUrl: normalizedDetail.thumbnailUrl ?? scenario.thumbnailUrl,
+      });
     } catch (error) {
       setScenarioDetailError(
         error instanceof Error
@@ -1358,7 +1553,9 @@ function App() {
         authedRequest<Record<string, unknown>[]>(
           `/api/play-sessions/${id}/suspects`,
         ),
-        authedRequest<TimelineEvent[]>(`/api/play-sessions/${id}/timeline`),
+        authedRequest<Record<string, unknown>[]>(
+          `/api/play-sessions/${id}/timeline`,
+        ),
         authedRequest<unknown>(`/api/play-sessions/${id}/locations`),
         authedRequest<Record<string, unknown>[]>(
           `/api/play-sessions/${id}/hints`,
@@ -1369,7 +1566,7 @@ function App() {
       setDashboard(nextDashboard);
       setEvidences(evidenceData.map(normalizeEvidence));
       setSuspects(suspectData.map(normalizeSuspect));
-      setTimeline(timelineData);
+      setTimeline(timelineData.map(normalizeTimelineEvent));
       setCaseMapImageUrl(locationPayload.mapImageUrl);
       setLocations(locationPayload.locations);
       setHints(hintData.map(normalizeHint));
@@ -1476,13 +1673,13 @@ function App() {
 
     setSuspectDetailLoading(true);
     try {
-      const logs = await authedRequest<InterrogationLog[]>(
+      const logs = await authedRequest<Record<string, unknown>[]>(
         `/api/play-sessions/${sessionId}/interrogations`,
         {
           query: { suspectId: suspect.suspectId },
         },
       );
-      setSuspectLogs(logs);
+      setSuspectLogs(logs.map(normalizeInterrogationLog));
     } catch {
       setSuspectLogs([]);
     } finally {
@@ -1492,12 +1689,8 @@ function App() {
 
   async function openChat(suspect: Suspect, prefill?: SuggestedQuestion) {
     setChatSuspect(suspect);
-    setMessages([
-      {
-        sender: "suspect",
-        text: suspect.publicStatement?.trim() || "무엇이 궁금하신가요?",
-      },
-    ]);
+    const fallbackMessage = suspect.publicStatement?.trim() || "무엇이 궁금하신가요?";
+    setMessages([{ sender: "suspect", text: fallbackMessage }]);
     setQuestion(prefill?.question ?? "");
     setPendingEvidenceId(prefill?.presentedEvidenceId ?? null);
     setPendingQuestionType(
@@ -1510,6 +1703,21 @@ function App() {
             : "FREE",
     );
     setView("chat");
+    if (!sessionId || !authToken) return;
+
+    try {
+      const logs = await authedRequest<Record<string, unknown>[]>(
+        `/api/play-sessions/${sessionId}/interrogations`,
+        {
+          query: { suspectId: suspect.suspectId },
+        },
+      );
+      setMessages(
+        messagesFromLogs(logs.map(normalizeInterrogationLog), fallbackMessage),
+      );
+    } catch {
+      // 기존 대화를 못 불러와도 새 심문은 계속 가능해야 한다.
+    }
   }
 
   async function sendQuestion() {
@@ -1725,7 +1933,8 @@ function App() {
       {view === "login" && (
         <LoginScreen
           error={authError}
-          onTossLogin={handleTossLogin}
+          onGoogleCredential={handleGoogleCredential}
+          onAuthError={setAuthError}
           onDevLogin={handleDevLogin}
         />
       )}
@@ -2019,11 +2228,13 @@ function Shell({
 
 function LoginScreen({
   error,
-  onTossLogin,
+  onGoogleCredential,
+  onAuthError,
   onDevLogin,
 }: {
   error: string | null;
-  onTossLogin: () => void;
+  onGoogleCredential: (idToken: string) => void;
+  onAuthError: (message: string) => void;
   onDevLogin: (email: string) => void;
 }) {
   const [email, setEmail] = useState("tester@clueroom.local");
@@ -2036,11 +2247,17 @@ function LoginScreen({
       <p className="eyebrow">MYSTERY LIBRARY</p>
       <h1>사건을 수사할 시간</h1>
       <p className="muted">
-        토스 안에서 단서를 모으고, 인물을 심문하고, 마지막 추리를 제출하세요.
+        웹에서 단서를 모으고, 인물을 심문하고, 마지막 추리를 제출하세요.
       </p>
-      <button className="button primary" onClick={onTossLogin} type="button">
-        토스로 시작하기
-      </button>
+      <GoogleSignInButton
+        onCredential={onGoogleCredential}
+        onError={onAuthError}
+      />
+      {!ENABLE_GOOGLE_LOGIN && !ENABLE_DEV_LOGIN && (
+        <article className="auth-notice">
+          Google 웹 로그인을 사용하려면 `VITE_GOOGLE_CLIENT_ID`가 필요합니다.
+        </article>
+      )}
       {ENABLE_DEV_LOGIN && (
         <div className="dev-login">
           <input
@@ -2059,6 +2276,69 @@ function LoginScreen({
       )}
       {error && <p className="error-text">{error}</p>}
     </section>
+  );
+}
+
+function GoogleSignInButton({
+  onCredential,
+  onError,
+}: {
+  onCredential: (idToken: string) => void;
+  onError: (message: string) => void;
+}) {
+  const buttonRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!ENABLE_GOOGLE_LOGIN || !buttonRef.current) return;
+
+    let cancelled = false;
+    void loadGoogleIdentityScript()
+      .then(() => {
+        if (cancelled || !buttonRef.current || !window.google?.accounts?.id) {
+          return;
+        }
+
+        buttonRef.current.innerHTML = "";
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: (response) => {
+            if (response.credential) {
+              onCredential(response.credential);
+              return;
+            }
+            onError("Google 인증 토큰을 받지 못했습니다.");
+          },
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        });
+        window.google.accounts.id.renderButton(buttonRef.current, {
+          theme: "filled_blue",
+          size: "large",
+          text: "continue_with",
+          shape: "rectangular",
+          width: Math.min(360, buttonRef.current.clientWidth || 360),
+        });
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        onError(
+          error instanceof Error
+            ? error.message
+            : "Google 로그인 준비에 실패했습니다.",
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [onCredential, onError]);
+
+  if (!ENABLE_GOOGLE_LOGIN) return null;
+
+  return (
+    <div className="google-login-box">
+      <div ref={buttonRef} />
+    </div>
   );
 }
 
@@ -2159,9 +2439,9 @@ function ProfileScreen({
         </div>
         <div>
           <h2>{displayName}</h2>
-          <p className="muted">{profile?.email ?? "토스 로그인 사용자"}</p>
+          <p className="muted">{profile?.email ?? "웹 로그인 사용자"}</p>
           <div className="meta-row">
-            <span>{profile?.provider ?? "TOSS"}</span>
+            <span>{profile?.provider ?? "WEB"}</span>
             <span>{loading ? "동기화 중" : "인증됨"}</span>
           </div>
         </div>
