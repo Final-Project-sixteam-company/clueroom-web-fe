@@ -17,6 +17,7 @@ const DEVICE_KEY = "clueroom.deviceId";
 const RECORDS_KEY = "clueroom.records";
 const BOOKMARKS_KEY = "clueroom.bookmarkedScenarios";
 const REVIEWS_KEY = "clueroom.scenarioReviews";
+const CASE_REFRESH_SECONDS = 30;
 
 type GoogleCredentialResponse = {
   credential?: string;
@@ -553,6 +554,10 @@ function normalizeGuidance(raw: unknown): Guidance | undefined {
 }
 
 function normalizeEvidence(raw: Record<string, unknown>): Evidence {
+  const location =
+    raw.location && typeof raw.location === "object"
+      ? (raw.location as Record<string, unknown>)
+      : null;
   const imageUrl = firstPublicImageUrl(raw, [
     "imageUrl",
     "resolvedImageUrl",
@@ -592,7 +597,11 @@ function normalizeEvidence(raw: Record<string, unknown>): Evidence {
     description:
       typeof raw.description === "string" ? raw.description : undefined,
     locationName:
-      typeof raw.locationName === "string" ? raw.locationName : undefined,
+      typeof raw.locationName === "string"
+        ? raw.locationName
+        : typeof location?.name === "string"
+          ? location.name
+          : undefined,
     unlockHint: typeof raw.unlockHint === "string" ? raw.unlockHint : undefined,
     category:
       typeof raw.category === "string"
@@ -1123,6 +1132,9 @@ function App() {
 
   const dashboardSessionId = dashboard?.sessionId;
   const dashboardStatus = dashboard?.status;
+  const loadCaseRef = useRef<
+    (id?: number | null, options?: { silent?: boolean }) => Promise<void>
+  >(async () => {});
 
   useEffect(() => {
     if (view !== "case" || !dashboardSessionId || dashboardStatus === "COMPLETED") {
@@ -1130,11 +1142,19 @@ function App() {
     }
 
     const timerId = window.setInterval(() => {
+      let shouldRefresh = false;
       setDashboard((current) =>
         current && current.sessionId === dashboardSessionId
-          ? { ...current, elapsedSeconds: current.elapsedSeconds + 1 }
+          ? (() => {
+              const elapsedSeconds = current.elapsedSeconds + 1;
+              shouldRefresh = elapsedSeconds % CASE_REFRESH_SECONDS === 0;
+              return { ...current, elapsedSeconds };
+            })()
           : current,
       );
+      if (shouldRefresh) {
+        void loadCaseRef.current(dashboardSessionId, { silent: true });
+      }
     }, 1000);
 
     return () => window.clearInterval(timerId);
@@ -1147,19 +1167,31 @@ function App() {
   }
 
   async function logout() {
-    await safeRemove(ACCESS_KEY);
-    await safeRemove(REFRESH_KEY);
-    setTokens(null);
-    setProfile(null);
-    setSessionId(null);
-    setDashboard(null);
-    setEvidences([]);
-    setSuspects([]);
-    setTimeline([]);
-    setLocations([]);
-    setCaseMapImageUrl(undefined);
-    setHints([]);
-    setView("login");
+    const refreshToken = tokens?.refreshToken ?? (await safeGet(REFRESH_KEY));
+    try {
+      if (refreshToken) {
+        await request<void>("/api/auth/logout", {
+          method: "POST",
+          body: JSON.stringify({ refreshToken }),
+        });
+      }
+    } catch {
+      // 서버 revoke 실패와 무관하게 로컬 로그아웃은 완료한다.
+    } finally {
+      await safeRemove(ACCESS_KEY);
+      await safeRemove(REFRESH_KEY);
+      setTokens(null);
+      setProfile(null);
+      setSessionId(null);
+      setDashboard(null);
+      setEvidences([]);
+      setSuspects([]);
+      setTimeline([]);
+      setLocations([]);
+      setCaseMapImageUrl(undefined);
+      setHints([]);
+      setView("login");
+    }
   }
 
   async function loadRecords() {
@@ -1530,19 +1562,17 @@ function App() {
     }
   }
 
-  async function loadCase(id = sessionId) {
+  async function loadCase(
+    id = sessionId,
+    options: { silent?: boolean } = {},
+  ) {
     if (!id || !authToken) return;
-    setCaseLoading(true);
-    setCaseError(null);
+    if (!options.silent) {
+      setCaseLoading(true);
+      setCaseError(null);
+    }
     try {
-      const [
-        nextDashboard,
-        evidenceData,
-        suspectData,
-        timelineData,
-        locationData,
-        hintData,
-      ] = await Promise.all([
+      const [nextDashboard, evidenceData, suspectData] = await Promise.all([
         authedRequest<Dashboard>(`/api/play-sessions/${id}/dashboard`),
         authedRequest<Record<string, unknown>[]>(
           `/api/play-sessions/${id}/evidences`,
@@ -1553,33 +1583,60 @@ function App() {
         authedRequest<Record<string, unknown>[]>(
           `/api/play-sessions/${id}/suspects`,
         ),
-        authedRequest<Record<string, unknown>[]>(
-          `/api/play-sessions/${id}/timeline`,
-        ),
-        authedRequest<unknown>(`/api/play-sessions/${id}/locations`),
-        authedRequest<Record<string, unknown>[]>(
-          `/api/play-sessions/${id}/hints`,
-        ),
       ]);
 
-      const locationPayload = normalizeLocationPayload(locationData);
       setDashboard(nextDashboard);
       setEvidences(evidenceData.map(normalizeEvidence));
       setSuspects(suspectData.map(normalizeSuspect));
-      setTimeline(timelineData.map(normalizeTimelineEvent));
-      setCaseMapImageUrl(locationPayload.mapImageUrl);
-      setLocations(locationPayload.locations);
-      setHints(hintData.map(normalizeHint));
+
+      const [timelineData, locationData, hintData] = await Promise.all([
+        authedRequest<Record<string, unknown>[]>(
+          `/api/play-sessions/${id}/timeline`,
+        ).catch(() => null),
+        authedRequest<unknown>(`/api/play-sessions/${id}/locations`).catch(
+          () => null,
+        ),
+        authedRequest<Record<string, unknown>[]>(
+          `/api/play-sessions/${id}/hints`,
+        ).catch(() => null),
+      ]);
+
+      if (timelineData) {
+        setTimeline(timelineData.map(normalizeTimelineEvent));
+      } else if (!options.silent) {
+        setTimeline([]);
+      }
+
+      if (locationData) {
+        const locationPayload = normalizeLocationPayload(locationData);
+        setCaseMapImageUrl(locationPayload.mapImageUrl);
+        setLocations(locationPayload.locations);
+      } else if (!options.silent) {
+        setCaseMapImageUrl(undefined);
+        setLocations([]);
+      }
+
+      if (hintData) {
+        setHints(hintData.map(normalizeHint));
+      } else if (!options.silent) {
+        setHints([]);
+      }
     } catch (error) {
-      setCaseError(
-        error instanceof Error
-          ? error.message
-          : "수사 정보를 불러오지 못했습니다.",
-      );
+      if (!options.silent) {
+        setCaseError(
+          error instanceof Error
+            ? error.message
+            : "수사 정보를 불러오지 못했습니다.",
+        );
+      }
     } finally {
-      setCaseLoading(false);
+      if (!options.silent) {
+        setCaseLoading(false);
+      }
     }
   }
+
+  loadCaseRef.current = loadCase;
 
   async function abandonSession() {
     if (!sessionId) {
@@ -1603,6 +1660,11 @@ function App() {
       setHints([]);
       setView("library");
     } catch (error) {
+      if (error instanceof ApiError && error.code === "P003") {
+        setCaseError("최종 추리 처리 중입니다. 잠시 후 결과를 다시 확인해 주세요.");
+        await loadCase(sessionId, { silent: true });
+        return;
+      }
       setCaseError(
         error instanceof Error ? error.message : "수사를 중단하지 못했습니다.",
       );
