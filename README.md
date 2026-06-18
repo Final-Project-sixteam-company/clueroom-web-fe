@@ -65,15 +65,17 @@ VITE_ENABLE_DEV_LOGIN=true
 
 개발 로그인은 백엔드 `AUTH_DEV_LOGIN_ENABLED=true`가 켜져 있어야 동작합니다. 운영 공개 배포에서는 끄는 것을 기본으로 합니다.
 
-QA 전용 로그인 버튼은 임의 이메일 입력 없이 지정된 QA 계정으로만 `/api/auth/dev`를 호출합니다.
+QA 전용 로그인은 QA 계정 이메일 입력칸을 통해 `/api/auth/dev`를 호출합니다.
 웹 빌드에는 아래 env가 필요하고, 백엔드도 동일하게 `AUTH_DEV_LOGIN_ENABLED=true`가 켜져 있어야 합니다.
 공개 운영 배포에서는 QA 검증 시간에만 켜고, 검증이 끝나면 다시 끄는 것을 기본으로 합니다.
 
 ```bash
 VITE_ENABLE_QA_LOGIN=true
-VITE_QA_LOGIN_EMAIL=<QA seed email>
+VITE_QA_LOGIN_EMAIL=<optional prefill email>
 VITE_QA_LOGIN_NICKNAME=ClueRoom QA
 ```
+
+`VITE_QA_LOGIN_EMAIL`은 입력칸 기본값으로만 사용됩니다. 값을 비워도 QA 로그인 입력칸은 표시됩니다.
 
 ## Build Output
 

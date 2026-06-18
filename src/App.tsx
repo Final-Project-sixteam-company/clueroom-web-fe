@@ -13,12 +13,13 @@ const ENABLE_GOOGLE_LOGIN = !!GOOGLE_CLIENT_ID;
 const ENABLE_KAKAO_LOGIN = !!KAKAO_JAVASCRIPT_KEY;
 const ENABLE_DEV_LOGIN =
   import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_LOGIN === "true";
-const QA_LOGIN_EMAIL = (import.meta.env.VITE_QA_LOGIN_EMAIL ?? "").trim();
+const DEFAULT_QA_LOGIN_EMAIL = (
+  import.meta.env.VITE_QA_LOGIN_EMAIL ?? ""
+).trim();
 const QA_LOGIN_NICKNAME =
   (import.meta.env.VITE_QA_LOGIN_NICKNAME ?? "ClueRoom QA").trim() ||
   "ClueRoom QA";
 const ENABLE_QA_LOGIN =
-  !!QA_LOGIN_EMAIL &&
   (import.meta.env.DEV || import.meta.env.VITE_ENABLE_QA_LOGIN === "true");
 const KAKAO_LOGIN_STATE = "clueroom-kakao-login";
 
@@ -2500,7 +2501,21 @@ function LoginScreen({
   onAuthError: (message: string) => void;
   onDevLogin: (email: string, nickname?: string, fallbackMessage?: string) => void;
 }) {
-  const [email, setEmail] = useState("tester@clueroom.local");
+  const [devEmail, setDevEmail] = useState("tester@clueroom.local");
+  const [qaEmail, setQaEmail] = useState(DEFAULT_QA_LOGIN_EMAIL);
+
+  function submitDevLogin(
+    email: string,
+    nickname?: string,
+    fallbackMessage?: string,
+  ) {
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail) {
+      onAuthError("로그인 이메일을 입력하세요.");
+      return;
+    }
+    onDevLogin(normalizedEmail, nickname, fallbackMessage);
+  }
 
   return (
     <section className="login-screen">
@@ -2532,11 +2547,18 @@ function LoginScreen({
       )}
       {ENABLE_QA_LOGIN && (
         <div className="dev-login">
+          <input
+            type="email"
+            value={qaEmail}
+            onChange={(e) => setQaEmail(e.target.value)}
+            placeholder="QA 계정 이메일"
+            autoComplete="email"
+          />
           <button
             className="button secondary"
             onClick={() =>
-              onDevLogin(
-                QA_LOGIN_EMAIL,
+              submitDevLogin(
+                qaEmail,
                 QA_LOGIN_NICKNAME,
                 "QA 로그인에 실패했습니다.",
               )
@@ -2550,13 +2572,15 @@ function LoginScreen({
       {ENABLE_DEV_LOGIN && (
         <div className="dev-login">
           <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="email"
+            value={devEmail}
+            onChange={(e) => setDevEmail(e.target.value)}
             placeholder="테스트 이메일"
+            autoComplete="email"
           />
           <button
             className="button secondary"
-            onClick={() => onDevLogin(email)}
+            onClick={() => submitDevLogin(devEmail)}
             type="button"
           >
             개발 로그인
