@@ -482,6 +482,7 @@ async function request<T>(
   const res = await fetch(apiUrl(path, options.query), {
     ...options,
     headers,
+    credentials: "include",
   });
 
   const text = await res.text();
@@ -1210,15 +1211,18 @@ function App() {
       }
 
       const accessToken = await safeGet(ACCESS_KEY);
-      const refreshToken = await safeGet(REFRESH_KEY);
+      const legacyRefreshToken = await safeGet(REFRESH_KEY);
       if (accessToken) {
-        setTokens({ accessToken, refreshToken: refreshToken ?? undefined });
-      } else if (refreshToken) {
+        setTokens({ accessToken });
+        await safeRemove(REFRESH_KEY);
+      } else {
         const generation = authGenerationRef.current;
         try {
           const next = await request<Tokens>("/api/auth/refresh", {
             method: "POST",
-            body: JSON.stringify({ refreshToken }),
+            body: legacyRefreshToken
+              ? JSON.stringify({ refreshToken: legacyRefreshToken })
+              : undefined,
           });
           if (generation === authGenerationRef.current) {
             await persistTokens(next);
@@ -1279,9 +1283,13 @@ function App() {
   }, [dashboardSessionId, dashboardStatus, view]);
 
   async function persistTokens(next: Tokens) {
+    const browserTokens: Tokens = {
+      ...next,
+      refreshToken: undefined,
+    };
     await safeSet(ACCESS_KEY, next.accessToken);
-    if (next.refreshToken) await safeSet(REFRESH_KEY, next.refreshToken);
-    setTokens(next);
+    await safeRemove(REFRESH_KEY);
+    setTokens(browserTokens);
   }
 
   async function replaceAuthSession(next: Tokens) {
@@ -1292,14 +1300,14 @@ function App() {
   async function logout() {
     authGenerationRef.current += 1;
     refreshInFlightRef.current = null;
-    const refreshToken = tokens?.refreshToken ?? (await safeGet(REFRESH_KEY));
+    const legacyRefreshToken = tokens?.refreshToken ?? (await safeGet(REFRESH_KEY));
     try {
-      if (refreshToken) {
-        await request<void>("/api/auth/logout", {
-          method: "POST",
-          body: JSON.stringify({ refreshToken }),
-        });
-      }
+      await request<void>("/api/auth/logout", {
+        method: "POST",
+        body: legacyRefreshToken
+          ? JSON.stringify({ refreshToken: legacyRefreshToken })
+          : undefined,
+      });
     } catch {
       // 서버 revoke 실패와 무관하게 로컬 로그아웃은 완료한다.
     } finally {
@@ -1588,15 +1596,16 @@ function App() {
   async function refreshTokens() {
     if (refreshInFlightRef.current) return refreshInFlightRef.current;
 
-    const refreshToken = tokens?.refreshToken ?? (await safeGet(REFRESH_KEY));
-    if (!refreshToken) return null;
+    const legacyRefreshToken = tokens?.refreshToken ?? (await safeGet(REFRESH_KEY));
 
     const generation = authGenerationRef.current;
     const refreshPromise: Promise<string | null> = (async () => {
       try {
         const next = await request<Tokens>("/api/auth/refresh", {
           method: "POST",
-          body: JSON.stringify({ refreshToken }),
+          body: legacyRefreshToken
+            ? JSON.stringify({ refreshToken: legacyRefreshToken })
+            : undefined,
         });
         if (generation !== authGenerationRef.current) return null;
         await persistTokens(next);

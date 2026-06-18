@@ -155,6 +155,7 @@ SSH_TARGET=clueroom-staging PUBLIC_URL=https://staging.example.com bash scripts/
 ## Web/App Compatibility Notes
 
 - 로그인은 Google/Kakao OAuth와 QA 입력 로그인이 모두 기존 백엔드 JWT 응답을 사용합니다.
+- 웹은 refresh token을 JS 저장소에 보관하지 않고 백엔드의 HttpOnly refresh cookie를 사용합니다. 기존 localStorage refresh token은 1회 호환 refresh 뒤 제거합니다.
 - 만료 토큰으로 여러 요청이 동시에 401을 받아도 refresh 요청은 한 번만 실행합니다.
 - 로그아웃 중 완료된 오래된 refresh 응답은 새 세션으로 저장하지 않습니다.
 - 북마크와 리뷰 작성/조회는 서버 API를 사용하므로 같은 계정 기준으로 앱/웹 간 상태를 공유합니다.
