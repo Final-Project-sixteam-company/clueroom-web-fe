@@ -160,7 +160,7 @@ SSH_TARGET=clueroom-staging PUBLIC_URL=https://staging.example.com bash scripts/
 - 북마크와 리뷰 작성/조회는 서버 API를 사용하므로 같은 계정 기준으로 앱/웹 간 상태를 공유합니다.
 - 내 정보의 저장한 사건 화면은 `/api/scenarios/bookmarked`를 사용해 서버 북마크 목록을 표시합니다.
 - 리뷰 별점은 백엔드 계약에 맞춰 1~5 정수 단위로 입력합니다.
-- 수사 기록은 현재 웹 브라우저 localStorage에만 저장됩니다. 앱/다른 기기와 동기화되는 계정 기록이 아닙니다.
+- 수사 기록은 `/api/play-sessions/records`가 있으면 서버 계정 기록을 우선 사용하고, API가 아직 배포되지 않았거나 실패하면 웹 브라우저 localStorage 기록으로 fallback합니다.
 - 최종 추리는 제출 후 `/api/play-sessions/{sessionId}/result` 조회가 성공해야 결과 화면으로 이동합니다. 결과 조회가 일시 실패하면 제출 응답만으로 빈약한 결과 화면을 만들지 않고 재조회 버튼을 표시합니다.
 
 ## Scope

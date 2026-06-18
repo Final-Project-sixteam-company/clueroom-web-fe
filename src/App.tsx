@@ -1100,6 +1100,9 @@ function App() {
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [records, setRecords] = useState<RecordItem[]>([]);
+  const [recordsSource, setRecordsSource] = useState<"server" | "local">(
+    "local",
+  );
   const [imagePreview, setImagePreview] = useState<ImagePreview | null>(null);
 
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
@@ -1240,8 +1243,10 @@ function App() {
   }, [authReady, authToken]);
 
   useEffect(() => {
-    void loadRecords();
-  }, []);
+    if (authReady) void loadRecords();
+    // Records prefer account API after auth bootstrap, then fall back to local storage.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authReady, authToken]);
 
   const dashboardSessionId = dashboard?.sessionId;
   const dashboardStatus = dashboard?.status;
@@ -1314,9 +1319,13 @@ function App() {
     }
   }
 
-  async function loadRecords() {
+  async function loadLocalRecords() {
     const stored = await safeGet(RECORDS_KEY);
-    if (!stored) return;
+    if (!stored) {
+      setRecordsSource("local");
+      setRecords([]);
+      return;
+    }
     try {
       const parsed = JSON.parse(stored);
       const list = Array.isArray(parsed)
@@ -1324,11 +1333,33 @@ function App() {
             .map(normalizeRecord)
             .filter((item): item is RecordItem => !!item)
         : [];
+      setRecordsSource("local");
       setRecords(list);
     } catch {
       await safeRemove(RECORDS_KEY);
+      setRecordsSource("local");
       setRecords([]);
     }
+  }
+
+  async function loadRecords() {
+    if (authToken) {
+      try {
+        const data = await authedRequest<
+          { content?: Record<string, unknown>[] } | Record<string, unknown>[]
+        >("/api/play-sessions/records", { query: { page: 0, size: 30 } });
+        const list = (Array.isArray(data) ? data : (data.content ?? []))
+          .map(normalizeRecord)
+          .filter((item): item is RecordItem => !!item);
+        setRecordsSource("server");
+        setRecords(list);
+        return;
+      } catch {
+        // Backend record API may not be deployed yet. Keep the web usable with local records.
+      }
+    }
+
+    await loadLocalRecords();
   }
 
   function persistBookmarks(ids: number[]) {
@@ -2359,6 +2390,7 @@ function App() {
           loading={profileLoading}
           error={profileError}
           records={records}
+          recordsSource={recordsSource}
           onRefresh={loadProfile}
           onRecords={() => setView("records")}
           onLibrary={() => setView("library")}
@@ -2370,6 +2402,7 @@ function App() {
       {view === "records" && (
         <RecordsScreen
           records={records}
+          source={recordsSource}
           onBack={() => setView("profile")}
           onLibrary={() => setView("library")}
           onResume={(record) => void resumeRecord(record)}
@@ -2908,6 +2941,7 @@ function ProfileScreen({
   loading,
   error,
   records,
+  recordsSource,
   onRefresh,
   onRecords,
   onLibrary,
@@ -2918,6 +2952,7 @@ function ProfileScreen({
   loading: boolean;
   error: string | null;
   records: RecordItem[];
+  recordsSource: "server" | "local";
   onRefresh: () => void;
   onRecords: () => void;
   onLibrary: () => void;
@@ -2975,7 +3010,11 @@ function ProfileScreen({
       <div className="menu-list">
         <button className="menu-item" onClick={onRecords} type="button">
           <span>수사 기록</span>
-          <small>완료한 사건과 진행 중인 사건을 확인합니다</small>
+          <small>
+            {recordsSource === "server"
+              ? "계정에 저장된 사건 진행 상태를 확인합니다"
+              : "이 브라우저의 완료/진행 기록을 확인합니다"}
+          </small>
         </button>
         <button className="menu-item" onClick={onLibrary} type="button">
           <span>사건 라이브러리</span>
@@ -2996,11 +3035,13 @@ function ProfileScreen({
 
 function RecordsScreen({
   records,
+  source,
   onBack,
   onLibrary,
   onResume,
 }: {
   records: RecordItem[];
+  source: "server" | "local";
   onBack: () => void;
   onLibrary: () => void;
   onResume: (record: RecordItem) => void;
@@ -3043,10 +3084,17 @@ function RecordsScreen({
       <button className="icon-button fit" onClick={onBack} type="button">
         내 정보로 돌아가기
       </button>
-      <ScreenTitle title="이 기기 수사 기록" subtitle="LOCAL RECORDS" />
+      <ScreenTitle
+        title={source === "server" ? "수사 기록" : "이 기기 수사 기록"}
+        subtitle={source === "server" ? "ACCOUNT RECORDS" : "LOCAL RECORDS"}
+      />
       <InfoPanel
-        title="기록 범위"
-        body="현재 웹 기록은 이 브라우저에만 저장됩니다. 앱이나 다른 기기와 자동 동기화되지 않습니다."
+        title={source === "server" ? "계정 기록" : "기록 범위"}
+        body={
+          source === "server"
+            ? "현재 목록은 서버에 저장된 계정 기준 기록입니다. 같은 계정이면 앱과 웹에서 이어볼 수 있습니다."
+            : "현재 웹 기록은 이 브라우저에만 저장됩니다. 앱이나 다른 기기와 자동 동기화되지 않습니다."
+        }
       />
       <div className="detective-grade-card">
         <div className="grade-mark">{completed.length >= 5 ? "A" : "B"}</div>
