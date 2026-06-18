@@ -1,3 +1,13 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}
+
 :root {
   font-family:
     Pretendard,
@@ -47,12 +57,4 @@ button:active {
 
 img {
   display: block;
-}
-
-@media (min-width: 481px) {
-  body {
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-  }
 }

@@ -956,6 +956,7 @@ function normalizeResult(raw: unknown): Result {
     data.correctCulprit && typeof data.correctCulprit === "object"
       ? (data.correctCulprit as Record<string, unknown>)
       : null;
+
   const keyEvidences = Array.isArray(data.keyEvidences)
     ? data.keyEvidences
         .map((item) => {
@@ -970,12 +971,13 @@ function normalizeResult(raw: unknown): Result {
                   ? Number(row.evidenceId)
                   : undefined,
             title,
-          };
+          } as NonNullable<Result["keyEvidences"]>[0];
         })
         .filter(
-          (item): item is { evidenceId?: number; title: string } => !!item,
+          (item): item is NonNullable<Result["keyEvidences"]>[0] => !!item,
         )
     : undefined;
+
   const recommendations = Array.isArray(data.nextRecommendedScenarios)
     ? data.nextRecommendedScenarios
         .map((item) => {
@@ -992,7 +994,7 @@ function normalizeResult(raw: unknown): Result {
               typeof row.thumbnailUrl === "string"
                 ? row.thumbnailUrl
                 : undefined,
-          };
+          } as NonNullable<Result["nextRecommendedScenarios"]>[0];
         })
         .filter(
           (item): item is NonNullable<Result["nextRecommendedScenarios"]>[0] =>
@@ -4469,15 +4471,17 @@ function SubmitScreen({
           );
         })}
       </div>
-      {error && <p className="error-text">{error}</p>}
-      <button
-        className="button primary"
-        onClick={() => setConfirmOpen(true)}
-        disabled={!canSubmit || submitting}
-        type="button"
-      >
-        {submitting ? "제출 중" : "최종 추리 제출"}
-      </button>
+      <div className="submit-cta-bar">
+        {error && <p className="error-text">{error}</p>}
+        <button
+          className="button primary"
+          onClick={() => setConfirmOpen(true)}
+          disabled={!canSubmit || submitting}
+          type="button"
+        >
+          {submitting ? "제출 중" : "최종 추리 제출"}
+        </button>
+      </div>
       {confirmOpen && (
         <SubmitConfirmDialog
           suspectName={selectedSuspect?.name ?? "선택한 인물"}

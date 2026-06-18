@@ -1,6 +1,26 @@
+:root {
+  /* .topbar의 실제 렌더 높이(콘텐츠 56px + 상하 padding + 1px border)와
+     맞춰둔 값. .topbar의 padding-top을 바꾸면 이 값도 같이 바꿔야 한다. */
+  --topbar-h: calc(65px + max(8px, env(safe-area-inset-top, 0px)));
+  --frame-width: 412px;
+  --frame-max-height: 844px;
+}
+
 #root {
   width: 100%;
   min-height: 100vh;
+}
+
+@media (min-width: 481px) {
+  /* 481px 이상(데스크탑/와이드 뷰포트)에서만 .app-frame을 가운데로 모은다.
+     실기기·Toss WebView처럼 좁은 화면에서는 이 분기 자체가 없으니
+     아래 .app-frame 기본 규칙대로 풀폭으로 남는다. */
+  #root {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 24px 0;
+  }
 }
 
 .app-frame {
@@ -10,12 +30,31 @@
     radial-gradient(circle at top right, rgba(56, 189, 248, 0.14), transparent 30%),
     #0f172a;
   color: #f1f5f9;
+  /* position:fixed 자식(.modal-shell, .image-viewer 등)을 브라우저 뷰포트가
+     아니라 이 프레임 박스 안에 가두는 트릭. transform이 있는 요소는
+     자손 fixed 엘리먼트의 containing block이 된다(CSS 스펙). */
+  transform: translateZ(0);
+}
+
+@media (min-width: 481px) {
+  .app-frame {
+    width: var(--frame-width);
+    min-height: 0;
+    height: min(calc(100vh - 48px), var(--frame-max-height));
+    border-radius: 28px;
+    border: 1px solid #334155;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+    /* 프레임 높이를 고정했으니 스크롤은 프레임 내부에서 일어난다.
+       overflow가 visible이 아니므로 border-radius로 자손이 그대로 클리핑된다. */
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
 }
 
 main {
   width: min(100%, 1180px);
   margin: 0 auto;
-  padding: 20px 20px 48px;
+  padding: 20px 20px calc(48px + env(safe-area-inset-bottom, 0px));
 }
 
 button:focus-visible,
@@ -46,7 +85,13 @@ select:focus-visible {
   justify-content: space-between;
   gap: 12px;
   min-height: 56px;
-  padding: 8px max(20px, calc((100vw - 1180px) / 2 + 20px));
+  /* 상단 padding은 노치/상태바(safe-area-inset-top)를 침범하지 않도록
+     env() 값과 기존 8px 중 큰 값을 쓴다. 이 값을 바꾸면 :root의
+     --topbar-h 계산도 같이 맞춰야 한다. */
+  padding-top: max(8px, env(safe-area-inset-top, 0px));
+  padding-bottom: 8px;
+  padding-left: max(20px, calc((100vw - 1180px) / 2 + 20px));
+  padding-right: max(20px, calc((100vw - 1180px) / 2 + 20px));
   background: rgba(15, 23, 42, 0.94);
   border-bottom: 1px solid #243044;
   backdrop-filter: blur(16px);
@@ -805,6 +850,10 @@ textarea {
 }
 
 .tabbar {
+  position: sticky;
+  /* .topbar 바로 아래에 붙도록 :root의 --topbar-h만큼 띄운다 */
+  top: var(--topbar-h);
+  z-index: 5;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 4px;
@@ -1242,6 +1291,22 @@ textarea {
   color: #7dd3fc;
 }
 
+.submit-cta-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 14px;
+  /* 프레임 하단(홈 인디케이터/제스처 바)에 버튼이 붙지 않도록 여유를 둔다 */
+  padding-bottom: max(4px, env(safe-area-inset-bottom, 0px));
+  /* 스크롤되는 콘텐츠가 바 밑으로 사라질 때 경계가 또렷하게 보이지 않도록
+     아래에서 위로 페이드 처리한다 */
+  background: linear-gradient(to top, #0f172a 70%, rgba(15, 23, 42, 0));
+}
+
 .evidence-picker {
   display: flex;
   flex-wrap: wrap;
@@ -1436,7 +1501,7 @@ textarea {
   border: 1px solid #334155;
   border-radius: 18px 18px 0 0;
   background: #1e293b;
-  padding: 16px;
+  padding: 16px 16px max(16px, env(safe-area-inset-bottom, 0px));
 }
 
 .evidence-picker-dialog {
@@ -1451,7 +1516,7 @@ textarea {
   border: 1px solid #334155;
   border-radius: 18px 18px 0 0;
   background: #1e293b;
-  padding: 16px;
+  padding: 16px 16px max(16px, env(safe-area-inset-bottom, 0px));
 }
 
 .confirm-dialog {
@@ -1574,7 +1639,7 @@ textarea {
 
 @media (min-width: 760px) {
   main {
-    padding: 28px 28px 56px;
+    padding: 28px 28px calc(56px + env(safe-area-inset-bottom, 0px));
   }
 
   .login-screen {
@@ -1588,14 +1653,6 @@ textarea {
     margin-left: auto;
   }
 
-  .card-list:not(.compact),
-  .records-list,
-  .recommendation-list,
-  .menu-list {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .scenario-hero,
   .evidence-hero {
     min-height: 320px;
@@ -1605,24 +1662,9 @@ textarea {
   .evidence-hero img {
     min-height: 320px;
   }
-
-  .submit-checklist,
-  .stats-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
 }
 
 @media (min-width: 1040px) {
-  .card-list:not(.compact) {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .case-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.75fr);
-    align-items: start;
-  }
-
   .chat-screen {
     min-height: calc(100vh - 140px);
   }
