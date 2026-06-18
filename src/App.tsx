@@ -1167,6 +1167,9 @@ function App() {
   const [methodText, setMethodText] = useState("");
   const [coverUpText, setCoverUpText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [pendingResultSessionId, setPendingResultSessionId] = useState<
+    number | null
+  >(null);
   const [result, setResult] = useState<Result | null>(null);
 
   const authToken = tokens?.accessToken ?? null;
@@ -2068,48 +2071,79 @@ function App() {
     }
 
     setSubmitting(true);
+    setCaseError(null);
+    let resultSubmitted = false;
     try {
-      const submitted = normalizeResult(
-        await authedRequest<unknown>(
-          `/api/play-sessions/${sessionId}/final-deduction`,
-          {
-            method: "POST",
-            body: JSON.stringify({
-              selectedCulpritId,
-              motiveText,
-              methodText,
-              coverUpText,
-              selectedEvidenceIds,
-            }),
-          },
-        ),
+      await authedRequest<unknown>(
+        `/api/play-sessions/${sessionId}/final-deduction`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            selectedCulpritId,
+            motiveText,
+            methodText,
+            coverUpText,
+            selectedEvidenceIds,
+          }),
+        },
       );
-      let displayResult = submitted;
-      setResult(displayResult);
-      try {
-        displayResult = await pollResult(sessionId);
-        setResult(displayResult);
-      } catch {
-        // 제출 응답만으로도 결과 화면을 구성할 수 있다.
-      }
-      await saveCompletedRecord(displayResult);
+      resultSubmitted = true;
+      setPendingResultSessionId(sessionId);
+      const finalResult = await pollResult(sessionId);
+      setResult(finalResult);
+      setPendingResultSessionId(null);
+      await saveCompletedRecord(finalResult);
       setView("result");
     } catch (error) {
       if (
         error instanceof ApiError &&
         (error.code === "AI010" || error.status === 409)
       ) {
-        const finalResult = await pollResult(sessionId);
-        setResult(finalResult);
-        await saveCompletedRecord(finalResult);
-        setView("result");
+        resultSubmitted = true;
+        setPendingResultSessionId(sessionId);
+        try {
+          const finalResult = await pollResult(sessionId);
+          setResult(finalResult);
+          setPendingResultSessionId(null);
+          await saveCompletedRecord(finalResult);
+          setView("result");
+        } catch (resultError) {
+          setCaseError(
+            resultError instanceof Error
+              ? resultError.message
+              : "제출은 완료됐지만 결과를 아직 불러오지 못했습니다.",
+          );
+        }
       } else {
         setCaseError(
-          error instanceof Error
-            ? error.message
-            : "최종 추리 제출에 실패했습니다.",
+          resultSubmitted
+            ? "최종 추리는 제출됐지만 결과를 아직 불러오지 못했습니다. 잠시 후 다시 확인해 주세요."
+            : error instanceof Error
+              ? error.message
+              : "최종 추리 제출에 실패했습니다.",
         );
       }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function retryResultLoad() {
+    if (!pendingResultSessionId || submitting) return;
+    setSubmitting(true);
+    setCaseError(null);
+    try {
+      const finalResult = await pollResult(pendingResultSessionId);
+      setResult(finalResult);
+      setPendingResultSessionId(null);
+      await saveCompletedRecord(finalResult);
+      setView("result");
+    } catch (error) {
+      setCaseError(
+        error instanceof Error
+          ? error.message
+          : "제출은 완료됐지만 결과를 아직 불러오지 못했습니다.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -2391,8 +2425,10 @@ function App() {
           setCoverUpText={setCoverUpText}
           submitting={submitting}
           error={caseError}
+          pendingResult={!!pendingResultSessionId}
           onBack={() => setView("case")}
           onSubmit={submitDeduction}
+          onRetryResult={retryResultLoad}
         />
       )}
 
@@ -2887,7 +2923,11 @@ function RecordsScreen({
       <button className="icon-button fit" onClick={onBack} type="button">
         내 정보로 돌아가기
       </button>
-      <ScreenTitle title="수사 기록" subtitle="MY RECORDS" />
+      <ScreenTitle title="이 기기 수사 기록" subtitle="LOCAL RECORDS" />
+      <InfoPanel
+        title="기록 범위"
+        body="현재 웹 기록은 이 브라우저에만 저장됩니다. 앱이나 다른 기기와 자동 동기화되지 않습니다."
+      />
       <div className="detective-grade-card">
         <div className="grade-mark">{completed.length >= 5 ? "A" : "B"}</div>
         <div>
@@ -4481,8 +4521,10 @@ function SubmitScreen({
   setCoverUpText,
   submitting,
   error,
+  pendingResult,
   onBack,
   onSubmit,
+  onRetryResult,
 }: {
   suspects: Suspect[];
   evidences: Evidence[];
@@ -4498,8 +4540,10 @@ function SubmitScreen({
   setCoverUpText: (value: string) => void;
   submitting: boolean;
   error: string | null;
+  pendingResult: boolean;
   onBack: () => void;
   onSubmit: () => void;
+  onRetryResult: () => void;
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const selectedSuspect = suspects.find(
@@ -4608,10 +4652,26 @@ function SubmitScreen({
         })}
       </div>
       {error && <p className="error-text">{error}</p>}
+      {pendingResult && (
+        <InfoPanel
+          title="결과 조회 대기"
+          body="최종 추리는 제출되었습니다. 결과 화면 데이터가 준비되면 다시 불러올 수 있습니다."
+        />
+      )}
+      {pendingResult && (
+        <button
+          className="button secondary"
+          onClick={onRetryResult}
+          disabled={submitting}
+          type="button"
+        >
+          {submitting ? "결과 확인 중" : "결과 다시 불러오기"}
+        </button>
+      )}
       <button
         className="button primary"
         onClick={() => setConfirmOpen(true)}
-        disabled={!canSubmit || submitting}
+        disabled={!canSubmit || submitting || pendingResult}
         type="button"
       >
         {submitting ? "제출 중" : "최종 추리 제출"}

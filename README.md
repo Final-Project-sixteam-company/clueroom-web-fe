@@ -152,6 +152,14 @@ VITE_ENABLE_QA_LOGIN=false
 SSH_TARGET=clueroom-staging PUBLIC_URL=https://staging.example.com bash scripts/deploy-web.sh
 ```
 
+## Web/App Compatibility Notes
+
+- 로그인은 Google/Kakao OAuth와 QA 입력 로그인이 모두 기존 백엔드 JWT 응답을 사용합니다.
+- 북마크와 리뷰 작성/조회는 서버 API를 사용하므로 같은 계정 기준으로 앱/웹 간 상태를 공유합니다.
+- 리뷰 별점은 백엔드 계약에 맞춰 1~5 정수 단위로 입력합니다.
+- 수사 기록은 현재 웹 브라우저 localStorage에만 저장됩니다. 앱/다른 기기와 동기화되는 계정 기록이 아닙니다.
+- 최종 추리는 제출 후 `/api/play-sessions/{sessionId}/result` 조회가 성공해야 결과 화면으로 이동합니다. 결과 조회가 일시 실패하면 제출 응답만으로 빈약한 결과 화면을 만들지 않고 재조회 버튼을 표시합니다.
+
 ## Scope
 
 구현된 화면:
@@ -164,7 +172,8 @@ SSH_TARGET=clueroom-staging PUBLIC_URL=https://staging.example.com bash scripts/
 - 심문 채팅
 - 최종 추리 제출
 - 결과
-- 내 정보/기록/북마크/리뷰 로컬 저장
+- 내 정보/이 기기 기록
+- 서버 연동 북마크/리뷰
 
 제외한 것:
 
