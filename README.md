@@ -155,6 +155,8 @@ SSH_TARGET=clueroom-staging PUBLIC_URL=https://staging.example.com bash scripts/
 ## Web/App Compatibility Notes
 
 - 로그인은 Google/Kakao OAuth와 QA 입력 로그인이 모두 기존 백엔드 JWT 응답을 사용합니다.
+- 만료 토큰으로 여러 요청이 동시에 401을 받아도 refresh 요청은 한 번만 실행합니다.
+- 로그아웃 중 완료된 오래된 refresh 응답은 새 세션으로 저장하지 않습니다.
 - 북마크와 리뷰 작성/조회는 서버 API를 사용하므로 같은 계정 기준으로 앱/웹 간 상태를 공유합니다.
 - 리뷰 별점은 백엔드 계약에 맞춰 1~5 정수 단위로 입력합니다.
 - 수사 기록은 현재 웹 브라우저 localStorage에만 저장됩니다. 앱/다른 기기와 동기화되는 계정 기록이 아닙니다.

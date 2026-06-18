@@ -1173,6 +1173,8 @@ function App() {
   const [result, setResult] = useState<Result | null>(null);
 
   const authToken = tokens?.accessToken ?? null;
+  const refreshInFlightRef = useRef<Promise<string | null> | null>(null);
+  const authGenerationRef = useRef(0);
 
   useEffect(() => {
     void (async () => {
@@ -1201,17 +1203,20 @@ function App() {
       if (accessToken) {
         setTokens({ accessToken, refreshToken: refreshToken ?? undefined });
       } else if (refreshToken) {
+        const generation = authGenerationRef.current;
         try {
           const next = await request<Tokens>("/api/auth/refresh", {
             method: "POST",
             body: JSON.stringify({ refreshToken }),
           });
-          await safeSet(ACCESS_KEY, next.accessToken);
-          if (next.refreshToken) await safeSet(REFRESH_KEY, next.refreshToken);
-          setTokens(next);
+          if (generation === authGenerationRef.current) {
+            await persistTokens(next);
+          }
         } catch {
-          await safeRemove(ACCESS_KEY);
-          await safeRemove(REFRESH_KEY);
+          if (generation === authGenerationRef.current) {
+            await safeRemove(ACCESS_KEY);
+            await safeRemove(REFRESH_KEY);
+          }
         }
       }
       setAuthReady(true);
@@ -1266,7 +1271,14 @@ function App() {
     setTokens(next);
   }
 
+  async function replaceAuthSession(next: Tokens) {
+    authGenerationRef.current += 1;
+    await persistTokens(next);
+  }
+
   async function logout() {
+    authGenerationRef.current += 1;
+    refreshInFlightRef.current = null;
     const refreshToken = tokens?.refreshToken ?? (await safeGet(REFRESH_KEY));
     try {
       if (refreshToken) {
@@ -1509,22 +1521,37 @@ function App() {
   }
 
   async function refreshTokens() {
+    if (refreshInFlightRef.current) return refreshInFlightRef.current;
+
     const refreshToken = tokens?.refreshToken ?? (await safeGet(REFRESH_KEY));
     if (!refreshToken) return null;
 
-    try {
-      const next = await request<Tokens>("/api/auth/refresh", {
-        method: "POST",
-        body: JSON.stringify({ refreshToken }),
-      });
-      await persistTokens(next);
-      return next.accessToken;
-    } catch {
-      await safeRemove(ACCESS_KEY);
-      await safeRemove(REFRESH_KEY);
-      setTokens(null);
-      return null;
-    }
+    const generation = authGenerationRef.current;
+    const refreshPromise: Promise<string | null> = (async () => {
+      try {
+        const next = await request<Tokens>("/api/auth/refresh", {
+          method: "POST",
+          body: JSON.stringify({ refreshToken }),
+        });
+        if (generation !== authGenerationRef.current) return null;
+        await persistTokens(next);
+        return next.accessToken;
+      } catch {
+        if (generation === authGenerationRef.current) {
+          await safeRemove(ACCESS_KEY);
+          await safeRemove(REFRESH_KEY);
+          setTokens(null);
+        }
+        return null;
+      } finally {
+        if (refreshInFlightRef.current === refreshPromise) {
+          refreshInFlightRef.current = null;
+        }
+      }
+    })();
+
+    refreshInFlightRef.current = refreshPromise;
+    return refreshPromise;
   }
 
   async function authedRequest<T>(
@@ -1577,7 +1604,7 @@ function App() {
         method: "POST",
         body: JSON.stringify({ provider: "GOOGLE", idToken, deviceId }),
       });
-      await persistTokens(data);
+      await replaceAuthSession(data);
       setView("home");
     } catch (error) {
       setAuthError(
@@ -1600,7 +1627,7 @@ function App() {
           deviceId,
         }),
       });
-      await persistTokens(data);
+      await replaceAuthSession(data);
       setView("home");
     } catch (error) {
       setAuthError(
@@ -1623,7 +1650,7 @@ function App() {
         method: "POST",
         body: JSON.stringify({ email, nickname, deviceId }),
       });
-      await persistTokens(data);
+      await replaceAuthSession(data);
       setView("home");
     } catch (error) {
       setAuthError(
