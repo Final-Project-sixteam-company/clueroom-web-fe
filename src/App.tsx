@@ -7,7 +7,10 @@ const GOOGLE_CLIENT_ID =
   import.meta.env.VITE_GOOGLE_CLIENT_ID ??
   import.meta.env.VITE_GOOGLE_SERVER_CLIENT_ID ??
   "";
+const KAKAO_JAVASCRIPT_KEY =
+  import.meta.env.VITE_KAKAO_JAVASCRIPT_KEY ?? "";
 const ENABLE_GOOGLE_LOGIN = !!GOOGLE_CLIENT_ID;
+const ENABLE_KAKAO_LOGIN = !!KAKAO_JAVASCRIPT_KEY;
 const ENABLE_DEV_LOGIN =
   import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_LOGIN === "true";
 
@@ -23,8 +26,24 @@ type GoogleCredentialResponse = {
   credential?: string;
 };
 
+type KakaoAuthResponse = {
+  access_token?: string;
+  error?: string;
+  error_description?: string;
+};
+
 declare global {
   interface Window {
+    Kakao?: {
+      init: (javascriptKey: string) => void;
+      isInitialized: () => boolean;
+      Auth: {
+        login: (options: {
+          success: (response: KakaoAuthResponse) => void;
+          fail: (error: KakaoAuthResponse) => void;
+        }) => void;
+      };
+    };
     google?: {
       accounts: {
         id: {
@@ -51,6 +70,7 @@ declare global {
 }
 
 let googleIdentityScriptPromise: Promise<void> | null = null;
+let kakaoIdentityScriptPromise: Promise<void> | null = null;
 
 type View =
   | "login"
@@ -365,6 +385,49 @@ function loadGoogleIdentityScript() {
   });
 
   return googleIdentityScriptPromise;
+}
+
+function loadKakaoIdentityScript() {
+  if (window.Kakao) return Promise.resolve();
+  if (kakaoIdentityScriptPromise) return kakaoIdentityScriptPromise;
+
+  kakaoIdentityScriptPromise = new Promise<void>((resolve, reject) => {
+    const existingScript = document.getElementById("kakao-identity-script");
+    if (existingScript) {
+      existingScript.addEventListener("load", () => resolve(), { once: true });
+      existingScript.addEventListener(
+        "error",
+        () => reject(new Error("Kakao 로그인 스크립트를 불러오지 못했습니다.")),
+        { once: true },
+      );
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = "kakao-identity-script";
+    script.src = "https://t1.kakaocdn.net/kakao_js_sdk/2.7.5/kakao.min.js";
+    script.async = true;
+    script.defer = true;
+    script.addEventListener("load", () => resolve(), { once: true });
+    script.addEventListener(
+      "error",
+      () => reject(new Error("Kakao 로그인 스크립트를 불러오지 못했습니다.")),
+      { once: true },
+    );
+    document.head.appendChild(script);
+  });
+
+  return kakaoIdentityScriptPromise;
+}
+
+async function ensureKakaoInitialized() {
+  await loadKakaoIdentityScript();
+  if (!window.Kakao) {
+    throw new Error("Kakao 로그인 SDK를 사용할 수 없습니다.");
+  }
+  if (!window.Kakao.isInitialized()) {
+    window.Kakao.init(KAKAO_JAVASCRIPT_KEY);
+  }
 }
 
 function apiUrl(
@@ -1432,6 +1495,25 @@ function App() {
     }
   }
 
+  async function handleKakaoAccessToken(accessToken: string) {
+    setAuthError(null);
+    try {
+      const deviceId = await getDeviceId();
+      const data = await request<Tokens>("/api/auth/oauth", {
+        method: "POST",
+        body: JSON.stringify({ provider: "KAKAO", accessToken, deviceId }),
+      });
+      await persistTokens(data);
+      setView("home");
+    } catch (error) {
+      setAuthError(
+        error instanceof Error
+          ? error.message
+          : "Kakao 로그인 연동에 실패했습니다.",
+      );
+    }
+  }
+
   async function handleDevLogin(email: string) {
     setAuthError(null);
     try {
@@ -1996,6 +2078,7 @@ function App() {
         <LoginScreen
           error={authError}
           onGoogleCredential={handleGoogleCredential}
+          onKakaoAccessToken={handleKakaoAccessToken}
           onAuthError={setAuthError}
           onDevLogin={handleDevLogin}
         />
@@ -2291,11 +2374,13 @@ function Shell({
 function LoginScreen({
   error,
   onGoogleCredential,
+  onKakaoAccessToken,
   onAuthError,
   onDevLogin,
 }: {
   error: string | null;
   onGoogleCredential: (idToken: string) => void;
+  onKakaoAccessToken: (accessToken: string) => void;
   onAuthError: (message: string) => void;
   onDevLogin: (email: string) => void;
 }) {
@@ -2311,13 +2396,20 @@ function LoginScreen({
       <p className="muted">
         웹에서 단서를 모으고, 인물을 심문하고, 마지막 추리를 제출하세요.
       </p>
-      <GoogleSignInButton
-        onCredential={onGoogleCredential}
-        onError={onAuthError}
-      />
-      {!ENABLE_GOOGLE_LOGIN && !ENABLE_DEV_LOGIN && (
+      <div className="oauth-buttons">
+        <GoogleSignInButton
+          onCredential={onGoogleCredential}
+          onError={onAuthError}
+        />
+        <KakaoSignInButton
+          onAccessToken={onKakaoAccessToken}
+          onError={onAuthError}
+        />
+      </div>
+      {!ENABLE_GOOGLE_LOGIN && !ENABLE_KAKAO_LOGIN && !ENABLE_DEV_LOGIN && (
         <article className="auth-notice">
-          Google 웹 로그인을 사용하려면 `VITE_GOOGLE_CLIENT_ID`가 필요합니다.
+          웹 로그인을 사용하려면 `VITE_GOOGLE_CLIENT_ID` 또는
+          `VITE_KAKAO_JAVASCRIPT_KEY`가 필요합니다.
         </article>
       )}
       {ENABLE_DEV_LOGIN && (
@@ -2338,6 +2430,62 @@ function LoginScreen({
       )}
       {error && <p className="error-text">{error}</p>}
     </section>
+  );
+}
+
+function KakaoSignInButton({
+  onAccessToken,
+  onError,
+}: {
+  onAccessToken: (accessToken: string) => void;
+  onError: (message: string) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+
+  if (!ENABLE_KAKAO_LOGIN) return null;
+
+  async function handleClick() {
+    setLoading(true);
+    try {
+      await ensureKakaoInitialized();
+      window.Kakao?.Auth.login({
+        success: (response) => {
+          setLoading(false);
+          if (response.access_token) {
+            onAccessToken(response.access_token);
+            return;
+          }
+          onError("Kakao 인증 토큰을 받지 못했습니다.");
+        },
+        fail: (error) => {
+          setLoading(false);
+          onError(
+            error.error_description ??
+              error.error ??
+              "Kakao 로그인에 실패했습니다.",
+          );
+        },
+      });
+    } catch (error) {
+      setLoading(false);
+      onError(
+        error instanceof Error
+          ? error.message
+          : "Kakao 로그인 준비에 실패했습니다.",
+      );
+    }
+  }
+
+  return (
+    <button
+      className="kakao-login-button"
+      disabled={loading}
+      onClick={handleClick}
+      type="button"
+    >
+      <span className="kakao-mark">K</span>
+      {loading ? "Kakao 로그인 준비 중" : "Kakao로 계속하기"}
+    </button>
   );
 }
 

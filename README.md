@@ -19,6 +19,7 @@ npm run preview
 ```bash
 VITE_API_BASE_URL=https://api.clueroom.xyz
 VITE_GOOGLE_CLIENT_ID=<Google Web OAuth client id>
+VITE_KAKAO_JAVASCRIPT_KEY=<Kakao JavaScript key>
 VITE_ENABLE_DEV_LOGIN=false
 ```
 
@@ -35,6 +36,22 @@ POST /api/auth/oauth
   "deviceId": "<browser installation id>"
 }
 ```
+
+Kakao 로그인은 Kakao JavaScript SDK가 반환한 access token을 같은 백엔드 OAuth endpoint로 전달합니다.
+
+```http
+POST /api/auth/oauth
+```
+
+```json
+{
+  "provider": "KAKAO",
+  "accessToken": "<Kakao access token>",
+  "deviceId": "<browser installation id>"
+}
+```
+
+백엔드는 Kakao access token info의 `app_id`를 서버 환경변수 `KAKAO_APP_ID`와 대조합니다.
 
 QA나 staging에서만 개발 로그인을 켤 수 있습니다.
 
@@ -68,7 +85,7 @@ C:\java\assignment\spring\clueroom-toss-miniapp
 ```text
 ssh alias `clueroom`이 prod 서버를 가리켜야 한다.
 prod 서버에 `/opt/clueroom/web/current`를 서빙하는 Nginx 설정이 있어야 한다.
-Google 웹 로그인을 쓰려면 `.env.production` 또는 shell env에 `VITE_GOOGLE_CLIENT_ID`가 있어야 한다.
+웹 로그인을 쓰려면 `.env.production` 또는 shell env에 `VITE_GOOGLE_CLIENT_ID` / `VITE_KAKAO_JAVASCRIPT_KEY` 중 하나 이상이 있어야 한다.
 배포 브랜치에 upstream tracking branch가 있어야 한다. 보통 `main -> origin/main`이다.
 ```
 
@@ -76,7 +93,7 @@ Google 웹 로그인을 쓰려면 `.env.production` 또는 shell env에 `VITE_GO
 
 ```bash
 cp .env.example .env.production
-# .env.production의 VITE_GOOGLE_CLIENT_ID 확인
+# .env.production의 VITE_GOOGLE_CLIENT_ID / VITE_KAKAO_JAVASCRIPT_KEY 확인
 
 bash scripts/deploy-web.sh
 ```

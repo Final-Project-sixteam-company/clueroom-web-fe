@@ -23,13 +23,16 @@ require_command() {
   fi
 }
 
-has_google_client_id() {
+has_oauth_login_config() {
   if [[ -n "${VITE_GOOGLE_CLIENT_ID:-}" || -n "${VITE_GOOGLE_SERVER_CLIENT_ID:-}" ]]; then
+    return 0
+  fi
+  if [[ -n "${VITE_KAKAO_JAVASCRIPT_KEY:-}" ]]; then
     return 0
   fi
 
   for env_file in .env.production .env; do
-    if [[ -f "$env_file" ]] && grep -Eq '^(VITE_GOOGLE_CLIENT_ID|VITE_GOOGLE_SERVER_CLIENT_ID)=' "$env_file"; then
+    if [[ -f "$env_file" ]] && grep -Eq '^(VITE_GOOGLE_CLIENT_ID|VITE_GOOGLE_SERVER_CLIENT_ID|VITE_KAKAO_JAVASCRIPT_KEY)=' "$env_file"; then
       return 0
     fi
   done
@@ -117,20 +120,20 @@ EOF
 
 ensure_latest_checkout
 
-if ! has_google_client_id; then
+if ! has_oauth_login_config; then
   cat >&2 <<'EOF'
-ERROR: Google web OAuth client id is not configured.
+ERROR: No web OAuth login provider is configured.
 
-Create .env.production or export VITE_GOOGLE_CLIENT_ID before deploying.
+Create .env.production or export VITE_GOOGLE_CLIENT_ID / VITE_KAKAO_JAVASCRIPT_KEY before deploying.
 Example:
   cp .env.example .env.production
-  # then verify VITE_GOOGLE_CLIENT_ID is correct
+  # then verify VITE_GOOGLE_CLIENT_ID or VITE_KAKAO_JAVASCRIPT_KEY is correct
 
-To intentionally deploy without Google login:
-  ALLOW_MISSING_GOOGLE_CLIENT_ID=1 bash scripts/deploy-web.sh
+To intentionally deploy without OAuth login:
+  ALLOW_MISSING_OAUTH_LOGIN=1 bash scripts/deploy-web.sh
 EOF
 
-  if [[ "${ALLOW_MISSING_GOOGLE_CLIENT_ID:-}" != "1" ]]; then
+  if [[ "${ALLOW_MISSING_OAUTH_LOGIN:-}" != "1" ]]; then
     exit 1
   fi
 fi
