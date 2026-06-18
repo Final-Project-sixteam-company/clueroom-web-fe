@@ -21,6 +21,9 @@ VITE_API_BASE_URL=https://api.clueroom.xyz
 VITE_GOOGLE_CLIENT_ID=<Google Web OAuth client id>
 VITE_KAKAO_JAVASCRIPT_KEY=<Kakao JavaScript key>
 VITE_ENABLE_DEV_LOGIN=false
+VITE_ENABLE_QA_LOGIN=false
+VITE_QA_LOGIN_EMAIL=
+VITE_QA_LOGIN_NICKNAME=ClueRoom QA
 ```
 
 Google 로그인은 Google Identity Services가 반환한 ID token을 기존 백엔드 OAuth endpoint로 전달합니다.
@@ -61,6 +64,16 @@ VITE_ENABLE_DEV_LOGIN=true
 ```
 
 개발 로그인은 백엔드 `AUTH_DEV_LOGIN_ENABLED=true`가 켜져 있어야 동작합니다. 운영 공개 배포에서는 끄는 것을 기본으로 합니다.
+
+QA 전용 로그인 버튼은 임의 이메일 입력 없이 지정된 QA 계정으로만 `/api/auth/dev`를 호출합니다.
+웹 빌드에는 아래 env가 필요하고, 백엔드도 동일하게 `AUTH_DEV_LOGIN_ENABLED=true`가 켜져 있어야 합니다.
+공개 운영 배포에서는 QA 검증 시간에만 켜고, 검증이 끝나면 다시 끄는 것을 기본으로 합니다.
+
+```bash
+VITE_ENABLE_QA_LOGIN=true
+VITE_QA_LOGIN_EMAIL=<QA seed email>
+VITE_QA_LOGIN_NICKNAME=ClueRoom QA
+```
 
 ## Build Output
 
@@ -128,6 +141,7 @@ REMOTE_WEB_ROOT=/opt/clueroom/web
 PUBLIC_URL=https://www.clueroom.xyz
 VITE_API_BASE_URL=https://api.clueroom.xyz
 VITE_ENABLE_DEV_LOGIN=false
+VITE_ENABLE_QA_LOGIN=false
 ```
 
 다른 서버나 URL로 배포할 때는 환경 변수로 바꿀 수 있습니다.

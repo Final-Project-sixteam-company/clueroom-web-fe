@@ -13,14 +13,19 @@ const ENABLE_GOOGLE_LOGIN = !!GOOGLE_CLIENT_ID;
 const ENABLE_KAKAO_LOGIN = !!KAKAO_JAVASCRIPT_KEY;
 const ENABLE_DEV_LOGIN =
   import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_LOGIN === "true";
+const QA_LOGIN_EMAIL = (import.meta.env.VITE_QA_LOGIN_EMAIL ?? "").trim();
+const QA_LOGIN_NICKNAME =
+  (import.meta.env.VITE_QA_LOGIN_NICKNAME ?? "ClueRoom QA").trim() ||
+  "ClueRoom QA";
+const ENABLE_QA_LOGIN =
+  !!QA_LOGIN_EMAIL &&
+  (import.meta.env.DEV || import.meta.env.VITE_ENABLE_QA_LOGIN === "true");
 const KAKAO_LOGIN_STATE = "clueroom-kakao-login";
 
 const ACCESS_KEY = "clueroom.accessToken";
 const REFRESH_KEY = "clueroom.refreshToken";
 const DEVICE_KEY = "clueroom.deviceId";
 const RECORDS_KEY = "clueroom.records";
-const BOOKMARKS_KEY = "clueroom.bookmarkedScenarios";
-const REVIEWS_KEY = "clueroom.scenarioReviews";
 const CASE_REFRESH_SECONDS = 30;
 
 type GoogleCredentialResponse = {
@@ -151,6 +156,7 @@ type Scenario = {
   tags?: string[];
   author?: string;
   canPlay?: boolean;
+  isBookmarked?: boolean;
 };
 
 type Dashboard = {
@@ -546,6 +552,8 @@ function normalizeScenario(raw: Record<string, unknown>): Scenario {
           ? raw.author
           : undefined,
     canPlay: typeof raw.canPlay === "boolean" ? raw.canPlay : undefined,
+    isBookmarked:
+      typeof raw.isBookmarked === "boolean" ? raw.isBookmarked : undefined,
   };
 }
 
@@ -923,10 +931,14 @@ function normalizeRecord(raw: unknown): RecordItem | null {
   };
 }
 
-function normalizeReview(raw: unknown): ScenarioReview | null {
+function normalizeReview(raw: unknown, fallbackScenarioId = 0): ScenarioReview | null {
   if (!raw || typeof raw !== "object") return null;
   const data = raw as Record<string, unknown>;
-  const scenarioId = Number(data.scenarioId ?? 0);
+  const user =
+    data.user && typeof data.user === "object"
+      ? (data.user as Record<string, unknown>)
+      : null;
+  const scenarioId = Number(data.scenarioId ?? fallbackScenarioId);
   const body = String(data.body ?? data.content ?? "").trim();
   const createdAt = String(data.createdAt ?? "").trim();
   if (!scenarioId || !body || !createdAt) return null;
@@ -937,6 +949,8 @@ function normalizeReview(raw: unknown): ScenarioReview | null {
     authorName:
       typeof data.authorName === "string" && data.authorName.trim()
         ? data.authorName.trim()
+        : typeof user?.nickname === "string" && user.nickname.trim()
+          ? user.nickname.trim()
         : "나",
     rating: Math.max(1, Math.min(5, Number(data.rating ?? 5))),
     body,
@@ -1206,12 +1220,10 @@ function App() {
     if (authReady) void loadScenarios();
     // Initial library load only; filter changes call applyScenarioFilter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authReady]);
+  }, [authReady, authToken]);
 
   useEffect(() => {
     void loadRecords();
-    void loadBookmarks();
-    void loadScenarioReviews();
   }, []);
 
   const dashboardSessionId = dashboard?.sessionId;
@@ -1295,81 +1307,116 @@ function App() {
     }
   }
 
-  async function loadBookmarks() {
-    const stored = await safeGet(BOOKMARKS_KEY);
-    if (!stored) return;
-    try {
-      const parsed = JSON.parse(stored);
-      const ids = Array.isArray(parsed)
-        ? parsed.map((item) => Number(item)).filter((id) => Number.isFinite(id))
-        : [];
-      setBookmarkedScenarioIds([...new Set(ids)]);
-    } catch {
-      await safeRemove(BOOKMARKS_KEY);
-      setBookmarkedScenarioIds([]);
-    }
-  }
-
-  async function persistBookmarks(ids: number[]) {
+  function persistBookmarks(ids: number[]) {
     const uniqueIds = [...new Set(ids)];
     setBookmarkedScenarioIds(uniqueIds);
-    await safeSet(BOOKMARKS_KEY, JSON.stringify(uniqueIds));
   }
 
   async function toggleScenarioBookmark(scenarioId: number) {
-    const next = bookmarkedScenarioIds.includes(scenarioId)
+    if (!authToken) {
+      setAuthError("저장은 로그인 후 사용할 수 있습니다.");
+      setView("login");
+      return;
+    }
+
+    const wasBookmarked = bookmarkedScenarioIds.includes(scenarioId);
+    const next = wasBookmarked
       ? bookmarkedScenarioIds.filter((id) => id !== scenarioId)
       : [scenarioId, ...bookmarkedScenarioIds];
-    await persistBookmarks(next);
-  }
+    persistBookmarks(next);
+    setScenarios((current) =>
+      current.map((scenario) =>
+        scenario.scenarioId === scenarioId
+          ? { ...scenario, isBookmarked: !wasBookmarked }
+          : scenario,
+      ),
+    );
+    setSelectedScenario((current) =>
+      current?.scenarioId === scenarioId
+        ? { ...current, isBookmarked: !wasBookmarked }
+        : current,
+    );
 
-  async function loadScenarioReviews() {
-    const stored = await safeGet(REVIEWS_KEY);
-    if (!stored) return;
     try {
-      const parsed = JSON.parse(stored);
-      const list = Array.isArray(parsed)
-        ? parsed
-            .map(normalizeReview)
-            .filter((item): item is ScenarioReview => !!item)
-        : [];
-      setScenarioReviews(list);
-    } catch {
-      await safeRemove(REVIEWS_KEY);
-      setScenarioReviews([]);
+      await authedRequest(`/api/scenarios/${scenarioId}/bookmarks`, {
+        method: wasBookmarked ? "DELETE" : "POST",
+      });
+    } catch (error) {
+      persistBookmarks(bookmarkedScenarioIds);
+      setScenarios((current) =>
+        current.map((scenario) =>
+          scenario.scenarioId === scenarioId
+            ? { ...scenario, isBookmarked: wasBookmarked }
+            : scenario,
+        ),
+      );
+      setSelectedScenario((current) =>
+        current?.scenarioId === scenarioId
+          ? { ...current, isBookmarked: wasBookmarked }
+          : current,
+      );
+      setScenarioDetailError(
+        error instanceof Error ? error.message : "저장 상태를 바꾸지 못했습니다.",
+      );
     }
   }
 
-  async function persistScenarioReviews(next: ScenarioReview[]) {
-    const sorted = [...next].sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
-    setScenarioReviews(sorted);
-    await safeSet(REVIEWS_KEY, JSON.stringify(sorted));
+  async function loadScenarioReviews(scenarioId: number) {
+    try {
+      const data = await optionalAuthRequest<
+        { content?: Record<string, unknown>[] } | Record<string, unknown>[]
+      >(`/api/scenarios/${scenarioId}/reviews`, {
+        query: {
+          page: 0,
+          size: 20,
+          sort: "latest,desc",
+          includeSpoiler: true,
+        },
+      });
+      const list = Array.isArray(data) ? data : (data.content ?? []);
+      const normalized = list
+        .map((item) => normalizeReview(item, scenarioId))
+        .filter((item): item is ScenarioReview => !!item);
+      setScenarioReviews((current) => [
+        ...normalized,
+        ...current.filter((review) => review.scenarioId !== scenarioId),
+      ]);
+    } catch (error) {
+      setScenarioDetailError(
+        error instanceof Error ? error.message : "리뷰를 불러오지 못했습니다.",
+      );
+    }
   }
 
   async function addScenarioReview(review: ScenarioReview) {
-    const stored = await safeGet(REVIEWS_KEY);
-    const storedReviews = stored
-      ? (() => {
-          try {
-            const parsed = JSON.parse(stored);
-            return Array.isArray(parsed)
-              ? parsed
-                  .map(normalizeReview)
-                  .filter((item): item is ScenarioReview => !!item)
-              : [];
-          } catch {
-            return [];
-          }
-        })()
-      : [];
-    const source = scenarioReviews.length ? scenarioReviews : storedReviews;
-    await persistScenarioReviews([
-      review,
-      ...source.filter((item) => item.reviewId !== review.reviewId),
-    ]);
+    if (!authToken) {
+      setAuthError("리뷰 작성은 로그인 후 사용할 수 있습니다.");
+      setView("login");
+      return false;
+    }
+
+    try {
+      await authedRequest<{ reviewId: number }>(
+        `/api/scenarios/${review.scenarioId}/reviews`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            rating: Math.round(review.rating),
+            content: review.body,
+            isSpoiler: review.isSpoiler,
+          }),
+        },
+      );
+      await loadScenarioReviews(review.scenarioId);
+      await loadScenarios();
+      setScenarioDetailError(null);
+      return true;
+    } catch (error) {
+      setScenarioDetailError(
+        error instanceof Error ? error.message : "리뷰를 등록하지 못했습니다.",
+      );
+      return false;
+    }
   }
 
   async function persistRecords(next: RecordItem[]) {
@@ -1497,6 +1544,27 @@ function App() {
     }
   }
 
+  async function optionalAuthRequest<T>(
+    path: string,
+    options: RequestInit & {
+      query?: Record<string, string | number | boolean>;
+    } = {},
+  ) {
+    const token = tokens?.accessToken ?? (await safeGet(ACCESS_KEY));
+    if (!token) return request<T>(path, options);
+
+    try {
+      return await request<T>(path, { ...options, token });
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 401) throw error;
+      const refreshed = await refreshTokens();
+      if (refreshed) {
+        return request<T>(path, { ...options, token: refreshed });
+      }
+      return request<T>(path, options);
+    }
+  }
+
   async function handleGoogleCredential(idToken: string) {
     setAuthError(null);
     try {
@@ -1539,19 +1607,23 @@ function App() {
     }
   }
 
-  async function handleDevLogin(email: string) {
+  async function handleDevLogin(
+    email: string,
+    nickname?: string,
+    fallbackMessage = "개발 로그인에 실패했습니다.",
+  ) {
     setAuthError(null);
     try {
       const deviceId = await getDeviceId();
       const data = await request<Tokens>("/api/auth/dev", {
         method: "POST",
-        body: JSON.stringify({ email, deviceId }),
+        body: JSON.stringify({ email, nickname, deviceId }),
       });
       await persistTokens(data);
       setView("home");
     } catch (error) {
       setAuthError(
-        error instanceof Error ? error.message : "개발 로그인에 실패했습니다.",
+        error instanceof Error ? error.message : fallbackMessage,
       );
     }
   }
@@ -1568,11 +1640,22 @@ function App() {
       if (filter.query.trim()) query.keyword = filter.query.trim();
       if (filter.type) query.type = filter.type;
       if (filter.difficulty) query.difficulty = filter.difficulty;
-      const data = await request<
+      const data = await optionalAuthRequest<
         { content?: Record<string, unknown>[] } | Record<string, unknown>[]
       >("/api/scenarios", { query });
       const list = Array.isArray(data) ? data : (data.content ?? []);
-      setScenarios(list.map(normalizeScenario));
+      const normalized = list.map(normalizeScenario);
+      setScenarios(normalized);
+      setBookmarkedScenarioIds((current) => {
+        const visibleIds = new Set(normalized.map((scenario) => scenario.scenarioId));
+        const bookmarkedIds = normalized
+          .filter((scenario) => scenario.isBookmarked === true)
+          .map((scenario) => scenario.scenarioId);
+        const retained = current.filter(
+          (scenarioId) => !visibleIds.has(scenarioId),
+        );
+        return [...new Set([...retained, ...bookmarkedIds])];
+      });
     } catch (error) {
       setScenarioError(
         error instanceof Error
@@ -1595,15 +1678,25 @@ function App() {
     setView("scenarioDetail");
     setScenarioDetailLoading(true);
     try {
-      const detail = await request<Record<string, unknown>>(
+      const detail = await optionalAuthRequest<Record<string, unknown>>(
         `/api/scenarios/${scenario.scenarioId}`,
       );
       const normalizedDetail = normalizeScenario(detail);
-      setSelectedScenario({
+      const nextScenario = {
         ...scenario,
         ...normalizedDetail,
         thumbnailUrl: normalizedDetail.thumbnailUrl ?? scenario.thumbnailUrl,
+      };
+      setSelectedScenario(nextScenario);
+      setBookmarkedScenarioIds((current) => {
+        const withoutCurrent = current.filter(
+          (scenarioId) => scenarioId !== nextScenario.scenarioId,
+        );
+        return nextScenario.isBookmarked
+          ? [nextScenario.scenarioId, ...withoutCurrent]
+          : withoutCurrent;
       });
+      void loadScenarioReviews(nextScenario.scenarioId);
     } catch (error) {
       setScenarioDetailError(
         error instanceof Error
@@ -2326,8 +2419,9 @@ function App() {
           authorName={profile?.nickname ?? "나"}
           onCancel={() => setReviewDraftTarget(null)}
           onSubmit={(review) => {
-            void addScenarioReview(review);
-            setReviewDraftTarget(null);
+            void addScenarioReview(review).then((saved) => {
+              if (saved) setReviewDraftTarget(null);
+            });
           }}
         />
       )}
@@ -2404,7 +2498,7 @@ function LoginScreen({
   error: string | null;
   onGoogleCredential: (idToken: string) => void;
   onAuthError: (message: string) => void;
-  onDevLogin: (email: string) => void;
+  onDevLogin: (email: string, nickname?: string, fallbackMessage?: string) => void;
 }) {
   const [email, setEmail] = useState("tester@clueroom.local");
 
@@ -2427,11 +2521,31 @@ function LoginScreen({
           onError={onAuthError}
         />
       </div>
-      {!ENABLE_GOOGLE_LOGIN && !ENABLE_KAKAO_LOGIN && !ENABLE_DEV_LOGIN && (
+      {!ENABLE_GOOGLE_LOGIN &&
+        !ENABLE_KAKAO_LOGIN &&
+        !ENABLE_DEV_LOGIN &&
+        !ENABLE_QA_LOGIN && (
         <article className="auth-notice">
           웹 로그인을 사용하려면 `VITE_GOOGLE_CLIENT_ID` 또는
           `VITE_KAKAO_JAVASCRIPT_KEY`가 필요합니다.
         </article>
+      )}
+      {ENABLE_QA_LOGIN && (
+        <div className="dev-login">
+          <button
+            className="button secondary"
+            onClick={() =>
+              onDevLogin(
+                QA_LOGIN_EMAIL,
+                QA_LOGIN_NICKNAME,
+                "QA 로그인에 실패했습니다.",
+              )
+            }
+            type="button"
+          >
+            QA 테스트 계정 로그인
+          </button>
+        </div>
       )}
       {ENABLE_DEV_LOGIN && (
         <div className="dev-login">
@@ -3131,7 +3245,7 @@ function ScenarioReviews({
       </div>
       {!reviews.length && (
         <p className="card-body review-empty">
-          아직 이 기기에 저장된 리뷰가 없습니다.
+          아직 등록된 리뷰가 없습니다.
         </p>
       )}
       <div className="review-list">
@@ -3198,14 +3312,14 @@ function ReviewDialog({
         <p className="eyebrow">REVIEW</p>
         <h2>{target.title}</h2>
         <label className="field-label" htmlFor="review-rating">
-          평점 {rating.toFixed(1)}
+          평점 {rating}점
         </label>
         <input
           id="review-rating"
           type="range"
           min="1"
           max="5"
-          step="0.5"
+          step="1"
           value={rating}
           onChange={(event) => setRating(Number(event.target.value))}
         />
