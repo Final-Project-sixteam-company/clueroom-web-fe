@@ -1475,6 +1475,15 @@ function App() {
         method: wasBookmarked ? "DELETE" : "POST",
       });
     } catch (error) {
+      if (
+        error instanceof ApiError &&
+        ((error.status === 409 && !wasBookmarked) ||
+          (error.status === 404 && wasBookmarked))
+      ) {
+        setScenarioDetailError(null);
+        return;
+      }
+
       persistBookmarks(bookmarkedScenarioIds);
       setScenarios((current) =>
         current.map((scenario) =>
@@ -3111,11 +3120,11 @@ function ProfileScreen({
       <ScreenTitle title="내 정보" subtitle="MY PAGE" />
       <article className="profile-card">
         <div className="profile-avatar">
-          {profile?.profileImageUrl ? (
-            <img src={profile.profileImageUrl} alt={`${displayName} 프로필`} />
-          ) : (
-            <span>{initials(displayName)}</span>
-          )}
+          <SafeImage
+            src={profile?.profileImageUrl}
+            alt={`${displayName} 프로필`}
+            fallback={initials(displayName)}
+          />
         </div>
         <div>
           <h2>{displayName}</h2>
@@ -3507,14 +3516,11 @@ function ScenarioCardList({
           type="button"
         >
           <div className="scenario-thumb">
-            {scenario.thumbnailUrl ? (
-              <img
-                src={scenario.thumbnailUrl}
-                alt={`${scenario.title} 대표 이미지`}
-              />
-            ) : (
-              <span>CL</span>
-            )}
+            <SafeImage
+              src={scenario.thumbnailUrl}
+              alt={`${scenario.title} 대표 이미지`}
+              fallback="CL"
+            />
           </div>
           <div>
             <div className="card-title">{scenario.title}</div>
@@ -3620,14 +3626,11 @@ function ScenarioDetailScreen({
         }}
         type="button"
       >
-        {scenario.thumbnailUrl ? (
-          <img
-            src={scenario.thumbnailUrl}
-            alt={`${scenario.title} 대표 이미지`}
-          />
-        ) : (
-          <span>CL-{String(scenario.scenarioId).padStart(3, "0")}</span>
-        )}
+        <SafeImage
+          src={scenario.thumbnailUrl}
+          alt={`${scenario.title} 대표 이미지`}
+          fallback={`CL-${String(scenario.scenarioId).padStart(3, "0")}`}
+        />
       </button>
       <div className="screen-title">
         <p className="eyebrow">
@@ -4079,11 +4082,7 @@ function LocationPanel({
         }}
         type="button"
       >
-        {mapImageUrl ? (
-          <img src={mapImageUrl} alt="현장 지도" />
-        ) : (
-          <span>MAP</span>
-        )}
+        <SafeImage src={mapImageUrl} alt="현장 지도" fallback="MAP" />
         {markerLocations.map((location) => (
           <span
             className={`map-marker ${location.locationId === selected.locationId ? "active" : ""}`}
@@ -4107,11 +4106,11 @@ function LocationPanel({
             onClick={() => setSelectedLocationId(location.locationId)}
             type="button"
           >
-            {location.imageUrl ? (
-              <img src={location.imageUrl} alt={`${location.name} 이미지`} />
-            ) : (
-              <span className="location-placeholder">SC</span>
-            )}
+            <SafeImage
+              src={location.imageUrl}
+              alt={`${location.name} 이미지`}
+              fallback="SC"
+            />
             <div>
               <strong>{location.name}</strong>
               <p>
@@ -4266,14 +4265,11 @@ function EvidenceList({
           >
             <div className="row">
               <div className="evidence-thumb">
-                {evidence.imageUrl ? (
-                  <img
-                    src={evidence.imageUrl}
-                    alt={`${evidence.title} 이미지`}
-                  />
-                ) : (
-                  "EV"
-                )}
+                <SafeImage
+                  src={evidence.imageUrl}
+                  alt={`${evidence.title} 이미지`}
+                  fallback="EV"
+                />
               </div>
               <div>
                 <div className="card-title">
@@ -4398,6 +4394,29 @@ function EvidenceDetailScreen({
   const relatedSuspects = evidence.relatedSuspects
     ?.map((related) => suspects.find((s) => s.suspectId === related.suspectId))
     .filter((suspect): suspect is Suspect => !!suspect);
+  const fallbackQuestionTargets =
+    relatedSuspects?.length
+      ? relatedSuspects
+      : suspects.filter((suspect) => !suspect.isWitness).slice(0, 3);
+  const fallbackGuidance: Guidance | undefined =
+    evidence.isUnlocked && !evidence.guidance
+      ? {
+          readingPoints: [
+            evidence.oneLine ||
+              "증거의 시간, 장소, 관련 인물 진술이 서로 맞는지 비교하세요.",
+          ],
+          suggestedQuestions: fallbackQuestionTargets
+            .slice(0, 3)
+            .map((suspect) => ({
+              targetSuspectId: suspect.suspectId,
+              targetName: suspect.name,
+              question: `${evidence.title}에 대해 알고 있는 것을 말해 주세요.`,
+              presentedEvidenceId: evidence.evidenceId,
+              questionType: "EVIDENCE_PRESENTED",
+            })),
+        }
+      : undefined;
+  const guidance = evidence.guidance ?? fallbackGuidance;
 
   return (
     <section className="stack">
@@ -4419,11 +4438,11 @@ function EvidenceDetailScreen({
         }}
         type="button"
       >
-        {evidence.imageUrl ? (
-          <img src={evidence.imageUrl} alt={`${evidence.title} 이미지`} />
-        ) : (
-          <span>{evidence.isUnlocked ? "EV" : "LOCKED"}</span>
-        )}
+        <SafeImage
+          src={evidence.imageUrl}
+          alt={`${evidence.title} 이미지`}
+          fallback={evidence.isUnlocked ? "EV" : "LOCKED"}
+        />
       </button>
       <ScreenTitle
         title={evidence.isUnlocked ? evidence.title : "잠긴 증거"}
@@ -4476,10 +4495,10 @@ function EvidenceDetailScreen({
           <TimelineList events={evidence.relatedTimelineEvents} />
         </article>
       )}
-      {evidence.guidance && (
+      {guidance && (
         <article className="info-card">
           <GuidanceBlock
-            guidance={evidence.guidance}
+            guidance={guidance}
             suspects={suspects}
             onChat={onChat}
             onCompareEvidence={onCompareEvidence}
@@ -4909,14 +4928,11 @@ function EvidencePickerDialog({
               type="button"
             >
               <div className="evidence-thumb">
-                {evidence.imageUrl ? (
-                  <img
-                    src={evidence.imageUrl}
-                    alt={`${evidence.title} 이미지`}
-                  />
-                ) : (
-                  "EV"
-                )}
+                <SafeImage
+                  src={evidence.imageUrl}
+                  alt={`${evidence.title} 이미지`}
+                  fallback="EV"
+                />
               </div>
               <div>
                 <strong>{evidence.title}</strong>
@@ -5064,6 +5080,7 @@ function SubmitScreen({
             <button
               className={`chip ${active ? "active" : ""}`}
               disabled={disabled}
+              aria-pressed={active}
               key={evidence.evidenceId}
               onClick={() => {
                 setSelectedEvidenceIds(
@@ -5300,14 +5317,11 @@ function ResultScreen({
           <div className="recommendation-list">
             {result.nextRecommendedScenarios.map((scenario) => (
               <div className="recommendation-card" key={scenario.scenarioId}>
-                {scenario.thumbnailUrl ? (
-                  <img
-                    src={scenario.thumbnailUrl}
-                    alt={`${scenario.title} 대표 이미지`}
-                  />
-                ) : (
-                  <span>CL</span>
-                )}
+                <SafeImage
+                  src={scenario.thumbnailUrl}
+                  alt={`${scenario.title} 대표 이미지`}
+                  fallback="CL"
+                />
                 <div>
                   <strong>{scenario.title}</strong>
                   {scenario.description && <p>{scenario.description}</p>}
@@ -5414,14 +5428,36 @@ function TimelineList({
   );
 }
 
+function SafeImage({
+  src,
+  alt,
+  fallback,
+}: {
+  src?: string;
+  alt: string;
+  fallback: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) return <span>{fallback}</span>;
+  return (
+    <img
+      src={src}
+      alt={alt}
+      loading="lazy"
+      decoding="async"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 function Avatar({ suspect }: { suspect: Suspect }) {
   return (
     <div className="avatar">
-      {suspect.portraitImageUrl ? (
-        <img src={suspect.portraitImageUrl} alt={`${suspect.name} 프로필`} />
-      ) : (
-        <span>{initials(suspect.name)}</span>
-      )}
+      <SafeImage
+        src={suspect.portraitImageUrl}
+        alt={`${suspect.name} 프로필`}
+        fallback={initials(suspect.name)}
+      />
     </div>
   );
 }

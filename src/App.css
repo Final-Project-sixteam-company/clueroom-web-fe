@@ -526,10 +526,20 @@ textarea {
 
 .scenario-thumb img,
 .evidence-thumb img,
-.avatar img {
+.avatar img,
+.scenario-thumb > span,
+.evidence-thumb > span,
+.avatar > span {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.scenario-thumb > span,
+.evidence-thumb > span,
+.avatar > span {
+  display: grid;
+  place-items: center;
 }
 
 .card-title {
@@ -923,6 +933,7 @@ textarea {
 }
 
 .location-card img,
+.location-card > span,
 .location-placeholder {
   width: 58px;
   height: 58px;
@@ -933,6 +944,7 @@ textarea {
   object-fit: cover;
 }
 
+.location-card > span,
 .location-placeholder {
   display: grid;
   place-items: center;
@@ -1005,6 +1017,15 @@ textarea {
 
 .evidence-card.locked {
   opacity: 0.75;
+}
+
+.evidence-card {
+  min-height: 104px;
+  touch-action: manipulation;
+}
+
+.evidence-card > .row {
+  pointer-events: none;
 }
 
 .guidance {
@@ -1246,6 +1267,12 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.evidence-picker .chip,
+.selected-summary .chip {
+  min-height: 40px;
+  touch-action: manipulation;
 }
 
 .selected-summary {
