@@ -158,6 +158,7 @@ SSH_TARGET=clueroom-staging PUBLIC_URL=https://staging.example.com bash scripts/
 - 만료 토큰으로 여러 요청이 동시에 401을 받아도 refresh 요청은 한 번만 실행합니다.
 - 로그아웃 중 완료된 오래된 refresh 응답은 새 세션으로 저장하지 않습니다.
 - 북마크와 리뷰 작성/조회는 서버 API를 사용하므로 같은 계정 기준으로 앱/웹 간 상태를 공유합니다.
+- 내 정보의 저장한 사건 화면은 `/api/scenarios/bookmarked`를 사용해 서버 북마크 목록을 표시합니다.
 - 리뷰 별점은 백엔드 계약에 맞춰 1~5 정수 단위로 입력합니다.
 - 수사 기록은 현재 웹 브라우저 localStorage에만 저장됩니다. 앱/다른 기기와 동기화되는 계정 기록이 아닙니다.
 - 최종 추리는 제출 후 `/api/play-sessions/{sessionId}/result` 조회가 성공해야 결과 화면으로 이동합니다. 결과 조회가 일시 실패하면 제출 응답만으로 빈약한 결과 화면을 만들지 않고 재조회 버튼을 표시합니다.
@@ -174,8 +175,8 @@ SSH_TARGET=clueroom-staging PUBLIC_URL=https://staging.example.com bash scripts/
 - 심문 채팅
 - 최종 추리 제출
 - 결과
-- 내 정보/이 기기 기록
-- 서버 연동 북마크/리뷰
+- 내 정보/이 기기 기록/저장한 사건
+- 서버 연동 북마크 목록/북마크 토글/리뷰
 
 제외한 것:
 

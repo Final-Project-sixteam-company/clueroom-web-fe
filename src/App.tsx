@@ -79,6 +79,7 @@ type View =
   | "profile"
   | "records"
   | "library"
+  | "bookmarks"
   | "scenarioDetail"
   | "briefing"
   | "case"
@@ -1111,6 +1112,11 @@ function App() {
   const [bookmarkedScenarioIds, setBookmarkedScenarioIds] = useState<number[]>(
     [],
   );
+  const [bookmarkedScenarios, setBookmarkedScenarios] = useState<Scenario[]>(
+    [],
+  );
+  const [bookmarksLoading, setBookmarksLoading] = useState(false);
+  const [bookmarksError, setBookmarksError] = useState<string | null>(null);
   const [scenarioReviews, setScenarioReviews] = useState<ScenarioReview[]>([]);
   const [reviewDraftTarget, setReviewDraftTarget] =
     useState<ReviewDraftTarget | null>(null);
@@ -1119,6 +1125,8 @@ function App() {
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(
     null,
   );
+  const [scenarioDetailBackView, setScenarioDetailBackView] =
+    useState<View>("library");
   const [scenarioDetailLoading, setScenarioDetailLoading] = useState(false);
   const [scenarioDetailError, setScenarioDetailError] = useState<string | null>(
     null,
@@ -1352,6 +1360,19 @@ function App() {
         ? { ...current, isBookmarked: !wasBookmarked }
         : current,
     );
+    setBookmarkedScenarios((current) => {
+      if (wasBookmarked) {
+        return current.filter((scenario) => scenario.scenarioId !== scenarioId);
+      }
+      const source =
+        selectedScenario?.scenarioId === scenarioId
+          ? selectedScenario
+          : scenarios.find((scenario) => scenario.scenarioId === scenarioId);
+      if (!source || current.some((scenario) => scenario.scenarioId === scenarioId)) {
+        return current;
+      }
+      return [{ ...source, isBookmarked: true }, ...current];
+    });
 
     try {
       await authedRequest(`/api/scenarios/${scenarioId}/bookmarks`, {
@@ -1371,6 +1392,19 @@ function App() {
           ? { ...current, isBookmarked: wasBookmarked }
           : current,
       );
+      setBookmarkedScenarios((current) => {
+        if (!wasBookmarked) {
+          return current.filter((scenario) => scenario.scenarioId !== scenarioId);
+        }
+        const source =
+          selectedScenario?.scenarioId === scenarioId
+            ? selectedScenario
+            : scenarios.find((scenario) => scenario.scenarioId === scenarioId);
+        if (!source || current.some((scenario) => scenario.scenarioId === scenarioId)) {
+          return current;
+        }
+        return [{ ...source, isBookmarked: true }, ...current];
+      });
       setScenarioDetailError(
         error instanceof Error ? error.message : "저장 상태를 바꾸지 못했습니다.",
       );
@@ -1698,13 +1732,53 @@ function App() {
     }
   }
 
+  async function loadBookmarkedScenarios() {
+    if (!authToken) {
+      setAuthError("저장한 사건은 로그인 후 사용할 수 있습니다.");
+      setView("login");
+      return;
+    }
+
+    setBookmarksLoading(true);
+    setBookmarksError(null);
+    setView("bookmarks");
+    try {
+      const data = await authedRequest<
+        { content?: Record<string, unknown>[] } | Record<string, unknown>[]
+      >("/api/scenarios/bookmarked", { query: { page: 0, size: 30 } });
+      const list = Array.isArray(data) ? data : (data.content ?? []);
+      const normalized = list
+        .map(normalizeScenario)
+        .map((scenario) => ({ ...scenario, isBookmarked: true }));
+      setBookmarkedScenarios(normalized);
+      setBookmarkedScenarioIds((current) => [
+        ...new Set([
+          ...current,
+          ...normalized.map((scenario) => scenario.scenarioId),
+        ]),
+      ]);
+    } catch (error) {
+      setBookmarksError(
+        error instanceof Error
+          ? error.message
+          : "저장한 사건을 불러오지 못했습니다.",
+      );
+    } finally {
+      setBookmarksLoading(false);
+    }
+  }
+
   function applyScenarioFilter(next: ScenarioFilterState) {
     setScenarioFilter(next);
     void loadScenarios(next);
   }
 
-  async function openScenarioDetail(scenario: Scenario) {
+  async function openScenarioDetail(
+    scenario: Scenario,
+    backView: View = "library",
+  ) {
     setSelectedScenario(scenario);
+    setScenarioDetailBackView(backView);
     setScenarioDetailError(null);
     setView("scenarioDetail");
     setScenarioDetailLoading(true);
@@ -2288,6 +2362,7 @@ function App() {
           onRefresh={loadProfile}
           onRecords={() => setView("records")}
           onLibrary={() => setView("library")}
+          onBookmarks={() => void loadBookmarkedScenarios()}
           onLogout={logout}
         />
       )}
@@ -2313,6 +2388,18 @@ function App() {
         />
       )}
 
+      {view === "bookmarks" && (
+        <BookmarkedScenariosScreen
+          scenarios={bookmarkedScenarios}
+          loading={bookmarksLoading}
+          error={bookmarksError}
+          onBack={() => setView("profile")}
+          onRefresh={() => void loadBookmarkedScenarios()}
+          onLibrary={() => setView("library")}
+          onSelect={(scenario) => void openScenarioDetail(scenario, "bookmarks")}
+        />
+      )}
+
       {view === "scenarioDetail" && selectedScenario && (
         <ScenarioDetailScreen
           scenario={selectedScenario}
@@ -2324,7 +2411,7 @@ function App() {
           )}
           loading={scenarioDetailLoading}
           error={scenarioDetailError}
-          onBack={() => setView("library")}
+          onBack={() => setView(scenarioDetailBackView)}
           onStart={() => setView("briefing")}
           onToggleBookmark={() =>
             void toggleScenarioBookmark(selectedScenario.scenarioId)
@@ -2824,6 +2911,7 @@ function ProfileScreen({
   onRefresh,
   onRecords,
   onLibrary,
+  onBookmarks,
   onLogout,
 }: {
   profile: UserProfile | null;
@@ -2833,6 +2921,7 @@ function ProfileScreen({
   onRefresh: () => void;
   onRecords: () => void;
   onLibrary: () => void;
+  onBookmarks: () => void;
   onLogout: () => void;
 }) {
   const completed = records.filter((record) => record.status === "COMPLETED");
@@ -2891,6 +2980,10 @@ function ProfileScreen({
         <button className="menu-item" onClick={onLibrary} type="button">
           <span>사건 라이브러리</span>
           <small>새로운 사건을 선택합니다</small>
+        </button>
+        <button className="menu-item" onClick={onBookmarks} type="button">
+          <span>저장한 사건</span>
+          <small>같은 계정으로 저장한 사건을 확인합니다</small>
         </button>
         <button className="menu-item danger" onClick={onLogout} type="button">
           <span>로그아웃</span>
@@ -3119,38 +3212,106 @@ function LibraryScreen({
           action={onRefresh}
         />
       )}
-      <div className="card-list">
-        {scenarios.map((scenario) => (
-          <button
-            className="scenario-card"
-            key={scenario.scenarioId}
-            onClick={() => onSelect(scenario)}
-            type="button"
-          >
-            <div className="scenario-thumb">
-              {scenario.thumbnailUrl ? (
-                <img
-                  src={scenario.thumbnailUrl}
-                  alt={`${scenario.title} 대표 이미지`}
-                />
-              ) : (
-                <span>CL</span>
-              )}
-            </div>
-            <div>
-              <div className="card-title">{scenario.title}</div>
-              <p className="card-body">{scenario.description}</p>
-              <div className="meta-row">
-                <span>{formatDifficulty(scenario.difficulty)}</span>
-                <span>{scenario.estimatedPlayTimeMinutes}분</span>
-                <span>인물 {scenario.suspectCount}</span>
-                <span>증거 {scenario.evidenceCount}</span>
-              </div>
-            </div>
-          </button>
-        ))}
-      </div>
+      <ScenarioCardList scenarios={scenarios} onSelect={onSelect} />
     </section>
+  );
+}
+
+function BookmarkedScenariosScreen({
+  scenarios,
+  loading,
+  error,
+  onBack,
+  onRefresh,
+  onLibrary,
+  onSelect,
+}: {
+  scenarios: Scenario[];
+  loading: boolean;
+  error: string | null;
+  onBack: () => void;
+  onRefresh: () => void;
+  onLibrary: () => void;
+  onSelect: (scenario: Scenario) => void;
+}) {
+  return (
+    <section className="stack">
+      <button className="icon-button fit" onClick={onBack} type="button">
+        내 정보로 돌아가기
+      </button>
+      <ScreenTitle title="저장한 사건" subtitle="SAVED CASES" />
+      <InfoPanel
+        title="계정 동기화"
+        body="이 목록은 서버 북마크 기준입니다. 같은 계정이면 앱과 웹에서 저장 상태를 공유합니다."
+      />
+      <div className="meta-row">
+        <span>{loading ? "동기화 중" : `${scenarios.length}건`}</span>
+      </div>
+      {loading && <StateBlock title="저장한 사건을 불러오고 있습니다" />}
+      {error && (
+        <StateBlock
+          title="불러오지 못했습니다"
+          body={error}
+          action={onRefresh}
+        />
+      )}
+      {!loading && !error && scenarios.length === 0 && (
+        <article className="info-card">
+          <p className="mini-title">아직 저장한 사건이 없습니다</p>
+          <p className="card-body">
+            사건 상세에서 저장을 누르면 이 목록에 추가됩니다.
+          </p>
+          <button className="chip" onClick={onLibrary} type="button">
+            사건 보러가기
+          </button>
+        </article>
+      )}
+      {!loading && !error && scenarios.length > 0 && (
+        <ScenarioCardList scenarios={scenarios} onSelect={onSelect} />
+      )}
+    </section>
+  );
+}
+
+function ScenarioCardList({
+  scenarios,
+  onSelect,
+}: {
+  scenarios: Scenario[];
+  onSelect: (scenario: Scenario) => void;
+}) {
+  return (
+    <div className="card-list">
+      {scenarios.map((scenario) => (
+        <button
+          className="scenario-card"
+          key={scenario.scenarioId}
+          onClick={() => onSelect(scenario)}
+          type="button"
+        >
+          <div className="scenario-thumb">
+            {scenario.thumbnailUrl ? (
+              <img
+                src={scenario.thumbnailUrl}
+                alt={`${scenario.title} 대표 이미지`}
+              />
+            ) : (
+              <span>CL</span>
+            )}
+          </div>
+          <div>
+            <div className="card-title">{scenario.title}</div>
+            <p className="card-body">{scenario.description}</p>
+            <div className="meta-row">
+              <span>{formatDifficulty(scenario.difficulty)}</span>
+              <span>{scenario.estimatedPlayTimeMinutes}분</span>
+              <span>인물 {scenario.suspectCount}</span>
+              <span>증거 {scenario.evidenceCount}</span>
+            </div>
+          </div>
+        </button>
+      ))}
+    </div>
   );
 }
 
