@@ -1,7 +1,9 @@
 node_modules/
 dist/
 .granite/
+.idea/
 *.ait
+*.tgz
 .env
 .env.*
 !.env.example

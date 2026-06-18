@@ -52,6 +52,72 @@ npm run build
 
 정적 웹 산출물은 `dist/`에 생성됩니다. Vercel, Netlify, S3/CloudFront, Nginx 같은 정적 호스팅에 배포할 수 있습니다.
 
+## Production Deploy
+
+현재 운영 배포는 로컬 checkout을 remote 최신 상태로 fast-forward한 뒤, 정적 파일을 빌드해서 prod 서버의 Nginx web root를 교체하는 방식입니다.
+
+실행 위치:
+
+```text
+로컬 PC Git Bash
+C:\java\assignment\spring\clueroom-toss-miniapp
+```
+
+사전 조건:
+
+```text
+ssh alias `clueroom`이 prod 서버를 가리켜야 한다.
+prod 서버에 `/opt/clueroom/web/current`를 서빙하는 Nginx 설정이 있어야 한다.
+Google 웹 로그인을 쓰려면 `.env.production` 또는 shell env에 `VITE_GOOGLE_CLIENT_ID`가 있어야 한다.
+배포 브랜치에 upstream tracking branch가 있어야 한다. 보통 `main -> origin/main`이다.
+```
+
+배포:
+
+```bash
+cp .env.example .env.production
+# .env.production의 VITE_GOOGLE_CLIENT_ID 확인
+
+bash scripts/deploy-web.sh
+```
+
+스크립트가 수행하는 일:
+
+```text
+1. 로컬 변경이 남아 있으면 중단
+2. git fetch --prune
+3. upstream branch 기준 fast-forward pull
+4. npm ci
+5. npm run lint
+6. npm run build
+7. dist 압축 후 prod 서버 업로드
+8. /opt/clueroom/web/current를 새 release로 교체
+9. nginx -t && nginx reload
+10. PUBLIC_URL 응답 확인
+```
+
+로컬 변경을 의도적으로 바로 배포해야 하는 긴급 상황에서만 git update check를 건너뛸 수 있습니다.
+
+```bash
+SKIP_GIT_UPDATE=1 bash scripts/deploy-web.sh
+```
+
+기본값:
+
+```bash
+SSH_TARGET=clueroom
+REMOTE_WEB_ROOT=/opt/clueroom/web
+PUBLIC_URL=https://www.clueroom.xyz
+VITE_API_BASE_URL=https://api.clueroom.xyz
+VITE_ENABLE_DEV_LOGIN=false
+```
+
+다른 서버나 URL로 배포할 때는 환경 변수로 바꿀 수 있습니다.
+
+```bash
+SSH_TARGET=clueroom-staging PUBLIC_URL=https://staging.example.com bash scripts/deploy-web.sh
+```
+
 ## Scope
 
 구현된 화면:
