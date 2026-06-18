@@ -28,6 +28,8 @@ const REFRESH_KEY = "clueroom.refreshToken";
 const DEVICE_KEY = "clueroom.deviceId";
 const RECORDS_KEY = "clueroom.records";
 const CASE_REFRESH_SECONDS = 30;
+const SCENARIO_PAGE_SIZE = 20;
+const MIN_DEDUCTION_TEXT_LENGTH = 5;
 
 type GoogleCredentialResponse = {
   credential?: string;
@@ -125,6 +127,15 @@ type ScenarioFilterState = {
   sort: "popular" | "latest" | "rating";
   type: "" | "OFFICIAL" | "CUSTOM";
   difficulty: "" | "EASY" | "NORMAL" | "HARD";
+};
+
+type ScenarioPagePayload = {
+  content?: Record<string, unknown>[];
+  hasNext?: boolean;
+  last?: boolean;
+  page?: number;
+  number?: number;
+  totalPages?: number;
 };
 
 type ScenarioReview = {
@@ -266,6 +277,7 @@ type TimelineEvent = {
   time: string;
   title: string;
   description?: string;
+  eventType?: string;
   relatedEvidenceId?: number;
 };
 
@@ -560,6 +572,42 @@ function normalizeScenario(raw: Record<string, unknown>): Scenario {
   };
 }
 
+function buildScenarioQuery(filter: ScenarioFilterState, page: number) {
+  const query: Record<string, string | number> = {
+    sort: filter.sort,
+    page,
+    size: SCENARIO_PAGE_SIZE,
+  };
+  if (filter.query.trim()) query.keyword = filter.query.trim();
+  if (filter.type) query.type = filter.type;
+  if (filter.difficulty) query.difficulty = filter.difficulty;
+  return query;
+}
+
+function normalizeScenarioPage(
+  data: ScenarioPagePayload | Record<string, unknown>[],
+  requestedPage: number,
+) {
+  const list = Array.isArray(data) ? data : (data.content ?? []);
+  const scenarios = list.map(normalizeScenario);
+  const page =
+    !Array.isArray(data) && typeof data.number === "number"
+      ? data.number
+      : !Array.isArray(data) && typeof data.page === "number"
+        ? data.page
+        : requestedPage;
+  const hasNext = Array.isArray(data)
+    ? false
+    : typeof data.hasNext === "boolean"
+      ? data.hasNext
+      : typeof data.last === "boolean"
+        ? !data.last
+        : typeof data.totalPages === "number"
+          ? page + 1 < data.totalPages
+          : scenarios.length >= SCENARIO_PAGE_SIZE;
+  return { scenarios, page, hasNext };
+}
+
 function normalizeGuidance(raw: unknown): Guidance | undefined {
   if (!raw || typeof raw !== "object") return undefined;
   const data = raw as Record<string, unknown>;
@@ -701,6 +749,12 @@ function normalizeTimelineEvent(raw: Record<string, unknown>): TimelineEvent {
         ? raw.description
         : typeof raw.detail === "string"
           ? raw.detail
+          : undefined,
+    eventType:
+      typeof raw.eventType === "string"
+        ? raw.eventType
+        : typeof raw.type === "string"
+          ? raw.type
           : undefined,
     relatedEvidenceId:
       typeof raw.relatedEvidenceId === "number"
@@ -1125,6 +1179,9 @@ function App() {
   const [reviewDraftTarget, setReviewDraftTarget] =
     useState<ReviewDraftTarget | null>(null);
   const [scenarioLoading, setScenarioLoading] = useState(false);
+  const [scenarioLoadingMore, setScenarioLoadingMore] = useState(false);
+  const [scenarioPage, setScenarioPage] = useState(0);
+  const [scenarioHasNext, setScenarioHasNext] = useState(false);
   const [scenarioError, setScenarioError] = useState<string | null>(null);
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(
     null,
@@ -1735,25 +1792,21 @@ function App() {
 
   async function loadScenarios(filter = scenarioFilter) {
     setScenarioLoading(true);
+    setScenarioLoadingMore(false);
     setScenarioError(null);
     try {
-      const query: Record<string, string | number> = {
-        sort: filter.sort,
-        page: 0,
-        size: 20,
-      };
-      if (filter.query.trim()) query.keyword = filter.query.trim();
-      if (filter.type) query.type = filter.type;
-      if (filter.difficulty) query.difficulty = filter.difficulty;
       const data = await optionalAuthRequest<
-        { content?: Record<string, unknown>[] } | Record<string, unknown>[]
-      >("/api/scenarios", { query });
-      const list = Array.isArray(data) ? data : (data.content ?? []);
-      const normalized = list.map(normalizeScenario);
-      setScenarios(normalized);
+        ScenarioPagePayload | Record<string, unknown>[]
+      >("/api/scenarios", { query: buildScenarioQuery(filter, 0) });
+      const pageData = normalizeScenarioPage(data, 0);
+      setScenarios(pageData.scenarios);
+      setScenarioPage(pageData.page);
+      setScenarioHasNext(pageData.hasNext);
       setBookmarkedScenarioIds((current) => {
-        const visibleIds = new Set(normalized.map((scenario) => scenario.scenarioId));
-        const bookmarkedIds = normalized
+        const visibleIds = new Set(
+          pageData.scenarios.map((scenario) => scenario.scenarioId),
+        );
+        const bookmarkedIds = pageData.scenarios
           .filter((scenario) => scenario.isBookmarked === true)
           .map((scenario) => scenario.scenarioId);
         const retained = current.filter(
@@ -1769,6 +1822,52 @@ function App() {
       );
     } finally {
       setScenarioLoading(false);
+    }
+  }
+
+  async function loadMoreScenarios() {
+    if (scenarioLoading || scenarioLoadingMore || !scenarioHasNext) return;
+    const nextPage = scenarioPage + 1;
+    setScenarioLoadingMore(true);
+    setScenarioError(null);
+    try {
+      const data = await optionalAuthRequest<
+        ScenarioPagePayload | Record<string, unknown>[]
+      >("/api/scenarios", {
+        query: buildScenarioQuery(scenarioFilter, nextPage),
+      });
+      const pageData = normalizeScenarioPage(data, nextPage);
+      setScenarios((current) => {
+        const seen = new Set(current.map((scenario) => scenario.scenarioId));
+        return [
+          ...current,
+          ...pageData.scenarios.filter(
+            (scenario) => !seen.has(scenario.scenarioId),
+          ),
+        ];
+      });
+      setScenarioPage(pageData.page);
+      setScenarioHasNext(pageData.hasNext);
+      setBookmarkedScenarioIds((current) => {
+        const visibleIds = new Set(
+          pageData.scenarios.map((scenario) => scenario.scenarioId),
+        );
+        const bookmarkedIds = pageData.scenarios
+          .filter((scenario) => scenario.isBookmarked === true)
+          .map((scenario) => scenario.scenarioId);
+        const retained = current.filter(
+          (scenarioId) => !visibleIds.has(scenarioId),
+        );
+        return [...new Set([...retained, ...bookmarkedIds])];
+      });
+    } catch (error) {
+      setScenarioError(
+        error instanceof Error
+          ? error.message
+          : "시나리오를 더 불러오지 못했습니다.",
+      );
+    } finally {
+      setScenarioLoadingMore(false);
     }
   }
 
@@ -2206,7 +2305,13 @@ function App() {
 
   async function submitDeduction() {
     if (!sessionId || !authToken || !selectedCulpritId || submitting) return;
-    if (!motiveText.trim() || !methodText.trim() || !coverUpText.trim()) return;
+    if (
+      motiveText.trim().length < MIN_DEDUCTION_TEXT_LENGTH ||
+      methodText.trim().length < MIN_DEDUCTION_TEXT_LENGTH ||
+      coverUpText.trim().length < MIN_DEDUCTION_TEXT_LENGTH
+    ) {
+      return;
+    }
     if (selectedEvidenceIds.length < 1 || selectedEvidenceIds.length > 15) {
       return;
     }
@@ -2284,6 +2389,28 @@ function App() {
         error instanceof Error
           ? error.message
           : "제출은 완료됐지만 결과를 아직 불러오지 못했습니다.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function openResultForSession(id: number) {
+    if (submitting) return;
+    setSubmitting(true);
+    setCaseError(null);
+    setPendingResultSessionId(id);
+    try {
+      const finalResult = await pollResult(id);
+      setResult(finalResult);
+      setPendingResultSessionId(null);
+      await saveCompletedRecord(finalResult);
+      setView("result");
+    } catch (error) {
+      setCaseError(
+        error instanceof Error
+          ? error.message
+          : "결과를 아직 불러오지 못했습니다.",
       );
     } finally {
       setSubmitting(false);
@@ -2423,8 +2550,11 @@ function App() {
           scenarios={scenarios}
           filter={scenarioFilter}
           loading={scenarioLoading}
+          loadingMore={scenarioLoadingMore}
+          hasNext={scenarioHasNext}
           error={scenarioError}
           onRefresh={() => loadScenarios()}
+          onLoadMore={() => void loadMoreScenarios()}
           onFilterChange={applyScenarioFilter}
           onSelect={openScenarioDetail}
         />
@@ -2496,6 +2626,7 @@ function App() {
           onUseHint={useHint}
           onAbandon={abandonSession}
           onSubmit={() => setView("submit")}
+          onResult={(id) => void openResultForSession(id)}
         />
       )}
 
@@ -3055,13 +3186,14 @@ function RecordsScreen({
   onLibrary: () => void;
   onResume: (record: RecordItem) => void;
 }) {
-  const [filter, setFilter] = useState<"all" | "completed" | "inProgress">(
-    "all",
-  );
+  const [filter, setFilter] = useState<
+    "all" | "completed" | "inProgress" | "mine"
+  >("all");
   const completed = records.filter((record) => record.status === "COMPLETED");
   const inProgress = records.filter(
     (record) => record.status === "IN_PROGRESS",
   );
+  const authoredRecords: RecordItem[] = [];
   const averageScore =
     completed.length > 0
       ? Math.round(
@@ -3074,19 +3206,25 @@ function RecordsScreen({
       ? completed
       : filter === "inProgress"
         ? inProgress
-        : records;
+        : filter === "mine"
+          ? authoredRecords
+          : records;
   const emptyTitle =
     filter === "completed"
       ? "완료된 사건이 없습니다"
       : filter === "inProgress"
         ? "진행 중인 사건이 없습니다"
-        : "아직 기록이 없습니다";
+        : filter === "mine"
+          ? "제작한 시나리오가 없습니다"
+          : "아직 기록이 없습니다";
   const emptyBody =
     filter === "completed"
       ? "사건을 끝까지 해결하면 여기에 기록됩니다."
       : filter === "inProgress"
         ? "새 사건을 시작하면 여기에 표시됩니다."
-        : "사건을 시작하거나 최종 추리를 제출하면 이곳에 기록됩니다.";
+        : filter === "mine"
+          ? "웹에서는 아직 제작한 시나리오 목록을 제공하지 않습니다."
+          : "사건을 시작하거나 최종 추리를 제출하면 이곳에 기록됩니다.";
 
   return (
     <section className="stack">
@@ -3133,12 +3271,18 @@ function RecordsScreen({
           ["all", "전체"],
           ["completed", "완료"],
           ["inProgress", "진행 중"],
+          ["mine", "내 시나리오"],
         ]}
         value={filter}
         onChange={(value) => setFilter(value as typeof filter)}
       />
       {!filtered.length && (
-        <StateBlock title={emptyTitle} body={emptyBody} action={onLibrary} />
+        <StateBlock
+          title={emptyTitle}
+          body={emptyBody}
+          action={filter === "mine" ? undefined : onLibrary}
+          actionLabel="사건 보러가기"
+        />
       )}
       <div className="records-list">
         {filtered.map((record) => (
@@ -3180,16 +3324,22 @@ function LibraryScreen({
   scenarios,
   filter,
   loading,
+  loadingMore,
+  hasNext,
   error,
   onRefresh,
+  onLoadMore,
   onFilterChange,
   onSelect,
 }: {
   scenarios: Scenario[];
   filter: ScenarioFilterState;
   loading: boolean;
+  loadingMore: boolean;
+  hasNext: boolean;
   error: string | null;
   onRefresh: () => void;
+  onLoadMore: () => void;
   onFilterChange: (filter: ScenarioFilterState) => void;
   onSelect: (scenario: Scenario) => void;
 }) {
@@ -3270,6 +3420,16 @@ function LibraryScreen({
         />
       )}
       <ScenarioCardList scenarios={scenarios} onSelect={onSelect} />
+      {!loading && !error && hasNext && (
+        <button
+          className="button secondary"
+          onClick={onLoadMore}
+          disabled={loadingMore}
+          type="button"
+        >
+          {loadingMore ? "더 불러오는 중" : "더보기"}
+        </button>
+      )}
     </section>
   );
 }
@@ -3737,6 +3897,7 @@ function CaseScreen({
   onUseHint,
   onAbandon,
   onSubmit,
+  onResult,
 }: {
   caseTab: "scene" | "evidence" | "suspects" | "timeline";
   setCaseTab: (tab: "scene" | "evidence" | "suspects" | "timeline") => void;
@@ -3756,6 +3917,7 @@ function CaseScreen({
   onUseHint: (hint: Hint) => void;
   onAbandon: () => void;
   onSubmit: () => void;
+  onResult: (sessionId: number) => void;
 }) {
   if (loading && !dashboard)
     return <StateBlock title="세션을 준비하고 있습니다" />;
@@ -3765,6 +3927,26 @@ function CaseScreen({
         title="수사를 시작하지 못했습니다"
         body={error}
         action={onRetry}
+      />
+    );
+  }
+  const sessionStatus = (dashboard?.status ?? "").toUpperCase();
+  const isClosedSession = [
+    "SUBMITTED",
+    "COMPLETED",
+    "ABANDONED",
+    "CANCELED",
+    "CANCELLED",
+    "ENDED",
+  ].includes(sessionStatus);
+
+  if (dashboard && isClosedSession) {
+    return (
+      <StateBlock
+        title="이미 종결된 사건입니다"
+        body="이 세션은 더 이상 수사 조작을 할 수 없습니다. 결과 화면에서 최종 기록을 확인하세요."
+        action={() => onResult(dashboard.sessionId)}
+        actionLabel="결과 보기"
       />
     );
   }
@@ -3853,7 +4035,7 @@ function CaseScreen({
         <SuspectList suspects={suspects} onSuspectDetail={onSuspectDetail} />
       )}
 
-      {caseTab === "timeline" && <TimelineList events={timeline} />}
+      {caseTab === "timeline" && <TimelineList events={timeline} filterable />}
     </section>
   );
 }
@@ -4797,11 +4979,14 @@ function SubmitScreen({
   const selectedEvidences = evidences.filter((evidence) =>
     selectedEvidenceIds.includes(evidence.evidenceId),
   );
+  const motiveReady = motiveText.trim().length >= MIN_DEDUCTION_TEXT_LENGTH;
+  const methodReady = methodText.trim().length >= MIN_DEDUCTION_TEXT_LENGTH;
+  const coverUpReady = coverUpText.trim().length >= MIN_DEDUCTION_TEXT_LENGTH;
   const canSubmit =
     !!selectedCulpritId &&
-    motiveText.trim() &&
-    methodText.trim() &&
-    coverUpText.trim() &&
+    motiveReady &&
+    methodReady &&
+    coverUpReady &&
     selectedEvidenceIds.length >= 1 &&
     selectedEvidenceIds.length <= 15;
 
@@ -4818,14 +5003,14 @@ function SubmitScreen({
       <ScreenTitle title="최종 추리" subtitle="FINAL DEDUCTION" />
       <InfoPanel
         title="제출 조건"
-        body="범인, 동기, 수법, 은폐 방식, 증거를 입력하세요."
+        body={`범인, 동기, 수법, 은폐 방식, 증거를 입력하세요. 서술 항목은 각각 ${MIN_DEDUCTION_TEXT_LENGTH}자 이상이어야 합니다.`}
       />
       <SubmitChecklist
         items={[
           ["진범 지목", !!selectedCulpritId],
-          ["동기 입력", !!motiveText.trim()],
-          ["수법 입력", !!methodText.trim()],
-          ["은폐 입력", !!coverUpText.trim()],
+          [`동기 ${MIN_DEDUCTION_TEXT_LENGTH}자 이상`, motiveReady],
+          [`수법 ${MIN_DEDUCTION_TEXT_LENGTH}자 이상`, methodReady],
+          [`은폐 ${MIN_DEDUCTION_TEXT_LENGTH}자 이상`, coverUpReady],
           [
             "제출 증거 1~15개",
             selectedEvidenceIds.length >= 1 && selectedEvidenceIds.length <= 15,
@@ -5166,21 +5351,65 @@ function ResultMatchRow({
   );
 }
 
-function TimelineList({ events }: { events: TimelineEvent[] }) {
+function TimelineList({
+  events,
+  filterable = false,
+}: {
+  events: TimelineEvent[];
+  filterable?: boolean;
+}) {
+  const [filter, setFilter] = useState<"all" | "conflict" | "claim">("all");
   if (!events.length) return <StateBlock title="타임라인이 없습니다" />;
+  const isConflict = (event: TimelineEvent) => {
+    const type = (event.eventType ?? "").toUpperCase();
+    const text = `${event.title} ${event.description ?? ""}`;
+    return type === "CONFLICT" || text.includes("모순");
+  };
+  const isClaim = (event: TimelineEvent) => {
+    const type = (event.eventType ?? "").toUpperCase();
+    return type === "CLAIM" || type === "STATEMENT";
+  };
+  const filteredEvents =
+    filter === "conflict"
+      ? events.filter(isConflict)
+      : filter === "claim"
+        ? events.filter(isClaim)
+        : events;
+
   return (
-    <div className="timeline">
-      {events.map((event, index) => (
-        <article className="timeline-item" key={`${event.time}-${index}`}>
-          <time>{event.time}</time>
-          <div>
-            <div className="card-title">{event.title}</div>
-            {event.description && (
-              <p className="card-body">{event.description}</p>
-            )}
-          </div>
-        </article>
-      ))}
+    <div className="stack">
+      {filterable && (
+        <FilterChips
+          label="타임라인"
+          options={[
+            ["all", "전체"],
+            ["conflict", "모순"],
+            ["claim", "진술"],
+          ]}
+          value={filter}
+          onChange={(value) => setFilter(value as typeof filter)}
+        />
+      )}
+      {!filteredEvents.length ? (
+        <StateBlock
+          title="해당 타임라인이 없습니다"
+          body="다른 필터를 선택하거나 수사를 더 진행해 보세요."
+        />
+      ) : (
+        <div className="timeline">
+          {filteredEvents.map((event, index) => (
+            <article className="timeline-item" key={`${event.time}-${index}`}>
+              <time>{event.time}</time>
+              <div>
+                <div className="card-title">{event.title}</div>
+                {event.description && (
+                  <p className="card-body">{event.description}</p>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -5245,10 +5474,12 @@ function StateBlock({
   title,
   body,
   action,
+  actionLabel = "다시 시도",
 }: {
   title: string;
   body?: string;
   action?: () => void;
+  actionLabel?: string;
 }) {
   return (
     <div className="state-block" role="status" aria-live="polite">
@@ -5257,7 +5488,7 @@ function StateBlock({
       {body && <p>{body}</p>}
       {action && (
         <button className="button secondary" onClick={action} type="button">
-          다시 시도
+          {actionLabel}
         </button>
       )}
     </div>
