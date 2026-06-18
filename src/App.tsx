@@ -13,6 +13,7 @@ const ENABLE_GOOGLE_LOGIN = !!GOOGLE_CLIENT_ID;
 const ENABLE_KAKAO_LOGIN = !!KAKAO_JAVASCRIPT_KEY;
 const ENABLE_DEV_LOGIN =
   import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_LOGIN === "true";
+const KAKAO_LOGIN_STATE = "clueroom-kakao-login";
 
 const ACCESS_KEY = "clueroom.accessToken";
 const REFRESH_KEY = "clueroom.refreshToken";
@@ -26,21 +27,15 @@ type GoogleCredentialResponse = {
   credential?: string;
 };
 
-type KakaoAuthResponse = {
-  access_token?: string;
-  error?: string;
-  error_description?: string;
-};
-
 declare global {
   interface Window {
     Kakao?: {
       init: (javascriptKey: string) => void;
       isInitialized: () => boolean;
       Auth: {
-        login: (options: {
-          success: (response: KakaoAuthResponse) => void;
-          fail: (error: KakaoAuthResponse) => void;
+        authorize: (options: {
+          redirectUri: string;
+          state?: string;
         }) => void;
       };
     };
@@ -428,6 +423,10 @@ async function ensureKakaoInitialized() {
   if (!window.Kakao.isInitialized()) {
     window.Kakao.init(KAKAO_JAVASCRIPT_KEY);
   }
+}
+
+function kakaoRedirectUri() {
+  return window.location.origin;
 }
 
 function apiUrl(
@@ -1159,6 +1158,26 @@ function App() {
 
   useEffect(() => {
     void (async () => {
+      const callbackParams = new URLSearchParams(window.location.search);
+      if (
+        ENABLE_KAKAO_LOGIN &&
+        callbackParams.get("state") === KAKAO_LOGIN_STATE
+      ) {
+        const code = callbackParams.get("code");
+        const kakaoError =
+          callbackParams.get("error_description") ?? callbackParams.get("error");
+        window.history.replaceState(null, "", "/");
+        if (code) {
+          await handleKakaoAuthorizationCode(code);
+        } else if (kakaoError) {
+          setAuthError(kakaoError);
+        } else {
+          setAuthError("Kakao 로그인 응답을 확인하지 못했습니다.");
+        }
+        setAuthReady(true);
+        return;
+      }
+
       const accessToken = await safeGet(ACCESS_KEY);
       const refreshToken = await safeGet(REFRESH_KEY);
       if (accessToken) {
@@ -1179,6 +1198,8 @@ function App() {
       }
       setAuthReady(true);
     })();
+    // Kakao callback and persisted-token bootstrap must run once on initial load.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -1495,13 +1516,17 @@ function App() {
     }
   }
 
-  async function handleKakaoAccessToken(accessToken: string) {
+  async function handleKakaoAuthorizationCode(authorizationCode: string) {
     setAuthError(null);
     try {
       const deviceId = await getDeviceId();
-      const data = await request<Tokens>("/api/auth/oauth", {
+      const data = await request<Tokens>("/api/auth/oauth/kakao/code", {
         method: "POST",
-        body: JSON.stringify({ provider: "KAKAO", accessToken, deviceId }),
+        body: JSON.stringify({
+          authorizationCode,
+          redirectUri: kakaoRedirectUri(),
+          deviceId,
+        }),
       });
       await persistTokens(data);
       setView("home");
@@ -2078,7 +2103,6 @@ function App() {
         <LoginScreen
           error={authError}
           onGoogleCredential={handleGoogleCredential}
-          onKakaoAccessToken={handleKakaoAccessToken}
           onAuthError={setAuthError}
           onDevLogin={handleDevLogin}
         />
@@ -2374,13 +2398,11 @@ function Shell({
 function LoginScreen({
   error,
   onGoogleCredential,
-  onKakaoAccessToken,
   onAuthError,
   onDevLogin,
 }: {
   error: string | null;
   onGoogleCredential: (idToken: string) => void;
-  onKakaoAccessToken: (accessToken: string) => void;
   onAuthError: (message: string) => void;
   onDevLogin: (email: string) => void;
 }) {
@@ -2402,7 +2424,6 @@ function LoginScreen({
           onError={onAuthError}
         />
         <KakaoSignInButton
-          onAccessToken={onKakaoAccessToken}
           onError={onAuthError}
         />
       </div>
@@ -2434,10 +2455,8 @@ function LoginScreen({
 }
 
 function KakaoSignInButton({
-  onAccessToken,
   onError,
 }: {
-  onAccessToken: (accessToken: string) => void;
   onError: (message: string) => void;
 }) {
   const [loading, setLoading] = useState(false);
@@ -2448,23 +2467,9 @@ function KakaoSignInButton({
     setLoading(true);
     try {
       await ensureKakaoInitialized();
-      window.Kakao?.Auth.login({
-        success: (response) => {
-          setLoading(false);
-          if (response.access_token) {
-            onAccessToken(response.access_token);
-            return;
-          }
-          onError("Kakao 인증 토큰을 받지 못했습니다.");
-        },
-        fail: (error) => {
-          setLoading(false);
-          onError(
-            error.error_description ??
-              error.error ??
-              "Kakao 로그인에 실패했습니다.",
-          );
-        },
+      window.Kakao?.Auth.authorize({
+        redirectUri: kakaoRedirectUri(),
+        state: KAKAO_LOGIN_STATE,
       });
     } catch (error) {
       setLoading(false);

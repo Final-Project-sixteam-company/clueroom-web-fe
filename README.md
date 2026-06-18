@@ -37,21 +37,22 @@ POST /api/auth/oauth
 }
 ```
 
-Kakao 로그인은 Kakao JavaScript SDK가 반환한 access token을 같은 백엔드 OAuth endpoint로 전달합니다.
+Kakao 로그인은 Kakao JavaScript SDK v2의 authorization code flow를 사용합니다.
+프론트는 `Kakao.Auth.authorize()`로 받은 code를 백엔드에 전달하고, 백엔드가 Kakao token exchange와 user info 조회를 수행합니다.
 
 ```http
-POST /api/auth/oauth
+POST /api/auth/oauth/kakao/code
 ```
 
 ```json
 {
-  "provider": "KAKAO",
-  "accessToken": "<Kakao access token>",
+  "authorizationCode": "<Kakao authorization code>",
+  "redirectUri": "https://www.clueroom.xyz",
   "deviceId": "<browser installation id>"
 }
 ```
 
-백엔드는 Kakao access token info의 `app_id`를 서버 환경변수 `KAKAO_APP_ID`와 대조합니다.
+백엔드는 Kakao REST API 키로 access token을 교환한 뒤 access token info의 `app_id`를 서버 환경변수 `KAKAO_APP_ID`와 대조합니다.
 
 QA나 staging에서만 개발 로그인을 켤 수 있습니다.
 
