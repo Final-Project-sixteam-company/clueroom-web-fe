@@ -19,6 +19,7 @@ npm run preview
 ```bash
 VITE_API_BASE_URL=https://api.clueroom.xyz
 VITE_GOOGLE_CLIENT_ID=<Google Web OAuth client id>
+VITE_GOOGLE_SERVER_CLIENT_ID=<optional alias for Google Web OAuth client id>
 VITE_KAKAO_JAVASCRIPT_KEY=<Kakao JavaScript key>
 VITE_ENABLE_DEV_LOGIN=false
 VITE_ENABLE_QA_LOGIN=false
