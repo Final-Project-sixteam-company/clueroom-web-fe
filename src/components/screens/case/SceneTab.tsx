@@ -8,8 +8,9 @@
 import { useState } from "react";
 import { Lightbulb, Map, MapPin, Image as ImageIcon } from "lucide-react";
 import type { CaseLocation, Hint, ImagePreview } from "../../../types";
-import { Kicker, Empty, Pill, Modal, Button, ListSkeleton } from "../../ui";
+import { Kicker, Empty, Pill, ListSkeleton } from "../../ui";
 import { AssetImage } from "../../domain";
+import { HintSheet } from "./HintSheet";
 import styles from "./SceneTab.module.css";
 
 function MapPlaceholder() {
@@ -169,46 +170,13 @@ export function SceneTab({
         )}
       </div>
 
-      {/* 힌트 Modal (kit Modal 임시 — 정본은 HintSheet 바텀시트) */}
-      <Modal
+      {/* 힌트 바텀시트(정본 game_modals _HintSheet) */}
+      <HintSheet
         open={hintOpen}
-        title="수사 힌트"
+        hints={hints}
+        onUse={onUseHint}
         onClose={() => setHintOpen(false)}
-        secondaryAction={null}
-        primaryAction={
-          <Button label="닫기" variant="primary" expanded onPress={() => setHintOpen(false)} />
-        }
-      >
-        {hints.length === 0 ? (
-          <p className={styles.hintEmpty}>아직 사용할 수 있는 힌트가 없습니다.</p>
-        ) : (
-          <div className={styles.hintList}>
-            {hints.map((h) => (
-              <div className={styles.hintCard} key={h.hintId}>
-                <div className={styles.hintMeta}>
-                  <span className={styles.hintLevel}>힌트 {h.hintLevel}</span>
-                  <span className={styles.hintDesc}>
-                    {h.isUsed
-                      ? h.content || "사용한 힌트입니다."
-                      : h.isAvailable
-                        ? `사용 시 ${h.penaltyScore}점이 차감됩니다.`
-                        : h.remainingMinutes != null
-                          ? `${h.remainingMinutes}분 후 사용할 수 있습니다.`
-                          : "아직 사용할 수 없습니다."}
-                  </span>
-                </div>
-                {!h.isUsed ? (
-                  <Button
-                    label="사용"
-                    variant="secondary"
-                    onPress={h.isAvailable ? () => onUseHint(h) : undefined}
-                  />
-                ) : null}
-              </div>
-            ))}
-          </div>
-        )}
-      </Modal>
+      />
     </div>
   );
 }

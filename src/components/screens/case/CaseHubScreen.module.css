@@ -150,33 +150,4 @@
   white-space: pre-line; /* \n 2줄 */
 }
 
-/* ── 브리핑 Modal 본문(임시) ── */
-.briefing {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp4);
-}
-.briefSection {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp2);
-}
-.briefBody {
-  margin: 0;
-  font-family: var(--font-sans);
-  font-size: var(--fs-lg);
-  line-height: 1.6;
-  color: var(--text);
-}
-.briefGoals {
-  padding: var(--sp4);
-  background: var(--danger-soft);
-  border: var(--stroke-sm) solid var(--danger);
-  border-radius: var(--r4);
-  white-space: pre-line;
-  font-family: var(--font-sans);
-  font-size: var(--fs-lg);
-  font-weight: 600;
-  line-height: 1.8;
-  color: var(--danger);
-}
+/* 브리핑 본문 픽셀은 정본 game_modals _BriefingSheet → case/CaseBriefingSheet.module.css 로 이전. */

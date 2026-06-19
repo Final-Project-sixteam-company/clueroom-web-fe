@@ -212,17 +212,16 @@ export function InterrogationChatScreen({
         </div>
       </div>
 
-      {pickerOpen ? (
-        <EvidencePresentSheet
-          evidences={evidences}
-          selectedEvidenceId={pendingEvidence?.evidenceId}
-          onClose={() => setPickerOpen(false)}
-          onSelect={(id) => {
-            onAttachEvidence(id);
-            setPickerOpen(false);
-          }}
-        />
-      ) : null}
+      <EvidencePresentSheet
+        open={pickerOpen}
+        evidences={evidences}
+        selectedEvidenceId={pendingEvidence?.evidenceId}
+        onClose={() => setPickerOpen(false)}
+        onSelect={(id) => {
+          onAttachEvidence(id);
+          setPickerOpen(false);
+        }}
+      />
     </section>
   );
 }

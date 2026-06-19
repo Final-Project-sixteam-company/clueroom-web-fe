@@ -27,6 +27,7 @@ ClueRoom Flutter→React 마이그레이션을 이어서 진행합니다. 작업
   · 증거 상세 EvidenceDetailScreen + 용의자 상세 SuspectDetailScreen(src/components/screens/ — evidence_detail/suspect_detail_*.dart). bare 상세 레시피(자체 AppBar + 페이지 스크롤). 증거=히어로86/상태 Pill/관찰 정보 카드(설명·관련 용의자·타임라인·가이던스). 용의자=프로필(CharacterPortrait 80)/관계/관련 증거(EvidenceItem)/진술 카드/심문 로그 + sticky 하단 바(뒤로/심문하기/범인 지목). prop 계약 동일 → 태그명만 교체. 옛 GuidanceBlock/EvidenceDetailScreen/SuspectDetailScreen/Avatar/인라인 TimelineList 제거 → App.tsx 2537줄.
   · 제출 SubmitScreen + 결과 ResultScreen(src/components/screens/ — submit/result_*.dart). **§9 게임 흐름 전부 이식 완료.** 제출=bare(back 바)+폼(헤더/진범 select/동기·방법·은폐 TextField/증거 셀렉터/체크리스트/제출 danger) + kit Modal 확인. 결과=bare('CASE CLOSED')+등급 헤더(display96 fade-in)/매칭 카드/맞춘·놓친/해설/확인된 증거/추천 사건/3버튼. prop 계약 동일 → 태그명만 교체. 옛 인라인 5함수 제거 → App.tsx 2125줄(세션 누적 −62%).
   · **비-게임 3종(2026-06-20)**: 기록 RecordsScreen(my_records_screen.dart — 탭, 등급카드+StatRow+필터칩+세션카드) · 내 정보 ProfileScreen(my_page_screen.dart — 탭, 프로필카드+메뉴, 로그아웃=kit Modal·준비중=kit Toast) · 북마크 BookmarksScreen(전용 정본 없음 — bare 자체 AppBar + 공유 ScenarioRow). **라이브러리 _ScenarioRow → domain/ScenarioRow 공유 추출**(Library/Bookmarks 공용). **ToastProvider 를 main.tsx 앱 루트에 마운트**. 옛 인라인 9함수 + recordsSource state 제거 → **App.tsx 1693줄(세션 누적 −70%)**. ✅ **전 화면 이식 완료.**
+- game_modals 바텀시트 정본화(2026-06-20): 공유 `Sheet` 프리미티브(ui, 드래그 핸들+슬라이드 모션) 위에 HintSheet·CaseBriefingSheet(신규, case/) · EvidencePresentSheet(모션 추가) · ReviewWriteSheet(App ReviewDialog 대체). 임시 kit Modal·ReviewDialog/TextArea 제거 → App.tsx 1598줄. AbandonDialog/SubmitConfirm/Logout 은 dialog 라 Modal 유지.
 
 ## ⚠ 알아둘 것
 - 게이트(완료 주장 전 필수): npm test && npm run lint && npx tsc -b && npm run build. tsc -b가 타입 게이트 정본(build=vite/esbuild라 타입체크 안 함). 현재 0 errors 유지.
@@ -36,9 +37,8 @@ ClueRoom Flutter→React 마이그레이션을 이어서 진행합니다. 작업
 - 회귀 금지(보존): request 엔벨로프·401→refresh→retry(single-flight refreshInFlightRef + generation guard)·**30초 status-gated 폴링·1초 타이머(loadCaseRef)**·accessToken localStorage + http-only refresh 쿠키. auth는 순수헬퍼+테스트로 고정됨.
 - 홈은 / (앱 기본 view, 미로그인도 렌더). 각 컴포넌트 파일 상단에 .dart 정본 출처 주석 있음 → 1:1 대조 가능.
 
-## ▶ 다음 작업 (전 화면 이식 ✅ 완료 — 남은 영역)
-- **game_modals 정본 픽셀화**: HintSheet/EvidencePresentSheet/CaseBriefingSheet/ReviewWriteSheet(현재 힌트/브리핑/제출확인/로그아웃확인=kit Modal 임시, EvidencePresentSheet=기능 이식 → 정본 바텀시트 드래그 핸들·모션).
-- **Phase 4 기능 훅 분해**: god-state(App.tsx 1693줄) — useScenarios/useGameSession/useRecords/useResult. ⚠ 회귀 금지 폴링(30초)·1초 타이머 순수추출 → node:test.
+## ▶ 다음 작업 (전 화면 이식 + game_modals ✅ 완료 — 남은 영역)
+- **Phase 4 기능 훅 분해**: god-state(App.tsx 1598줄) — useScenarios/useGameSession/useRecords/useResult. ⚠ 회귀 금지 폴링(30초)·1초 타이머 순수추출 → node:test.
 - **Phase 6**: Splash 2.2s / Onboarding 5슬라이드(koo #5) — splash_screen.dart · onboarding_screen.dart.
 - **(선택) dead App.css 정리**: 옛 화면 전용 클래스(.profile-card/.record-card/.detective-grade-card/.menu-item/.screen-title/.info-card/.stat/.filter-group/.scenario-card 등) 삭제로 번들 축소(공유 여부 grep 후).
 
@@ -268,13 +268,24 @@ koo 지적("배포앱 https://www.clueroom.xyz 로그인에 Google·Kakao 세팅
 - **남은 잔재(비차단)**: App.css 의 옛 화면 전용 클래스(`.profile-card`/`.record-card`/`.detective-grade-card`/`.menu-item`/`.screen-title`/`.info-card`/`.stat`/`.filter-group`/`.scenario-card` 등)는 이제 **dead CSS**(번들엔 남음 → css 90.9→100.2kB 증가분 일부). 공유 여부 확인 후 별도 정리 권장(이번엔 안전상 미삭제).
 - **게이트 전부 통과**: `npm test` 12/12, `lint` 0(warn 0), `npx tsc -b` **0 errors**, `npm run build` 성공(메인 번들 css 90.93→100.21kB, js 336.43→338.76kB; lucide CircleCheck/Clock/ClipboardList/SquarePen/Bookmark/Bell/HelpCircle/FileText/LogOut/ChevronRight/ArrowLeft/CloudOff 포함). 브라우저 육안 확인만 koo `npm run dev` → 기록/내 정보 탭 + 내 정보 '저장한 사건' 진입으로 남음.
 
-## ▶ 다음 작업 (전 화면 이식 완료 — 남은 영역)
-화면 이식은 전부 끝났고(게임 흐름 + 비-게임 3종), 남은 건 **부품 폴리시 + 분해 + Phase 6**:
-- **game_modals 정본 픽셀화**: HintSheet/EvidencePresentSheet/CaseBriefingSheet/ReviewWriteSheet — 현재 힌트/브리핑=kit Modal 임시, 제출/로그아웃 확인도 kit Modal, EvidencePresentSheet=기능 이식 → 정본 바텀시트 픽셀(드래그 핸들·진입/퇴장 모션)로 교체.
-- **Phase 4 기능 훅 분해**: god-state(App.tsx 1693줄) — useScenarios/useGameSession/useRecords/useResult. 회귀 금지 폴링(30초)·1초 타이머 순수추출 → node:test.
+## ✅ game_modals 바텀시트 정본화 완료 (2026-06-20, 브랜치 `feat/react-migration-tokens`)
+임시 kit Modal·기능이식분이던 게임 바텀시트 4종을 정본 픽셀(드래그 핸들 + 진입/퇴장 슬라이드 모션)로 교체. 공유 `Sheet` 프리미티브 1개 위에 4개를 올림. 정본 = `lib/components/game_modals.dart`(_HintSheet/_EvidencePresentSheet/_BriefingSheet) + `review_write_sheet.dart`.
+
+- **공유 `Sheet` 프리미티브(킷)**: `src/components/ui/Sheet.{tsx,module.css}` — `<Sheet open onClose ariaLabel>{children}</Sheet>`. scrim(ink900 70%) + 하단 고정 bgElev 패널(상단 r6, max 88dvh) + 드래그 핸들(36×4) + 슬라이드업/다운 + scrim/ESC 닫힘. 라이프사이클(mount/leaving + portal)은 Modal 패턴 재사용. **타깃 = 핸들 비주얼 + 진입/퇴장 모션**(핸드오프 명시) — 드래그-투-dismiss 제스처/DraggableScrollableSheet 가변높이는 범위 밖(웹 단순화, 고정 max-height + 내부 스크롤).
+- **HintSheet**(`screens/case/HintSheet.tsx`): '힌트 요청' titleL + 감점 경고 + 누적 감점 박스 + 힌트 타일(사용완료/잠김/사용가능, 레벨별 라벨·level3 danger). SceneTab 의 힌트 kit Modal 교체. 데이터=웹 `hints` + `onUseHint`(App.useHint 엔드포인트) 보존.
+- **CaseBriefingSheet**(`screens/case/CaseBriefingSheet.tsx`): '사건 브리핑' titleL + 시나리오명 + 사건 개요 + 피해자 정보(InfoRow ×2) + 탐정 목표(danger 박스) + 닫기. CaseHubScreen 의 브리핑 kit Modal 교체. 데이터=`dashboard.briefing`(summary/victimName/foundLocation).
+- **EvidencePresentSheet**(기존 → Sheet 프리미티브 위로 재작성): '제시할 증거 선택' titleM + 닫기 X + 검색 + `_EvidencePickItem`(bg·r4, 34 썸네일 + 이름 + 위치). 진입/퇴장 모션 추가(이전 '기능 이식'의 모션 갭 해소). 호출부(InterrogationChatScreen)는 `open` prop 으로 항상 렌더(퇴장 애니메이션). 검색은 이름/위치/카테고리 매칭 보존(표시는 Flutter 대로 이름+위치).
+- **ReviewWriteSheet**(`screens/ReviewWriteSheet.tsx`): '리뷰 작성' titleM + 평점 슬라이더(★ 1.0~5.0, 0.5 step) + 본문(4줄) + 스포일러 스위치(danger) + 등록. App 의 옛 `ReviewDialog`(custom modal-shell) 교체. 닫힐 때 target=null 이 되므로 마지막 target 을 latch(퇴장 동안 콘텐츠 보존). onSubmit→addScenarioReview(저장 성공 시 닫힘) 동작 보존.
+- **정리**: SceneTab(힌트 Modal+죽은 CSS)·CaseHubScreen(브리핑 Modal+죽은 CSS, Kicker import) 제거. App 의 `ReviewDialog`+`TextArea` 함수 제거 → **App.tsx 1693 → 1598줄**. AbandonDialog(중단)·SubmitConfirm(제출)·Logout(프로필)은 바텀시트가 아니라 **dialog 라 kit Modal 유지**(정본도 showMSModal).
+- **⚠ koo 확인(의도적 선택, 한 줄로 뒤집기 쉬움)**: ① **드래그-투-dismiss 제스처 미구현**(scrim/ESC 로 닫힘) — 핸드오프 타깃은 '핸들 비주얼 + 모션'이라 제스처는 범위 밖. ② EvidencePresent **DraggableScrollableSheet 가변높이 스냅 미이식**(고정 75dvh + 내부 스크롤). ③ ReviewWrite 평점 **0.5 step 반별점 허용**(Flutter Slider div8 충실, 웹 옛 정수 1~5 대비 변경). ④ HintSheet **per-hint '사용 중...' busy 미추적**(웹 미배선) — 그 외 used/locked/available 상태는 정본대로. ⑤ EvidencePresent 아이템 메타는 Flutter 대로 **이름+위치만**(웹 옛 카테고리 표기 생략, 검색엔 카테고리 유지).
+- **게이트 전부 통과**: `npm test` 12/12, `lint` 0(warn 0), `npx tsc -b` **0 errors**, `npm run build` 성공(메인 번들 css 100.21→104.90kB, js 338.76→341.66kB; Sheet+4시트 반영). 브라우저 육안 확인만 koo `npm run dev` → 현장 힌트 / HUD 브리핑 / 심문 증거제시 / 상세·결과 리뷰작성 진입으로 남음.
+
+## ▶ 다음 작업 (전 화면 이식 + game_modals ✅ 완료 — 남은 영역)
+화면·시트 정본화는 전부 끝났고, 남은 건 **분해 + Phase 6**:
+- **Phase 4 기능 훅 분해**: god-state(App.tsx 1598줄) — useScenarios/useGameSession/useRecords/useResult. 회귀 금지 폴링(30초)·1초 타이머 순수추출 → node:test.
 - **Phase 6**: Splash 2.2s 모션 / Onboarding 5슬라이드(koo #5, 둘 다 픽셀 복원). `splash_screen.dart` · `onboarding_screen.dart`.
-- **(선택) dead App.css 정리**: 위 ⚠ 잔재 — 옛 화면 전용 클래스 삭제로 번들 축소(공유 여부 grep 후).
-- **확립된 레시피**: bare 단일 화면 = 자체 AppBar + 페이지 스크롤(+sticky 하단 바 옵션). 탭 셸 = 고정 상단/하단 + 100dvh inner-overflow(허브/심문). 앱 탭(home/library/records/profile) = bare/비-bare + APP_NAV BottomNav(main 패딩 상속). 공유 카드 = `domain/ScenarioRow`.
+- **(선택) dead App.css 정리**: 옛 화면 전용 클래스(.profile-card/.record-card/.detective-grade-card/.menu-item/.screen-title/.info-card/.stat/.filter-group/.scenario-card/.review-dialog/.modal-shell 등) 삭제로 번들 축소(공유 여부 grep 후).
+- **확립된 레시피**: bare 단일 화면 = 자체 AppBar + 페이지 스크롤(+sticky 하단 바 옵션). 탭 셸 = 고정 상단/하단 + 100dvh inner-overflow(허브/심문). 앱 탭(home/library/records/profile) = bare/비-bare + APP_NAV BottomNav(main 패딩 상속). 공유 카드 = `domain/ScenarioRow`. **바텀시트 = 공유 `Sheet` 프리미티브 위에 콘텐츠**(다이얼로그는 `Modal`).
 
 ## 🔎 컴포넌트 갤러리 (육안 검증용, 2026-06-19)
 프리미티브 12 + 도메인 카드를 한 화면에서 픽셀 대조하려고 갤러리를 깔아둠.

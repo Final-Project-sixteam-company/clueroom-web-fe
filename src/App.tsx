@@ -14,6 +14,7 @@ import { ResultScreen } from "./components/screens/ResultScreen";
 import { RecordsScreen } from "./components/screens/RecordsScreen";
 import { ProfileScreen } from "./components/screens/ProfileScreen";
 import { BookmarksScreen } from "./components/screens/BookmarksScreen";
+import { ReviewWriteSheet } from "./components/screens/ReviewWriteSheet";
 import { BottomNav, APP_NAV_ITEMS } from "./components/ui";
 import {
   RECORDS_KEY,
@@ -1438,18 +1439,17 @@ function App() {
           onClose={() => setImagePreview(null)}
         />
       )}
-      {reviewDraftTarget && (
-        <ReviewDialog
-          target={reviewDraftTarget}
-          authorName={profile?.nickname ?? "나"}
-          onCancel={() => setReviewDraftTarget(null)}
-          onSubmit={(review) => {
-            void addScenarioReview(review).then((saved) => {
-              if (saved) setReviewDraftTarget(null);
-            });
-          }}
-        />
-      )}
+      <ReviewWriteSheet
+        open={reviewDraftTarget != null}
+        target={reviewDraftTarget}
+        authorName={profile?.nickname ?? "나"}
+        onClose={() => setReviewDraftTarget(null)}
+        onSubmit={(review) => {
+          void addScenarioReview(review).then((saved) => {
+            if (saved) setReviewDraftTarget(null);
+          });
+        }}
+      />
     </Shell>
   );
 }
@@ -1536,100 +1536,6 @@ function Shell({
       </header>
       <main>{children}</main>
     </div>
-  );
-}
-
-function ReviewDialog({
-  target,
-  authorName,
-  onCancel,
-  onSubmit,
-}: {
-  target: ReviewDraftTarget;
-  authorName: string;
-  onCancel: () => void;
-  onSubmit: (review: ScenarioReview) => void;
-}) {
-  const [rating, setRating] = useState(5);
-  const [body, setBody] = useState("");
-  const [isSpoiler, setIsSpoiler] = useState(false);
-  const canSubmit = body.trim().length > 0;
-
-  return (
-    <div className="modal-shell" role="dialog" aria-modal="true">
-      <button
-        className="modal-backdrop"
-        onClick={onCancel}
-        type="button"
-        aria-label="닫기"
-      />
-      <div className="review-dialog">
-        <div className="modal-handle" />
-        <p className="eyebrow">REVIEW</p>
-        <h2>{target.title}</h2>
-        <label className="field-label" htmlFor="review-rating">
-          평점 {rating}점
-        </label>
-        <input
-          id="review-rating"
-          type="range"
-          min="1"
-          max="5"
-          step="1"
-          value={rating}
-          onChange={(event) => setRating(Number(event.target.value))}
-        />
-        <TextArea label="리뷰" value={body} onChange={setBody} />
-        <label className="toggle-row">
-          <input
-            type="checkbox"
-            checked={isSpoiler}
-            onChange={(event) => setIsSpoiler(event.target.checked)}
-          />
-          <span>스포일러 포함</span>
-        </label>
-        <div className="dialog-actions">
-          <button className="button ghost" onClick={onCancel} type="button">
-            취소
-          </button>
-          <button
-            className="button primary"
-            disabled={!canSubmit}
-            onClick={() =>
-              onSubmit({
-                reviewId: `review-${Date.now()}`,
-                scenarioId: target.scenarioId,
-                authorName,
-                rating,
-                body: body.trim(),
-                createdAt: new Date().toISOString(),
-                isSpoiler,
-              })
-            }
-            type="button"
-          >
-            등록
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TextArea({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="text-area">
-      <span>{label}</span>
-      <textarea value={value} onChange={(e) => onChange(e.target.value)} />
-    </label>
   );
 }
 

@@ -24,12 +24,13 @@ import type {
   Hint,
   ImagePreview,
 } from "../../../types";
-import { BottomNav, CASE_NAV_ITEMS, Button, Modal, Spinner, Empty, Kicker } from "../../ui";
+import { BottomNav, CASE_NAV_ITEMS, Button, Modal, Spinner, Empty } from "../../ui";
 import { formatTime } from "../../../api/normalizers";
 import { SceneTab } from "./SceneTab";
 import { EvidenceTab } from "./EvidenceTab";
 import { SuspectsTab } from "./SuspectsTab";
 import { TimelineTab } from "./TimelineTab";
+import { CaseBriefingSheet } from "./CaseBriefingSheet";
 import styles from "./CaseHubScreen.module.css";
 
 type CaseTab = "scene" | "evidence" | "suspects" | "timeline";
@@ -264,45 +265,15 @@ export function CaseHubScreen({
         </p>
       </Modal>
 
-      {/* ── 사건 브리핑 재확인(kit Modal 임시 — 정본은 CaseBriefingSheet 바텀시트) ── */}
-      <Modal
+      {/* ── 사건 브리핑 재확인(정본 game_modals _BriefingSheet) ── */}
+      <CaseBriefingSheet
         open={briefingOpen}
-        title="사건 브리핑"
+        scenarioTitle={dashboard?.scenarioTitle}
+        summary={dashboard?.briefing?.summary}
+        victimName={dashboard?.briefing?.victimName}
+        foundLocation={dashboard?.briefing?.foundLocation}
         onClose={() => setBriefingOpen(false)}
-        secondaryAction={null}
-        primaryAction={
-          <Button
-            label="확인"
-            variant="primary"
-            expanded
-            onPress={() => setBriefingOpen(false)}
-          />
-        }
-      >
-        <div className={styles.briefing}>
-          <section className={styles.briefSection}>
-            <Kicker label="사건 개요" />
-            <p className={styles.briefBody}>
-              {dashboard?.briefing?.summary || "브리핑 정보를 불러오는 중입니다."}
-            </p>
-          </section>
-          <section className={styles.briefSection}>
-            <Kicker label="피해자" />
-            <p className={styles.briefBody}>
-              {dashboard?.briefing?.victimName || "미상"}
-            </p>
-          </section>
-          <section className={styles.briefSection}>
-            <Kicker label="발견 장소" />
-            <p className={styles.briefBody}>
-              {dashboard?.briefing?.foundLocation || "미상"}
-            </p>
-          </section>
-          <div className={styles.briefGoals}>
-            {"1. 진범을 찾아라\n2. 살해 방법과 동기를 밝혀라\n3. 최종 추리를 뒷받침할 증거를 확보하라"}
-          </div>
-        </div>
-      </Modal>
+      />
     </section>
   );
 }

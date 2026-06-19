@@ -187,45 +187,4 @@
   margin-top: var(--sp6);
 }
 
-/* ── 힌트 Modal 본문 ── */
-.hintEmpty {
-  margin: 0;
-  font-family: var(--font-sans);
-  font-size: var(--fs-lg);
-  line-height: 1.6;
-  color: var(--text-sub);
-}
-.hintList {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp2);
-}
-.hintCard {
-  display: flex;
-  align-items: center;
-  gap: var(--sp3);
-  padding: var(--sp3);
-  background: var(--bg-elev);
-  border: var(--stroke-sm) solid var(--line);
-  border-radius: var(--r3);
-}
-.hintMeta {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.hintLevel {
-  font-family: var(--font-sans);
-  font-size: var(--fs-base);
-  font-weight: 600;
-  line-height: 1.3;
-  color: var(--text);
-}
-.hintDesc {
-  font-family: var(--font-sans);
-  font-size: var(--fs-base);
-  line-height: var(--lh-body-sm);
-  color: var(--text-sub);
-}
+/* 힌트 본문 픽셀은 정본 game_modals _HintSheet → case/HintSheet.module.css 로 이전. */

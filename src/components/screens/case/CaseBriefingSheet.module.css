@@ -1,0 +1,86 @@
+/* 정본: game_modals.dart _BriefingSheet / _BriefingInfoRow. 공유 Sheet 프리미티브 위.
+ * scrim/패널/핸들/모션은 Sheet.module.css 소유 — 여기선 시트 내부 콘텐츠(스크롤)만. */
+
+/* 본문 스크롤(Flutter SingleChildScrollView, maxHeight 80%) — Sheet 패널 max 88dvh 안에서. */
+.scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: var(--sp4);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-title-l); /* 24 titleL */
+  font-weight: 700;
+  letter-spacing: var(--ls-title-l);
+  line-height: var(--lh-title-l);
+  color: var(--text);
+}
+.subtitle {
+  margin: var(--sp1) 0 0; /* Flutter SizedBox(height: sp1) */
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 bodySm */
+  line-height: var(--lh-body-sm);
+  color: var(--text-sub);
+}
+
+/* ── 섹션(개요/피해자/목표) — 사이 sp5 ── */
+.section {
+  margin-top: var(--sp5); /* 20 */
+}
+.kicker {
+  margin-bottom: var(--sp3); /* Kicker → 본문 sp3 */
+}
+.body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 body */
+  line-height: 1.6;
+  color: var(--text);
+}
+
+/* ── 피해자 정보 행(_BriefingInfoRow) ── */
+.infoRow {
+  display: flex;
+  align-items: flex-start;
+}
+.infoRow + .infoRow {
+  margin-top: var(--sp2); /* Flutter SizedBox(height: sp2) */
+}
+.infoLabel {
+  flex: none;
+  width: 72px; /* Flutter SizedBox(width: 72) */
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 bodySm */
+  line-height: var(--lh-body-sm);
+  color: var(--text-mute);
+}
+.infoValue {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 body */
+  line-height: var(--lh-body);
+  color: var(--text);
+}
+
+/* ── 탐정 목표 danger 박스 ── */
+.goals {
+  padding: var(--sp4);
+  background: var(--danger-soft);
+  border: var(--stroke-sm) solid var(--danger);
+  border-radius: var(--r4); /* 10 */
+  white-space: pre-line; /* 3줄 \n */
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 body */
+  font-weight: 600; /* Flutter w600 → Pretendard 700 매칭(킷 관례) */
+  line-height: 1.8;
+  color: var(--danger);
+}
+
+/* ── 닫기 버튼 ── */
+.footer {
+  margin-top: var(--sp5);
+}

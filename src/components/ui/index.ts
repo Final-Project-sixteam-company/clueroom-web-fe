@@ -36,6 +36,9 @@ export type { EmptyProps } from "./Empty";
 export { Modal } from "./Modal";
 export type { ModalProps } from "./Modal";
 
+export { Sheet } from "./Sheet";
+export type { SheetProps } from "./Sheet";
+
 export { ToastProvider } from "./Toast";
 export { useToast } from "./toast-context";
 export type { ToastApi, ToastTone } from "./toast-context";
