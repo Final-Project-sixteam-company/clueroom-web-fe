@@ -5,6 +5,8 @@
 
 .app-frame {
   width: 100%;
+  max-width: 430px; /* 모바일퍼스트 폰 컬럼 (390 기준 + 여유), 데스크톱 중앙 정렬 */
+  margin: 0 auto;
   min-height: 100vh;
   background:
     radial-gradient(circle at top right, var(--primary-14), transparent 30%),

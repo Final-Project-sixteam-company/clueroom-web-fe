@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
+import { HomeScreen } from "./components/screens/HomeScreen";
 import {
   GOOGLE_CLIENT_ID,
   ENABLE_GOOGLE_LOGIN,
@@ -1178,6 +1179,7 @@ function App() {
   return (
     <Shell
       title="ClueRoom"
+      bare={view === "home"}
       onHome={() => setView("home")}
       onLibrary={() => setView("library")}
       onProfile={tokens ? openProfile : undefined}
@@ -1195,7 +1197,6 @@ function App() {
       {view === "home" && (
         <HomeScreen
           isLoggedIn={!!tokens}
-          scenarioCount={scenarios.length}
           onLogin={() => setView("login")}
           onBrowse={() => setView("library")}
           onProfile={openProfile}
@@ -1448,6 +1449,7 @@ function Shell({
   onLibrary,
   onProfile,
   onLogout,
+  bare = false,
 }: {
   children: React.ReactNode;
   title: string;
@@ -1455,7 +1457,15 @@ function Shell({
   onLibrary?: () => void;
   onProfile?: () => void;
   onLogout?: () => void;
+  bare?: boolean;
 }) {
+  if (bare) {
+    return (
+      <div className="app-frame">
+        <main style={{ padding: 0 }}>{children}</main>
+      </div>
+    );
+  }
   return (
     <div className="app-frame">
       <header className="topbar">
@@ -1703,64 +1713,6 @@ function GoogleSignInButton({
     <div className="google-login-box">
       <div ref={buttonRef} />
     </div>
-  );
-}
-
-function HomeScreen({
-  isLoggedIn,
-  scenarioCount,
-  hasSession,
-  onLogin,
-  onBrowse,
-  onProfile,
-  onRecords,
-  onResume,
-}: {
-  isLoggedIn: boolean;
-  scenarioCount: number;
-  hasSession: boolean;
-  onLogin: () => void;
-  onBrowse: () => void;
-  onProfile: () => void;
-  onRecords: () => void;
-  onResume: () => void;
-}) {
-  return (
-    <section className="stack">
-      <div className="hero-panel">
-        <p className="eyebrow">MYSTERY LIBRARY</p>
-        <h1>사건을 수사할 시간</h1>
-        <p>라이브러리에서 사건을 골라 단서와 진술을 대조하세요.</p>
-        <div className="hero-actions">
-          <button className="button primary" onClick={onBrowse} type="button">
-            사건 보러 가기
-          </button>
-          {!isLoggedIn && (
-            <button className="button ghost" onClick={onLogin} type="button">
-              로그인
-            </button>
-          )}
-        </div>
-      </div>
-      <div className="stats-grid">
-        <Stat label="사건" value={`${scenarioCount}건`} />
-        <Stat label="진행" value={hasSession ? "수사 중" : "대기"} />
-        <Stat label="방식" value="AI 심문" />
-      </div>
-      <div className="quick-actions">
-        <button className="button secondary" onClick={onProfile} type="button">
-          내 정보
-        </button>
-        <button className="button ghost" onClick={onRecords} type="button">
-          수사 기록
-        </button>
-      </div>
-      {hasSession && (
-        <button className="button secondary" onClick={onResume} type="button">
-          진행 중인 수사로 돌아가기
-        </button>
-      )}
-    </section>
   );
 }
 
