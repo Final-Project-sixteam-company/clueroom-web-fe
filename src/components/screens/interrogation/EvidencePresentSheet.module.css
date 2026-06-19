@@ -1,0 +1,147 @@
+/* 정본(근사): game_modals.dart 바텀시트 + 웹 EvidencePickerDialog.
+ * scrim(탭 닫힘) + 하단 시트(슬라이드업). 앱 프레임(430) 폭에 맞춰 중앙 정렬. */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background: rgba(8, 15, 30, 0.64); /* ink950 64% scrim */
+  animation: scrimIn var(--dur2) var(--ease-out);
+}
+
+.sheet {
+  width: 100%;
+  max-width: 430px; /* 앱 프레임 폭 */
+  margin: 0 auto;
+  max-height: 80dvh;
+  display: flex;
+  flex-direction: column;
+  padding: var(--sp3) var(--sp4);
+  padding-bottom: max(var(--sp4), env(safe-area-inset-bottom));
+  background: var(--bg-elev);
+  border: var(--stroke-sm) solid var(--line);
+  border-bottom: none;
+  border-top-left-radius: var(--r6); /* 14 */
+  border-top-right-radius: var(--r6);
+  animation: sheetUp var(--dur3) var(--ease-out);
+}
+
+.handle {
+  flex: none;
+  width: 36px;
+  height: 4px;
+  margin: 0 auto var(--sp3);
+  border-radius: var(--r-pill);
+  background: var(--line);
+}
+
+.header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp2);
+  margin-bottom: var(--sp3);
+}
+.closeBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  color: var(--text);
+  transition: background-color var(--dur1) var(--ease-out);
+}
+.closeBtn:hover {
+  background: var(--bg-hover);
+}
+
+.search {
+  flex: none;
+  margin-bottom: var(--sp3);
+}
+
+.list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp2);
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp3);
+  padding: var(--sp2);
+  background: var(--bg);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r3);
+  cursor: pointer;
+  text-align: left;
+}
+.rowActive {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+}
+.rowInfo {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rowTitle {
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 body */
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rowMeta {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 bodySm */
+  line-height: var(--lh-body-sm);
+  color: var(--text-sub);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.empty {
+  padding: var(--sp6) 0;
+}
+
+@keyframes sheetUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes scrimIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scrim,
+  .sheet {
+    animation: none;
+  }
+}

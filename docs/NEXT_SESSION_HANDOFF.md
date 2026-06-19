@@ -22,20 +22,24 @@ ClueRoom Flutter→React 마이그레이션을 이어서 진행합니다. 작업
   · 상세 ScenarioDetailScreen(scenario_detail_{screen,widgets,cards,rating}.dart — bare+자체 AppBar(back/bookmark/more)+sticky CTA, 히어로 이미지우선+ink900→primary25 그라디언트 폴백, 4셀 메타그리드, 평점카드+리뷰+스포일러). canPlay 게이팅·북마크·리뷰 웹 동작 보존.
   · 로그인 LoginScreen(login_screen.dart — bare 전체화면, 로고 오브+환영합니다, Google=GIS 공식 버튼·Kakao=노란 #FEE500 브랜드 버튼). ⚠ Kakao 버튼은 VITE_KAKAO_JAVASCRIPT_KEY 있을 때만 노출(현재 .env.example 비어 있음 → 키 넣으면 자동 활성). Google·Kakao 동작은 Phase 3에서 이미 배선됨(리다이렉트 왕복 포함).
   · 브리핑 CaseBriefingScreen(case_briefing_screen.dart — bare+자체 AppBar+sticky footer, 5섹션 stagger 페이드인, 제목 display48/사건개요/피해자 placeholder/탐정목표 danger박스, '수사 시작하기' loading=caseLoading).
+  · 케이스 허브 CaseHubScreen + 4탭(src/components/screens/case/ — case_screen.dart + scene/evidence/suspects/timeline_screen.dart). bare 탭 셸(100dvh inner-overflow): 얇은 HUD(사건코드·브리핑·타이머·해금증거) + 하단 5탭 네비(CASE_NAV_ITEMS). 제출=5번째 네비탭→submit view 푸시. 중단=back→AbandonDialog(kit Modal)→onAbandon(App `abandonSession`의 window.confirm 제거, 코어 불변). 브리핑/힌트=kit Modal 임시. 폴링·타이머는 App 소유 유지. 옛 인라인 CaseScreen 등 5함수(~514줄) 제거 → App.tsx 3162줄.
+  · 심문 채팅 InterrogationChatScreen + EvidencePresentSheet(src/components/screens/interrogation/ — interrogation_chat_screen.dart 외). bare 100dvh flex: AppBar(back/이름·역할/증거제시) + 메시지(용의자·탐정 말풍선+대기, 자동 하단 스크롤) + 추천질문 칩(웹 캔드 3개) + 입력바. 증거 제시=EvidencePresentSheet 바텀시트(검색+리스트, 기능 이식). prop 계약 동일 → ChatScreen 태그명만 교체. 옛 ChatScreen/EvidencePickerDialog(~202줄) 제거 → App.tsx 2960줄. ⚠ 정본 AppBar 힌트 버튼 생략(웹 챗 hints 미전달).
+  · 증거 상세 EvidenceDetailScreen + 용의자 상세 SuspectDetailScreen(src/components/screens/ — evidence_detail/suspect_detail_*.dart). bare 상세 레시피(자체 AppBar + 페이지 스크롤). 증거=히어로86/상태 Pill/관찰 정보 카드(설명·관련 용의자·타임라인·가이던스). 용의자=프로필(CharacterPortrait 80)/관계/관련 증거(EvidenceItem)/진술 카드/심문 로그 + sticky 하단 바(뒤로/심문하기/범인 지목). prop 계약 동일 → 태그명만 교체. 옛 GuidanceBlock/EvidenceDetailScreen/SuspectDetailScreen/Avatar/인라인 TimelineList 제거 → App.tsx 2537줄.
+  · 제출 SubmitScreen + 결과 ResultScreen(src/components/screens/ — submit/result_*.dart). **§9 게임 흐름 전부 이식 완료.** 제출=bare(back 바)+폼(헤더/진범 select/동기·방법·은폐 TextField/증거 셀렉터/체크리스트/제출 danger) + kit Modal 확인. 결과=bare('CASE CLOSED')+등급 헤더(display96 fade-in)/매칭 카드/맞춘·놓친/해설/확인된 증거/추천 사건/3버튼. prop 계약 동일 → 태그명만 교체. 옛 인라인 5함수 제거 → App.tsx 2125줄(세션 누적 −62%).
 
 ## ⚠ 알아둘 것
 - 게이트(완료 주장 전 필수): npm test && npm run lint && npx tsc -b && npm run build. tsc -b가 타입 게이트 정본(build=vite/esbuild라 타입체크 안 함). 현재 0 errors 유지.
 - 테스트=node --test(Node 23 타입스트리핑, 의존성 0). tsconfig.app.json은 *.test.ts를 빌드 타입체크에서 exclude.
 - 화면 이식 방침: 픽셀=Flutter 정본, 데이터/동작=웹 보존(koo 확정 #4). 컴포넌트는 프리젠테이션(웹 타입 props + 콜백). Flutter엔 있고 웹에 없는 필드는 옵션 prop.
-- 셸 현황: bare 화면 = home/scenarioDetail/login/briefing(각자 chrome). 탭 화면 4종은 BottomNav. **아직 옛 마크업(미이식)** = records/profile/bookmarks + 게임 화면(case/evidence/suspect/chat/submit/result). 비-탭 단일 화면 레시피 = 자체 AppBar+sticky footer bare(상세/브리핑이 정본 사례).
+- 셸 현황: **§9 게임 화면 전부 이식 완료**(home/library/scenarioDetail/briefing/case 허브+4탭/chat/evidenceDetail/suspectDetail/submit/result). **아직 옛 마크업(미이식)** = **records/profile/bookmarks(비-게임)만**. 비-탭 단일 화면 = 자체 AppBar + 페이지 스크롤(+sticky 하단 바 옵션). 탭/채팅 셸 = 고정 상단/하단 + 100dvh inner-overflow. 앱 탭(records/profile) = bare + APP_NAV BottomNav.
 - 회귀 금지(보존): request 엔벨로프·401→refresh→retry(single-flight refreshInFlightRef + generation guard)·**30초 status-gated 폴링·1초 타이머(loadCaseRef)**·accessToken localStorage + http-only refresh 쿠키. auth는 순수헬퍼+테스트로 고정됨.
 - 홈은 / (앱 기본 view, 미로그인도 렌더). 각 컴포넌트 파일 상단에 .dart 정본 출처 주석 있음 → 1:1 대조 가능.
 
-## ▶ 다음 작업 (Phase 5 이어가기, §9: 라이브러리 ✅ → 상세 ✅ → 브리핑 ✅ → 케이스 허브 → 증거/용의자/심문 → 제출/결과)
-다음 화면 = **케이스 허브(메인 탭 셸)**. 정본 case_screen.dart + GAMEPLAY_SPEC §2(CASE SCREEN 탭 셸)·§3(현장)·§5(증거)·§9(용의자)·§20(타임라인). 브리핑 '수사 시작하기' → startSession → case view(이미 배선). 옛 인라인 CaseScreen(App.tsx, 큼) 교체.
-  · **큰 작업** — CASE_NAV_ITEMS(현장/증거/용의자/타임라인/제출) 내부 탭 셸이라 상세/브리핑(단일 bare)과 다른 chrome. 쪼개기 권장: 허브 탭 셸 먼저 → 현장/증거/용의자 콘텐츠 → 심문 채팅(§13~19, 가장 큰 조각, 별도).
-  · ⚠ 30초 폴링·1초 타이머는 App 소유 그대로 두고 화면은 프리젠테이션만 — 폴링/타이머 로직을 화면으로 옮기지 말 것(회귀 위험).
-남은 부품: game_modals 바텀시트 4종(HintSheet/EvidencePresentSheet/CaseBriefingSheet/ReviewWriteSheet, 심문/제출 직전 권장) / Phase 4 기능 훅 분해(useScenarios/useGameSession/useRecords/useResult; 회귀 금지 폴링·타이머 순수추출→node:test) — Phase 5와 인터리브 가능.
+## ▶ 다음 작업 (§9 게임 화면 ✅ 완료 — 남은 영역)
+- **비-게임 옛 마크업 이식**: 기록 my_records_screen.dart(records) · 내 정보 my_page_screen.dart(profile) · 북마크(bookmarks). 앱 탭 화면(records/profile)은 bare + APP_NAV BottomNav 셸. 옛 인라인 교체.
+- **game_modals 정본 픽셀화**: HintSheet/EvidencePresentSheet/CaseBriefingSheet/ReviewWriteSheet(현재 힌트/브리핑/제출확인=kit Modal 임시, EvidencePresentSheet=기능 이식 → 정본 바텀시트 드래그 핸들·모션).
+- **Phase 4 기능 훅 분해**: god-state(App.tsx 2125줄) — useScenarios/useGameSession/useRecords/useResult. ⚠ 회귀 금지 폴링(30초)·1초 타이머 순수추출 → node:test.
+- **Phase 6**: Splash 2.2s / Onboarding 5슬라이드(koo #5) — splash_screen.dart · onboarding_screen.dart.
 
 ## 작업 규칙
 - 완료 주장 전 4 게이트. tsc -b 0 유지. 이식은 Flutter 정본과 1:1 대조 가능하게(파일 상단 .dart 출처 주석).
@@ -206,10 +210,56 @@ koo 지적("배포앱 https://www.clueroom.xyz 로그인에 Google·Kakao 세팅
 - **탐정 목표 카피**: Flutter 하드코딩 정본 그대로("1.진범 / 2.살해 방법·동기 / 3.증거 확보"). 옛 웹 카피("인물을 심문하고…")는 정본으로 교체. 옛 인라인 `CaseBriefingScreen`(48줄) 제거 → 새 컴포넌트. App.tsx **3671줄**.
 - **게이트 전부 통과**: `npm test` 12/12, `lint` 0, `npx tsc -b` **0 errors**, `npm run build` 성공(브리핑 메인 번들 반영: css 48.95→52.09kB, js 302.24→303.67kB). 브라우저 육안 확인만 남음.
 
-## ▶ 다음 작업 (Phase 5 이어가기, §9 순서)
-- **다음 화면 = 케이스 허브(메인 탭 셸)**: §9 = 라이브러리 ✅ → 상세 ✅ → 브리핑 ✅ → **케이스 허브/증거/용의자/심문** → 제출/결과. 정본 `case_screen.dart` + GAMEPLAY_SPEC §2(CASE SCREEN 메인 탭 셸)·§3(현장)·§5(증거)·§9(용의자)·§20(타임라인). 브리핑 '수사 시작하기' → `startSession` → `case` view(이미 배선). **이건 큰 작업** — `CASE_NAV_ITEMS`(현장/증거/용의자/타임라인/제출) 내부 탭 셸이라 상세/브리핑(단일 bare)과 다른 chrome. 옛 인라인 `CaseScreen`(App.tsx, 큼) 교체. *주의*: ⚠ **회귀 금지 폴링(30초 status-gated)·1초 타이머(loadCaseRef)** 는 App 소유 그대로 두고 화면은 프리젠테이션만 — 폴링/타이머 로직을 화면으로 옮기지 말 것. 심문 채팅(§13~19)은 별도 더 큰 조각.
-- **확립된 레시피**: 로그인 ✅(bare 전체화면+브랜드 OAuth, Kakao 키만 채우면 활성) / 상세·브리핑 ✅(자체 AppBar+sticky footer bare). 비-탭 단일 화면은 이 레시피 재사용.
-- **남은 부품**: game_modals 바텀시트 4종(킷 마지막 조각; 심문/제출 직전 권장) / **Phase 4 기능 훅 분해**(god-state, 회귀 금지 폴링·타이머 순수추출→node:test) — Phase 5와 인터리브 가능.
+## ✅ Phase 5 — 케이스 허브(메인 탭 셸) + 4탭 전부 이식 완료 (2026-06-19, 브랜치 `feat/react-migration-tokens`)
+§9 순서의 다섯 번째 화면(가장 큰 조각). 정본 `case_screen.dart` 셸 + 4개 탭 화면(`scene/evidence/suspects/timeline_screen.dart`)을 `src/components/screens/case/` 하위 5컴포넌트로 이식. koo 확정(2026-06-19): **풀 허브(셸+4탭 전부)** + **브리핑 버튼 = kit Modal 임시**.
+
+- **신규 파일(각 `.module.css` + 파일 상단 `.dart` 출처 주석)**: `CaseHubScreen`(셸) · `SceneTab` · `EvidenceTab` · `SuspectsTab` · `TimelineTab`. App.tsx 호출부는 prop 계약 동일 유지 → `<CaseScreen>` → `<CaseHubScreen>` 태그명만 교체(JSX 무변경).
+- **셸 레이아웃 = 탭 셸 모델(inner-overflow)**: 상세/브리핑(페이지 스크롤+sticky)과 달리 하단 네비가 있어 **`100dvh` 고정 프레임 + body 만 내부 스크롤**(`.app-frame--tabbed` 와 동일 원리, 단 화면 자체 소유). `bare={view==="case"}` 추가(앱 topbar/앱네비 제거) → 화면이 HUD(상단)·CASE_NAV(하단)를 자체 소유.
+- **HUD(정본 _buildHud, 높이 sp10)**: 사건코드 `CL-NNN`(dashboard.scenarioId 0패딩, 폴백 CL-001) + 브리핑 버튼(ClipboardList 20 primary) + 타이머(Timer 14 + monoNum 13) + 해금증거(FileText, `n/m`, >0 success). `formatTime`(normalizers) 소비. **dashboard==null 로딩/실패/종결은 본문만 교체(HUD·네비 상시)**: 로딩=Spinner28, 실패=Empty(CloudOff)+재시도/나가기, 종결=Empty(Gavel)+결과 보기(정답 누출 가드).
+- **하단 5탭 네비 = `CASE_NAV_ITEMS`**(현장/증거/용의자/타임라인/제출). **제출(4) → `onSubmit`(App.setView "submit") 푸시**(웹 동작 보존, view enum). 0~3 은 `caseTab` 전환. 폴링/타이머는 App 소유 그대로 — 화면은 dashboard/콜백 props 만 소비(회귀 0).
+- **탭별 이식**: 현장=서브헤더(CRIME SCENE+힌트 lightbulb, 고정) + 맵 4:3(AssetImage/플레이스홀더, 탭→이미지뷰어) + 장소 리스트(_LocationCard 선택 애니 dur2, '해금 n/m' 필) + 선택 장소 이미지(160+그라디언트). 증거=검색+필터칩(전체/확보됨/잠긴 증거)+Kicker+`EvidenceTile` 리스트(고정 헤더+스크롤). 용의자=검색+칩(전체/용의자/증인)+`StatRow`(용의자/증인/심문)+`SuspectCard`. 타임라인=서브헤더+칩(전체/⚠모순/용의자주장)+도메인 `TimelineList`. 도메인/킷 컴포넌트 **처음으로 게임 화면에서 실소비**.
+- **중단 플로우(koo 확정 = back+AbandonDialog kit Modal)**: HUD 좌상단 back(정본 HUD엔 없으나 view-enum 웹은 이탈 경로 필요) → AbandonDialog(kit Modal, 계속수사/나가기) → `onAbandon`. **App `abandonSession` 의 `window.confirm` 제거**(확인은 화면 Modal이 소유) — abandon **요청·상태리셋 코어는 불변**(회귀 보호 목록 밖). abandonSession 호출처는 이 case 하나뿐 확인 후 변경.
+- **옛 인라인 제거**: `CaseScreen`/`LocationPanel`/`HintPanel`/`EvidenceList`/`SuspectList` 5함수(약 514줄) 삭제 + 고아 `formatTime` import 제거. (인라인 `TimelineList` 는 증거 상세서 재사용 → 유지. `Stat`/`InfoPanel`/`FilterChips` 타 화면 공용 → 유지.) App.tsx **3676 → 3162줄**.
+- **⚠ koo 확인 필요(의도적 선택, 한 줄로 뒤집기 쉬움)**: ① **잠긴 증거 = `EvidenceTile isTimeLocked`(opacity+자물쇠+비활성, 정본 픽셀) + 제목 '잠긴 증거' 마스킹**(스포일러 보존) — 기존 웹은 잠긴 카드 탭 가능(상세서 해금 힌트)이었으나 비활성으로 바뀜(픽셀 vs 동작 충돌, 픽셀 우선). ② **힌트 = lightbulb → kit Modal 임시**(브리핑과 동일 방침, 정본 HintSheet 미이식). ③ **현장 맵 마커 미표시**(정본 `scene_screen._SceneMap`엔 장소 마커 없음 — 해금 수는 장소 카드 필로 노출, 정보 손실 0). ④ 브리핑/힌트 Modal 은 `secondaryAction={null}` + 확인 단일 버튼(임시).
+- **게이트 전부 통과**: `npm test` 12/12, `lint` 0, `npx tsc -b` **0 errors**, `npm run build` 성공(허브+4탭 메인 번들 반영: css 52.09→66.78kB, js 303.67→322.13kB; lucide ArrowLeft/ClipboardList/Timer/FileText/CloudOff/Gavel/Lightbulb/Map/MapPin/Image/Search/SearchX/UserX/Clock/CircleAlert 등 포함). 브라우저 육안 확인만 koo `npm run dev` → 브리핑 '수사 시작' 진입으로 남음.
+
+## ✅ Phase 5 — 심문 채팅(InterrogationChat) 이식 완료 (2026-06-19, 브랜치 `feat/react-migration-tokens`)
+§9 순서의 여섯 번째 화면(가장 큰 조각). 정본 `interrogation_chat_screen.dart`(+ `interrogation_{app_bar,bubbles,input_bar,suggested_questions,waiting_bubble,actions_mixin}.dart`)를 `src/components/screens/interrogation/` 2컴포넌트로 이식. 옛 인라인 `ChatScreen`/`EvidencePickerDialog` 교체.
+
+- **신규 파일(각 `.module.css` + 상단 `.dart` 출처 주석)**: `InterrogationChatScreen`(화면) · `EvidencePresentSheet`(증거 제시 바텀시트). App.tsx 호출부 prop 계약 **동일** → `<ChatScreen>` → `<InterrogationChatScreen>` 태그명만 교체(JSX·배선 무변경). `bare={view==="chat"}` 추가.
+- **레이아웃 = 100dvh flex 컬럼**: AppBar(고정) + 메시지 리스트(스크롤, 새 메시지 시 하단 자동 스크롤=정본 scrollToBottom 프리젠테이션) + 추천 질문 칩 바(고정) + 입력 바(고정). 채팅 셸도 허브와 같은 inner-overflow 모델.
+- **말풍선(정본 bubbles)**: 용의자=24 teal→sky 그라디언트 아바타(이니셜) + bgElev 말풍선(좌상 r1, 나머지 r4). 탐정=우측 정렬 primarySoft 말풍선(우상 r1); 증거 제시 시 successSoft + 'FileText 증거 제시' 태그 + 본문색 text. 대기=bgHover 아바타(스피너) + bgElev 말풍선(스피너).
+- **입력 바(정본 input_bar)**: pendingEvidence 있으면 '증거 연동됨: {title}' 칩(successSoft + Link2 + 해제) / 없으면 '증거 제시' secondary 버튼(FileText). + 입력(TextField, maxLength 500) + 전송(아이콘 전용 Send primary, loading 시 disabled).
+- **증거 제시(EvidencePresentSheet)**: 정본 game_modal `showEvidencePresentModal` 바텀시트의 **기능 이식** — 드래그 핸들 + 검색 + 보유 증거 리스트(EvidenceThumb 40 + 제목 + 위치·카테고리), 슬라이드업 + scrim 닫힘. AppBar 액션·입력 바 버튼 양쪽서 오픈. **웹 EvidencePickerDialog 동작/검색 보존**.
+- **회귀 0**: 컨트롤드 컴포넌트 — messages/question/pendingEvidence/`sendQuestion`(401·AI 60초 타임아웃·증거 해금 등)은 App 소유 그대로, 화면은 props/콜백만. 옛 인라인 `ChatScreen`+`EvidencePickerDialog`(약 202줄) 제거 → App.tsx **3162 → 2960줄**(세션 누적 5,565→2,960, −47%).
+- **⚠ koo 확인 필요(의도적 선택, 한 줄로 뒤집기 쉬움)**: ① **추천 질문 = 웹 캔드 3개**(하드코딩)를 Flutter SuggestedQuestionsBar 픽셀로 렌더(정본은 동적 guidance·하드코딩 금지지만 웹 챗 계약엔 미전달 → 웹 동작 보존). chip tap=prefill only. ② **정본 AppBar 힌트 버튼 생략**(웹 챗 계약에 hints 미전달 — 현장 탭서 힌트 접근 가능, 추후 HintSheet 와 함께 추가 가능). ③ **EvidencePresentSheet 는 기능 이식**(드래그 제스처/퇴장 모션 생략) — game_modals 슬라이스에서 정본 픽셀로 교체.
+- **게이트 전부 통과**: `npm test` 12/12, `lint` 0, `npx tsc -b` **0 errors**, `npm run build` 성공(메인 번들 반영: css 66.78→73.61kB, js 322.13→326.18kB; lucide ArrowLeft/FileText/Send/Link2/X/Search/SearchX 포함). 브라우저 육안 확인만 koo `npm run dev` → 용의자/증거 상세에서 심문 진입으로 남음.
+
+## ✅ Phase 5 — 증거 상세 + 용의자 상세 이식 완료 (2026-06-19, 브랜치 `feat/react-migration-tokens`)
+§9 게임 화면 중 상세 2종. 정본 `evidence_detail_screen.dart`(+ widgets/meta) / `suspect_detail_screen.dart`(+ bottom_bar/cards/widgets, GAMEPLAY_SPEC §6~7·§10)를 `src/components/screens/` 2컴포넌트로 이식. 옛 인라인 `EvidenceDetailScreen`/`GuidanceBlock`/`SuspectDetailScreen` 교체. 둘 다 bare 상세 레시피(자체 AppBar + 페이지 스크롤).
+
+- **EvidenceDetailScreen**: AppBar('EVIDENCE') + 히어로 86(teal→sky 그라디언트 폴백, 탭→이미지뷰어) + 제목/위치(중앙) + 상태 Pill(확보됨/잠김) + 관찰 정보 카드(설명 + 관련 용의자 Pill + 관련 타임라인 EvidenceTimelineRow + 가이던스: 볼 점·함께 볼 증거·추천 질문). prop 계약 동일.
+- **SuspectDetailScreen**: AppBar(WITNESS/SUSPECT) + 프로필(CharacterPortrait 80·이름·역할·증인 Pill·성격 뱃지) + 피해자와의 관계 + 관련 증거(EvidenceItem) + 진술 카드(진술/알리바이/공개 알리바이) + 이전 심문 로그 카드 + **sticky 하단 바(뒤로/심문하기/범인 지목)**. prop 계약 동일.
+- **회귀 0 + 정리**: 컨트롤드 — 상세 fetch·로그·culprit 선택은 App 소유 콜백 그대로. 옛 인라인 5함수(`GuidanceBlock`/`EvidenceDetailScreen`/`SuspectDetailScreen`/`Avatar`/인라인 `TimelineList`) + 고아 `Guidance` import 제거 → App.tsx **2960 → 2537줄**(세션 누적 5,565→2,537, **−54%**). 도메인 EvidenceItem/CharacterPortrait/AssetImage 게임 상세서 실소비.
+- **⚠ koo 확인(한 줄로 뒤집기 쉬움)**: ① **증거 상세 '증거 제시' 용의자 섹션**은 웹 전용(정본 detail 엔 없음 — 정본은 onPresent CTA). 정본 CTA(onInterrogate/onPresent)는 웹 계약에 없어 생략, 웹의 chip→onChat 동작 보존. ② **용의자 범인 지목** = 정본은 AccuseDialog 확인 후 SubmitScreen인데 웹은 onSelectCulprit 직행(웹 동작 보존, 라벨만 '범인 지목'). ③ 용의자 아바타 탭→뷰어는 웹 계약에 onOpenImage 미전달이라 생략. ④ 관련 증거는 웹 동작대로 탭→상세 진입(정본은 no-op).
+- **게이트 전부 통과**: `npm test` 12/12, `lint` 0, `npx tsc -b` **0 errors**, `npm run build` 성공(메인 번들 css 73.61→82.34kB, js 326.18→330.71kB; lucide ArrowLeft/Search/Lock/HelpCircle/ChevronRight/FileText 포함). 브라우저 육안 확인만 koo `npm run dev` → 증거/용의자 탭 카드 탭으로 남음.
+
+## ✅ Phase 5 — 제출 + 결과 이식 완료 = §9 게임 화면 전부 완료 🎉 (2026-06-19, 브랜치 `feat/react-migration-tokens`)
+§9 마지막 두 게임 화면. 정본 `submit_screen.dart`(+ widgets/evidence_selector) / `result_screen.dart`(+ widgets/cards)를 `src/components/screens/` 2컴포넌트로 이식. 옛 인라인 `SubmitScreen`/`SubmitChecklist`/`SubmitConfirmDialog`/`ResultScreen`/`ResultMatchRow` 교체. **이로써 §9 게임 흐름(홈→라이브러리→상세→브리핑→케이스 허브+4탭→심문→증거/용의자 상세→제출→결과) 전부 이식 완료.**
+
+- **SubmitScreen**: bare(얇은 back 바) + 페이지 스크롤. SubmitHeader(경고 48 danger + 'titleL + 안내) + 1.진범 지목(styled native select) + 2.동기/방법/은폐(TextField rows3) + 3.제출 증거 셀렉터(선택 Pill + check 행, 15개 상한) + 체크리스트(미충족 시) + 제출(danger). 제출 → kit Modal 확인 → onSubmit. prop 계약 동일. canSubmit/MIN_DEDUCTION_TEXT_LENGTH 웹 그대로.
+- **ResultScreen**: bare AppBar('CASE CLOSED') + 등급 헤더(display96, S/A=success, fade-in) + 채점 매칭 카드(5행 정답/오답) + 맞춘/놓친 추리 + 사건 해설 카드(진범 danger + 피드백/해설) + 확인된 증거 Pill + 다음 추천 사건(웹 전용) + 3버튼(다른 사건/리뷰/홈). result prop 만 렌더(폴링은 App 소유).
+- **회귀 0 + 정리**: 컨트롤드 — 폼 상태·submitDeduction·result 폴링은 App 소유 그대로. 옛 인라인 5함수 제거 → App.tsx **2537 → 2125줄**(세션 누적 5,565→2,125, **−62%**).
+- **⚠ koo 확인**: ① 정본 4번 '종합 추리 설명(선택)' summary 생략(웹 계약에 없음). ② 제출 체크리스트는 정본대로 미충족 시에만 노출(웹은 항상). ③ 결과 버튼 = 정본 단일('홈으로')과 달리 웹 3버튼 보존. ④ '다음 추천 사건'은 웹 전용(정본 result 엔 없음).
+- **게이트 전부 통과**: `npm test` 12/12, `lint` 0, `npx tsc -b` **0 errors**, `npm run build` 성공(메인 번들 css 82.34→90.93kB, js 330.71→336.43kB; lucide TriangleAlert/CircleCheck/Circle/CircleX/FileQuestion 포함). 브라우저 육안 확인만 koo `npm run dev` → 허브 제출탭/용의자 범인지목 → 제출 → 결과로 남음.
+
+## ▶ 다음 작업 (§9 게임 화면 완료 — 남은 영역)
+게임 흐름은 전부 이식됐고, 남은 건 **비-게임 화면 + 부품 폴리시 + 분해 + Phase 6**:
+- **비-게임 옛 마크업 이식**: 기록 `my_records_screen.dart`(records) · 내 정보 `my_page_screen.dart`(profile) · 북마크(bookmarks). 앱 탭 화면(records/profile)은 허브가 아닌 **앱 BottomNav** 셸 — 탭 화면 레시피(bare + BottomNav). 옛 인라인 교체.
+- **game_modals 정본 픽셀화**: HintSheet/EvidencePresentSheet/CaseBriefingSheet/ReviewWriteSheet — 현재 힌트/브리핑=kit Modal 임시, 제출 확인도 kit Modal, EvidencePresentSheet=기능 이식 → 정본 바텀시트 픽셀(드래그 핸들·진입/퇴장 모션)로 교체.
+- **Phase 4 기능 훅 분해**: god-state(App.tsx 2125줄, 아직 큼) — useScenarios/useGameSession/useRecords/useResult. 회귀 금지 폴링(30초)·1초 타이머 순수추출 → node:test.
+- **Phase 6**: Splash 2.2s 모션 / Onboarding 5슬라이드(koo #5, 둘 다 픽셀 복원). `splash_screen.dart` · `onboarding_screen.dart`.
+- **확립된 레시피**: bare 단일 화면 = 자체 AppBar + 페이지 스크롤(+sticky 하단 바 옵션). 탭 셸 = 고정 상단/하단 + 100dvh inner-overflow(허브/심문). 앱 탭(records/profile) = bare + APP_NAV BottomNav.
 
 ## 🔎 컴포넌트 갤러리 (육안 검증용, 2026-06-19)
 프리미티브 12 + 도메인 카드를 한 화면에서 픽셀 대조하려고 갤러리를 깔아둠.

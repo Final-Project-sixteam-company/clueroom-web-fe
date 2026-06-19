@@ -1,0 +1,231 @@
+/* 정본: lib/screens/scene_screen.dart
+ * 고정 서브헤더(CRIME SCENE + 힌트) + 스크롤 본문(맵 4:3 / 장소 리스트 / 선택 장소 이미지). */
+
+.tab {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── 고정 서브헤더(정본 AppBar) ── */
+.subHeader {
+  flex: none;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--sp4);
+}
+.subTitle {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-mono-label);
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--text-mute);
+}
+.spacer {
+  flex: 1 1 auto;
+}
+.hintBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  color: var(--primary);
+  transition: background-color var(--dur1) var(--ease-out);
+}
+.hintBtn:hover {
+  background: var(--bg-hover);
+}
+
+/* ── 스크롤 본문 ── */
+.scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--sp4) var(--sp4) var(--sp10); /* top sp4, h sp4, bottom sp10 */
+}
+
+/* ── 현장 맵(4:3, bgElev, line, r4) ── */
+.map {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background: var(--bg-elev);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r4);
+  overflow: hidden;
+}
+.mapBtn {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+.mapPlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp3);
+  width: 100%;
+  height: 100%;
+}
+.mapPlaceholderIcon {
+  color: var(--text-mute);
+}
+.mapPlaceholderText {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 bodySm */
+  line-height: 1;
+  color: var(--text-mute);
+}
+
+/* ── 장소 리스트 ── */
+.kicker {
+  margin: var(--sp6) 0 var(--sp3); /* 맵 → Kicker sp6, Kicker → 리스트 sp3 */
+}
+.locList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp2); /* 카드 간 sp2 */
+}
+.locCard {
+  display: flex;
+  align-items: center;
+  gap: var(--sp3);
+  padding: var(--sp3);
+  background: var(--bg);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r3);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background-color var(--dur2) var(--ease-out),
+    border-color var(--dur2) var(--ease-out); /* 선택 애니메이션 dur2 easeOut */
+}
+.locActive {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+}
+.locIcon {
+  flex: none;
+  color: var(--primary);
+}
+.locInfo {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.locName {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 */
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--text);
+}
+.locFloor {
+  margin-top: 2px;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: var(--lh-body-sm);
+  color: var(--text-mute);
+}
+.locPhoto {
+  flex: none;
+  color: var(--text-mute);
+}
+
+/* ── 선택 장소 이미지 카드(높이 160 + 하단 그라디언트 + 장소명) ── */
+.locImageCard {
+  position: relative;
+  display: block;
+  width: 100%;
+  margin-top: var(--sp4);
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: var(--r4);
+  overflow: hidden;
+  cursor: pointer;
+}
+.locImageFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 160px;
+  background: var(--bg-elev);
+  color: var(--text-mute);
+}
+.locImageOverlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: var(--sp3);
+  background: linear-gradient(to top, var(--ink950), transparent);
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 bodySm */
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ink50);
+  text-align: left;
+}
+
+.skeleton {
+  margin-top: var(--sp6);
+}
+
+/* ── 힌트 Modal 본문 ── */
+.hintEmpty {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg);
+  line-height: 1.6;
+  color: var(--text-sub);
+}
+.hintList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp2);
+}
+.hintCard {
+  display: flex;
+  align-items: center;
+  gap: var(--sp3);
+  padding: var(--sp3);
+  background: var(--bg-elev);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r3);
+}
+.hintMeta {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hintLevel {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text);
+}
+.hintDesc {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: var(--lh-body-sm);
+  color: var(--text-sub);
+}

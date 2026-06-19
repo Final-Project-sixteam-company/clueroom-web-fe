@@ -1,0 +1,211 @@
+/* 정본: lib/screens/suspect_detail_screen.dart (+ bottom_bar/cards/widgets)
+ * bare 상세 레시피: 100dvh flex + sticky AppBar + 페이지 스크롤 본문 + sticky 하단 바. */
+
+.screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* ── AppBar(back + WITNESS/SUSPECT) ── */
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  padding: 0 var(--sp1);
+  padding-top: env(safe-area-inset-top);
+  background: var(--bg);
+}
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  color: var(--text);
+  transition: background-color var(--dur1) var(--ease-out);
+}
+.backBtn:hover {
+  background: var(--bg-hover);
+}
+.barTitle {
+  margin-left: var(--sp2);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-mono-label);
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--text-mute);
+}
+
+.scroll {
+  flex: 1 1 auto;
+  padding: var(--sp6) var(--sp4) var(--sp10);
+}
+
+/* ── 프로필 ── */
+.profile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.name {
+  margin: var(--sp3) 0 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-title-l); /* 24 titleL */
+  font-weight: 700;
+  letter-spacing: var(--ls-title-l);
+  line-height: var(--lh-title-l);
+  color: var(--text);
+  text-align: center;
+}
+.roleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp2);
+  margin-top: var(--sp1);
+}
+.role {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 bodySm */
+  color: var(--text-sub);
+}
+.toneBadge {
+  margin-top: var(--sp2);
+  padding: var(--sp1) var(--sp2);
+  background: var(--bg-hover);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r-pill);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm); /* 9.5 */
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--text-mute);
+}
+
+/* ── 섹션 ── */
+.kicker {
+  margin: var(--sp6) 0 var(--sp3); /* 섹션 앞 sp6, Kicker 뒤 sp3 */
+}
+.infoCard {
+  padding: var(--sp4);
+  background: var(--bg-elev);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r6);
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 body */
+  line-height: 1.6;
+  color: var(--text);
+}
+.evList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp3);
+}
+
+/* ── 진술 카드 ── */
+.statementCard {
+  padding: var(--sp4);
+  background: var(--bg-elev);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r6);
+}
+.statementText {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg);
+  line-height: 1.6;
+  color: var(--text);
+}
+.alibiLabel {
+  margin: var(--sp3) 0 var(--sp1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono-label);
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--text-mute);
+}
+.alibiText {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 bodySm */
+  line-height: 1.5;
+  color: var(--text-sub);
+}
+
+.muted {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg);
+  line-height: 1.6;
+  color: var(--text-sub);
+}
+
+/* ── 심문 로그 카드 ── */
+.logList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp2);
+}
+.logCard {
+  padding: var(--sp3);
+  background: var(--bg-elev);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r4);
+}
+.logEvidence {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp1);
+  margin-bottom: var(--sp1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs); /* 9 */
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--success);
+}
+.logQ {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--primary);
+}
+.logA {
+  margin: var(--sp1) 0 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: 1.5;
+  color: var(--text-sub);
+}
+
+/* ── 하단 바(뒤로/심문하기/범인 지목) ── */
+.bottomBar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  gap: var(--sp3);
+  padding: var(--sp3) var(--sp4);
+  padding-bottom: max(var(--sp3), env(safe-area-inset-bottom));
+  background: var(--bg);
+  border-top: var(--stroke-sm) solid var(--line-soft);
+}
+.barBtn1 {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.barBtn2 {
+  flex: 2 1 0;
+  min-width: 0;
+}

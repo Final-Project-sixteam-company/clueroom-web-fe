@@ -1,0 +1,45 @@
+/* 정본: lib/screens/suspects_screen.dart
+ * Flutter Column + Expanded(ListView): 검색/칩/StatRow/Kicker 고정, 리스트만 스크롤. */
+
+.tab {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  flex: none;
+  padding: var(--sp4) var(--sp4) 0; /* top sp4, h sp4 */
+}
+.chips {
+  display: flex;
+  gap: var(--sp2);
+  overflow-x: auto;
+  margin-top: var(--sp3); /* 검색 → 칩 sp3 */
+  margin-bottom: var(--sp4); /* 칩 → StatRow sp4 */
+}
+.stats {
+  margin-bottom: var(--sp4); /* StatRow → Kicker sp4 */
+}
+.kicker {
+  /* Kicker → 리스트 간격은 .list padding-top(sp3) */
+}
+
+/* 스크롤 리스트(ListView.separated, 행 간 sp3) */
+.list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp3);
+  padding: var(--sp3) var(--sp4) var(--sp10);
+}
+
+.stateFill {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

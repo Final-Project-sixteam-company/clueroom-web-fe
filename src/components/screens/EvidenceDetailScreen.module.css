@@ -1,0 +1,259 @@
+/* 정본: lib/screens/evidence_detail_screen.dart (+ widgets/meta)
+ * bare 상세 레시피: 100dvh flex + sticky AppBar + 페이지 스크롤 본문. */
+
+.screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* ── AppBar(back + 'EVIDENCE') ── */
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  padding: 0 var(--sp1);
+  padding-top: env(safe-area-inset-top);
+  background: var(--bg);
+}
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  color: var(--text);
+  transition: background-color var(--dur1) var(--ease-out);
+}
+.backBtn:hover {
+  background: var(--bg-hover);
+}
+.barTitle {
+  margin-left: var(--sp2);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-mono-label);
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--text-mute);
+}
+
+/* ── 본문(페이지 스크롤) ── */
+.scroll {
+  flex: 1 1 auto;
+  padding: var(--sp6) var(--sp4) var(--sp10);
+}
+
+/* ── 히어로(86) ── */
+.heroWrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--sp4);
+}
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 86px;
+  height: 86px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--r6); /* 14 */
+  border: var(--stroke-sm) solid rgba(255, 255, 255, 0.14); /* ink0 14% */
+  background: linear-gradient(135deg, var(--teal-base), var(--sky-base));
+  cursor: pointer;
+}
+.heroIcon {
+  color: var(--ink0);
+}
+
+.title {
+  margin: 0 0 var(--sp2);
+  text-align: center;
+  font-family: var(--font-sans);
+  font-size: var(--fs-title-l); /* 24 titleL */
+  font-weight: 700;
+  letter-spacing: var(--ls-title-l);
+  line-height: var(--lh-title-l);
+  color: var(--text);
+}
+.location {
+  margin: 0 0 var(--sp6);
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono-label);
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--text-sub);
+}
+.statusRow {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--sp6);
+}
+
+/* ── 카드(관찰 정보 / 증거 제시) ── */
+.card {
+  margin-bottom: var(--sp6);
+  padding: var(--sp4);
+  background: var(--bg-elev);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r4);
+}
+.kicker {
+  margin-bottom: var(--sp3);
+}
+.subKicker {
+  margin: var(--sp4) 0 var(--sp2); /* 서브섹션 앞 sp4, Kicker 뒤 sp2 */
+}
+.loadingRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp3);
+}
+.loadingText {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  color: var(--text-sub);
+}
+.body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 body */
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp2);
+}
+.pillBtn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* 관련 타임라인(time monoNum primary + title) */
+.timeline {
+  display: flex;
+  flex-direction: column;
+}
+.timelineRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp3);
+  padding-bottom: var(--sp2);
+}
+.timelineTime {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-base); /* 13 */
+  line-height: 1.5;
+  color: var(--primary);
+}
+.timelineTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg);
+  line-height: 1.5;
+  color: var(--text);
+}
+
+/* 이 증거에서 볼 점(• bullet) */
+.bullets {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bullet {
+  position: relative;
+  padding-left: var(--sp4);
+  padding-bottom: var(--sp2);
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg);
+  line-height: 1.5;
+  color: var(--text);
+}
+.bullet::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: var(--text);
+}
+
+/* 함께 볼 증거 / 추천 질문(아이콘 + 본문 + chevron) */
+.rows {
+  display: flex;
+  flex-direction: column;
+}
+.row,
+.rowStatic {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp2);
+  width: 100%;
+  padding: 0 0 var(--sp2);
+  border: none;
+  background: transparent;
+  text-align: left;
+}
+.row {
+  cursor: pointer;
+}
+.rowIcon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--text-mute);
+}
+.rowBody {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rowTitle {
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg);
+  line-height: 1.4;
+  color: var(--text);
+}
+.rowTitleMuted {
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg);
+  line-height: 1.4;
+  color: var(--text-mute);
+}
+.rowHint {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: var(--lh-body-sm);
+  color: var(--text-sub);
+}
+
+.error {
+  margin: 0 0 var(--sp6);
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  color: var(--danger);
+}
+.muted {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  color: var(--text-mute);
+}
