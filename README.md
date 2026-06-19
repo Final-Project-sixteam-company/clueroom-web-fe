@@ -19,6 +19,7 @@ npm run preview
 ```bash
 VITE_API_BASE_URL=https://api.clueroom.xyz
 VITE_GOOGLE_CLIENT_ID=<Google Web OAuth client id>
+VITE_GOOGLE_SERVER_CLIENT_ID=<optional alias for Google Web OAuth client id>
 VITE_KAKAO_JAVASCRIPT_KEY=<Kakao JavaScript key>
 VITE_ENABLE_DEV_LOGIN=false
 VITE_ENABLE_QA_LOGIN=false
@@ -93,7 +94,7 @@ npm run build
 
 ```text
 로컬 PC Git Bash
-C:\java\assignment\spring\clueroom-toss-miniapp
+React/Vite web frontend checkout root
 ```
 
 사전 조건:
@@ -181,7 +182,5 @@ SSH_TARGET=clueroom-staging PUBLIC_URL=https://staging.example.com bash scripts/
 
 제외한 것:
 
-- Apps in Toss `.ait` 빌드
-- Toss `appLogin()`
 - Android APK/AAB
 - FCM

@@ -2,6 +2,8 @@ node_modules/
 dist/
 .granite/
 .idea/
+# Legacy external package artifacts can remain in old release checkouts.
+# Keep them ignored so deploy-web clean checks are not blocked.
 *.ait
 *.tgz
 .env

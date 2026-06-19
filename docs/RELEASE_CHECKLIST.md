@@ -1,94 +1,77 @@
-# ClueRoom Release Checklist
+# ClueRoom Web Release Checklist
 
-Last updated: 2026-06-16
+Last updated: 2026-06-19
 
-## Artifact Split
+이 문서는 `https://www.clueroom.xyz` 일반 웹 배포 기준 체크리스트다.
+브라우저 웹 배포만 다루며, 외부 SDK/패키징 경로는 포함하지 않는다.
 
-Apps in Toss and Google Play use different release artifacts.
-
-- Apps in Toss: upload `clueroom-toss-miniapp.ait` from this repository.
-- Google Play: upload a signed Android App Bundle (`.aab`) from the Flutter/Android app repository.
-- Do not rename `.ait` to `.aab`; they are different package formats.
-- Do not upload Flutter APK/AAB build outputs to Apps in Toss.
-
-## Apps in Toss
-
-Build:
+## Local Build Gate
 
 ```bash
-npm install
+npm ci
 npm run lint
 npm run build
 ```
 
-Output:
+## Environment
 
-```text
-clueroom-toss-miniapp.ait
+`.env.production` 또는 shell env에 아래 값이 들어 있어야 한다.
+
+```bash
+VITE_API_BASE_URL=https://api.clueroom.xyz
+VITE_GOOGLE_CLIENT_ID=<Google Web OAuth client id>
+VITE_GOOGLE_SERVER_CLIENT_ID=<optional alias for Google Web OAuth client id>
+VITE_KAKAO_JAVASCRIPT_KEY=<Kakao JavaScript key>
+VITE_ENABLE_DEV_LOGIN=false
+VITE_ENABLE_QA_LOGIN=false
+VITE_QA_LOGIN_EMAIL=
+VITE_QA_LOGIN_NICKNAME=ClueRoom QA
 ```
 
-Console checklist:
-
-- Register the app in the Apps in Toss console.
-- Use app type `game`.
-- Keep `appName` aligned with `granite.config.ts`.
-- Upload app logo and thumbnail assets that match the console guide.
-- Fill customer support email/contact.
-- Confirm business/representative permissions if Toss login is used.
-- Submit app information for review before release.
-- Upload the generated `.ait` in the release screen.
-- After backend `/api/auth/toss` is live, run sandbox/device login E2E before release review.
-
-Game rating checklist:
-
-- Prepare the game rating/evidence material required by the Apps in Toss game release guide.
-- If using a Google Play listing as rating evidence, the Play Store page and game rating details must match the Apps in Toss app.
-- Capture real gameplay screens from the Apps in Toss build, not edited mockups.
-
-Official references:
-
-- Apps in Toss app registration: https://developers-apps-in-toss.toss.im/prepare/console-workspace.html
-- Apps in Toss game release guide: https://developers-apps-in-toss.toss.im/checklist/app-game.html
-
-## Google Play
-
-Google Play is for the standalone Android app, not this Apps in Toss miniapp.
-
-Build source:
-
-```text
-C:\java\assignment\spring\start-up-fe
-```
-
-Expected artifact:
-
-```text
-build/app/outputs/bundle/release/*.aab
-```
-
-Play Console checklist:
-
-- Enroll in Play App Signing for a new app.
-- Build a signed release `.aab`.
-- Increase Android version code for every update.
-- Upload the `.aab` to an internal testing track first.
-- Complete store listing, privacy policy, data safety, app access, content rating, target audience, and ads declarations.
-- Use internal testing before production rollout.
-
-Official references:
-
-- Upload an app bundle to Play Console: https://developer.android.com/studio/publish/upload-bundle
-- Android App Bundle FAQ: https://developer.android.com/guide/app-bundle/faq
-- Play Console app setup: https://support.google.com/googleplay/android-developer/answer/9859152
+QA 버튼은 운영자 승인된 검증 시간에만 켠다.
+공개 운영 배포에서는 `VITE_ENABLE_QA_LOGIN=false`가 기본이다.
 
 ## Backend Release Gate
 
-Do not submit this miniapp for release review until these checks pass:
+- `https://api.clueroom.xyz/actuator/health`가 200을 반환한다.
+- `CORS_ALLOWED_ORIGIN_PATTERNS`에 `https://clueroom.xyz`, `https://www.clueroom.xyz`가 포함된다.
+- Google Web client id가 백엔드 `GOOGLE_CLIENT_IDS`에 포함된다.
+- Kakao REST API key와 app id가 백엔드 env에 설정된다.
+- `/api/auth/oauth`, `/api/auth/oauth/kakao/code`, `/api/auth/refresh`, `/api/auth/me`가 최신 배포에 포함된다.
+- refresh token은 HttpOnly cookie로 발급되고 웹 localStorage에는 저장하지 않는다.
 
-- `POST /api/auth/toss` returns ClueRoom access/refresh tokens.
-- `/api/auth/me` works with Toss-issued ClueRoom JWT.
-- Startup refresh works after closing and reopening the Toss WebView.
-- Scenario library loads from production API.
-- Starting a scenario creates or recovers an active session.
-- Interrogation suggested questions are prefill-only until the user taps send.
-- Final deduction submit and result polling work on production API.
+## Deploy
+
+로컬 Git Bash에서 실행한다.
+
+```bash
+bash scripts/deploy-web.sh
+```
+
+스크립트는 로컬 변경이 남아 있으면 중단하고, upstream 최신 상태로 fast-forward한 뒤 lint/build/upload/nginx reload를 수행한다.
+
+## Smoke Test
+
+- `https://www.clueroom.xyz` 접속 200
+- Google 로그인
+- Kakao 로그인
+- QA 승인 시 QA 로그인
+- 시나리오 목록/상세
+- 수사 시작 또는 active session recovery
+- 증거/인물/타임라인 조회
+- 심문 1회
+- 최종 추리 제출 후 result 조회
+- 북마크/리뷰 서버 연동
+- `/api/auth/refresh` cookie 기반 재발급
+- 로그아웃 후 `/api/auth/me`가 인증 실패
+
+## Rollback
+
+prod 서버에서 이전 release symlink로 되돌린 뒤 Nginx를 reload한다.
+
+```bash
+ls -lt /opt/clueroom/web/releases
+sudo ln -sfn /opt/clueroom/web/releases/<previous-release> /opt/clueroom/web/current
+sudo nginx -t
+sudo systemctl reload nginx
+```
