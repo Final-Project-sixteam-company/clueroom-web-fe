@@ -1,0 +1,185 @@
+/* 정본: lib/screens/case_briefing_screen.dart
+ * 픽셀=Flutter, 데이터/동작=웹 보존(koo #4). tokens.css var 소비.
+ * 레이아웃 = 상세 화면 bare 레시피: 100dvh flex + sticky AppBar/footer(페이지 스크롤). */
+
+.screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* ── AppBar (back + 'CASE BRIEFING') ── */
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  padding: 0 var(--sp1);
+  padding-top: env(safe-area-inset-top);
+  background: var(--bg);
+}
+.barBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  color: var(--text);
+  transition: background-color var(--dur1) var(--ease-out);
+}
+.barBtn:hover {
+  background: var(--bg-hover);
+}
+.barTitle {
+  margin-left: var(--sp2); /* Flutter titleSpacing sp4 근사 */
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-mono-label); /* 11 monoLabel */
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--text-mute);
+}
+
+/* ── 스크롤 본문(페이지 스크롤) ── */
+.scroll {
+  flex: 1 1 auto;
+  padding: var(--sp4) var(--sp4) var(--sp8); /* top sp4, h sp4, bottom sp8 */
+}
+.scroll > section {
+  margin-bottom: var(--sp6); /* 섹션 간 sp6 */
+}
+.scroll > section:last-of-type {
+  margin-bottom: 0; /* 마지막(탐정 목표) 아래는 scroll padding-bottom(sp8) */
+}
+
+.title {
+  margin: 0 0 var(--sp6);
+  font-family: var(--font-sans);
+  font-size: var(--fs-display); /* 48 display */
+  font-weight: 700;
+  letter-spacing: var(--ls-display); /* -1.2 */
+  line-height: 1.15; /* Flutter copyWith height 1.15 */
+  color: var(--text);
+}
+
+.kicker {
+  margin-bottom: var(--sp3); /* Kicker ↔ 본문 sp3 */
+}
+.body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 body */
+  line-height: 1.6;
+  color: var(--text);
+}
+
+/* ── 탐정 목표 danger 박스 ── */
+.goals {
+  padding: var(--sp4);
+  background: var(--danger-soft);
+  border: var(--stroke-sm) solid var(--danger);
+  border-radius: var(--r4); /* 10 */
+  white-space: pre-line; /* 3줄 \n */
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 body */
+  font-weight: 600; /* Flutter w600 → Pretendard 700 매칭(킷 관례) */
+  line-height: 1.8;
+  color: var(--danger);
+}
+
+/* ── 피해자 요약 행 (_VictimRow) ── */
+.victim {
+  display: flex;
+  align-items: center;
+}
+.victimAvatar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r3); /* 8 */
+  background: linear-gradient(135deg, var(--ink700), var(--ink500));
+  border: var(--stroke-sm) solid rgba(255, 255, 255, 0.14); /* ink0 14% */
+  font-family: var(--font-sans);
+  font-weight: 700; /* titleM */
+  font-size: var(--fs-xl2); /* 16 */
+  line-height: 1;
+  color: var(--ink50);
+}
+.victimMeta {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: var(--sp3);
+  display: flex;
+  flex-direction: column;
+}
+.victimName {
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 body */
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text);
+}
+.victimRole {
+  margin-top: 2px; /* Flutter SizedBox(height: 2) */
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 bodySm */
+  line-height: var(--lh-body-sm);
+  color: var(--text-sub);
+}
+.victimLocation {
+  flex: none;
+  margin-left: var(--sp2);
+  padding: 4px var(--sp2); /* Flutter v4 h sp2 */
+  background: var(--danger-soft);
+  border: var(--stroke-sm) solid var(--danger);
+  border-radius: var(--r2); /* 4 */
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-mono-label); /* 11 */
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--danger);
+  white-space: nowrap;
+}
+
+/* ── 하단 버튼(sticky footer) ── */
+.footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  padding: var(--sp3) var(--sp4);
+  padding-bottom: max(var(--sp6), env(safe-area-inset-bottom));
+  background: var(--bg);
+  border-top: var(--stroke-sm) solid var(--line-soft); /* sticky 분리 하어라인(웹 보조) */
+}
+
+/* ── 진입 스태거(fade + slide-up) — Flutter dur3 easeOut, 누적 delay ── */
+.section {
+  animation: briefIn var(--dur3) var(--ease-out) both;
+}
+@keyframes briefIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .section {
+    animation: none;
+  }
+}

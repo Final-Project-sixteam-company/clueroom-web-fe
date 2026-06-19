@@ -2,16 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import { HomeScreen } from "./components/screens/HomeScreen";
 import { LibraryScreen } from "./components/screens/LibraryScreen";
+import { ScenarioDetailScreen } from "./components/screens/ScenarioDetailScreen";
+import { LoginScreen } from "./components/screens/LoginScreen";
+import { CaseBriefingScreen } from "./components/screens/CaseBriefingScreen";
 import { BottomNav, APP_NAV_ITEMS } from "./components/ui";
 import {
-  GOOGLE_CLIENT_ID,
-  ENABLE_GOOGLE_LOGIN,
-  ENABLE_KAKAO_LOGIN,
-  ENABLE_DEV_LOGIN,
-  DEFAULT_QA_LOGIN_EMAIL,
-  QA_LOGIN_NICKNAME,
-  ENABLE_QA_LOGIN,
-  KAKAO_LOGIN_STATE,
   RECORDS_KEY,
   CASE_REFRESH_SECONDS,
   MIN_DEDUCTION_TEXT_LENGTH,
@@ -59,11 +54,6 @@ import {
   initials,
   formatDateTime,
 } from "./api/normalizers";
-import {
-  loadGoogleIdentityScript,
-  ensureKakaoInitialized,
-  kakaoRedirectUri,
-} from "./auth/sdkLoaders";
 import { useAuth } from "./auth/useAuth";
 
 function App() {
@@ -1186,7 +1176,12 @@ function App() {
   return (
     <Shell
       title="ClueRoom"
-      bare={view === "home"}
+      bare={
+        view === "home" ||
+        view === "scenarioDetail" ||
+        view === "login" ||
+        view === "briefing"
+      }
       nav={
         navIndex === -1
           ? undefined
@@ -1312,6 +1307,7 @@ function App() {
       {view === "briefing" && selectedScenario && (
         <CaseBriefingScreen
           scenario={selectedScenario}
+          loading={caseLoading}
           onBack={() => setView("scenarioDetail")}
           onStart={() => startSession(selectedScenario)}
         />
@@ -1545,211 +1541,6 @@ function Shell({
         </div>
       </header>
       <main>{children}</main>
-    </div>
-  );
-}
-
-function LoginScreen({
-  error,
-  onGoogleCredential,
-  onAuthError,
-  onDevLogin,
-}: {
-  error: string | null;
-  onGoogleCredential: (idToken: string) => void;
-  onAuthError: (message: string) => void;
-  onDevLogin: (email: string, nickname?: string, fallbackMessage?: string) => void;
-}) {
-  const [devEmail, setDevEmail] = useState("tester@clueroom.local");
-  const [qaEmail, setQaEmail] = useState(DEFAULT_QA_LOGIN_EMAIL);
-
-  function submitDevLogin(
-    email: string,
-    nickname?: string,
-    fallbackMessage?: string,
-  ) {
-    const normalizedEmail = email.trim();
-    if (!normalizedEmail) {
-      onAuthError("로그인 이메일을 입력하세요.");
-      return;
-    }
-    onDevLogin(normalizedEmail, nickname, fallbackMessage);
-  }
-
-  return (
-    <section className="login-screen">
-      <div className="logo-orb">
-        <img src={`${import.meta.env.BASE_URL}app_icon.png`} alt="ClueRoom" />
-      </div>
-      <p className="eyebrow">MYSTERY LIBRARY</p>
-      <h1>사건을 수사할 시간</h1>
-      <p className="muted">
-        웹에서 단서를 모으고, 인물을 심문하고, 마지막 추리를 제출하세요.
-      </p>
-      <div className="oauth-buttons">
-        <GoogleSignInButton
-          onCredential={onGoogleCredential}
-          onError={onAuthError}
-        />
-        <KakaoSignInButton
-          onError={onAuthError}
-        />
-      </div>
-      {!ENABLE_GOOGLE_LOGIN &&
-        !ENABLE_KAKAO_LOGIN &&
-        !ENABLE_DEV_LOGIN &&
-        !ENABLE_QA_LOGIN && (
-        <article className="auth-notice">
-          웹 로그인을 사용하려면 `VITE_GOOGLE_CLIENT_ID` 또는
-          `VITE_KAKAO_JAVASCRIPT_KEY`가 필요합니다.
-        </article>
-      )}
-      {ENABLE_QA_LOGIN && (
-        <div className="dev-login">
-          <input
-            type="email"
-            value={qaEmail}
-            onChange={(e) => setQaEmail(e.target.value)}
-            placeholder="QA 계정 이메일"
-            autoComplete="email"
-          />
-          <button
-            className="button secondary"
-            onClick={() =>
-              submitDevLogin(
-                qaEmail,
-                QA_LOGIN_NICKNAME,
-                "QA 로그인에 실패했습니다.",
-              )
-            }
-            type="button"
-          >
-            QA 테스트 계정 로그인
-          </button>
-        </div>
-      )}
-      {ENABLE_DEV_LOGIN && (
-        <div className="dev-login">
-          <input
-            type="email"
-            value={devEmail}
-            onChange={(e) => setDevEmail(e.target.value)}
-            placeholder="테스트 이메일"
-            autoComplete="email"
-          />
-          <button
-            className="button secondary"
-            onClick={() => submitDevLogin(devEmail)}
-            type="button"
-          >
-            개발 로그인
-          </button>
-        </div>
-      )}
-      {error && <p className="error-text">{error}</p>}
-    </section>
-  );
-}
-
-function KakaoSignInButton({
-  onError,
-}: {
-  onError: (message: string) => void;
-}) {
-  const [loading, setLoading] = useState(false);
-
-  if (!ENABLE_KAKAO_LOGIN) return null;
-
-  async function handleClick() {
-    setLoading(true);
-    try {
-      await ensureKakaoInitialized();
-      window.Kakao?.Auth.authorize({
-        redirectUri: kakaoRedirectUri(),
-        state: KAKAO_LOGIN_STATE,
-      });
-    } catch (error) {
-      setLoading(false);
-      onError(
-        error instanceof Error
-          ? error.message
-          : "Kakao 로그인 준비에 실패했습니다.",
-      );
-    }
-  }
-
-  return (
-    <button
-      className="kakao-login-button"
-      disabled={loading}
-      onClick={handleClick}
-      type="button"
-    >
-      <span className="kakao-mark">K</span>
-      {loading ? "Kakao 로그인 준비 중" : "Kakao로 계속하기"}
-    </button>
-  );
-}
-
-function GoogleSignInButton({
-  onCredential,
-  onError,
-}: {
-  onCredential: (idToken: string) => void;
-  onError: (message: string) => void;
-}) {
-  const buttonRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!ENABLE_GOOGLE_LOGIN || !buttonRef.current) return;
-
-    let cancelled = false;
-    void loadGoogleIdentityScript()
-      .then(() => {
-        if (cancelled || !buttonRef.current || !window.google?.accounts?.id) {
-          return;
-        }
-
-        buttonRef.current.innerHTML = "";
-        window.google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: (response) => {
-            if (response.credential) {
-              onCredential(response.credential);
-              return;
-            }
-            onError("Google 인증 토큰을 받지 못했습니다.");
-          },
-          auto_select: false,
-          cancel_on_tap_outside: true,
-        });
-        window.google.accounts.id.renderButton(buttonRef.current, {
-          theme: "filled_blue",
-          size: "large",
-          text: "continue_with",
-          shape: "rectangular",
-          width: Math.min(360, buttonRef.current.clientWidth || 360),
-        });
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        onError(
-          error instanceof Error
-            ? error.message
-            : "Google 로그인 준비에 실패했습니다.",
-        );
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [onCredential, onError]);
-
-  if (!ENABLE_GOOGLE_LOGIN) return null;
-
-  return (
-    <div className="google-login-box">
-      <div ref={buttonRef} />
     </div>
   );
 }
@@ -2124,192 +1915,6 @@ function FilterChips({
   );
 }
 
-function ScenarioDetailScreen({
-  scenario,
-  bookmarked,
-  reviews,
-  loading,
-  error,
-  onBack,
-  onStart,
-  onToggleBookmark,
-  onWriteReview,
-  onOpenImage,
-}: {
-  scenario: Scenario;
-  bookmarked: boolean;
-  reviews: ScenarioReview[];
-  loading: boolean;
-  error: string | null;
-  onBack: () => void;
-  onStart: () => void;
-  onToggleBookmark: () => void;
-  onWriteReview: () => void;
-  onOpenImage: (preview: ImagePreview) => void;
-}) {
-  const averageLocalRating =
-    reviews.length > 0
-      ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
-      : null;
-
-  return (
-    <section className="stack">
-      <div className="detail-actions">
-        <button className="icon-button fit" onClick={onBack} type="button">
-          라이브러리로 돌아가기
-        </button>
-        <button
-          className={`icon-button fit ${bookmarked ? "active" : ""}`}
-          onClick={onToggleBookmark}
-          type="button"
-        >
-          {bookmarked ? "저장됨" : "저장"}
-        </button>
-      </div>
-      <button
-        className="image-button scenario-hero"
-        disabled={!scenario.thumbnailUrl}
-        aria-label={`${scenario.title} 이미지 크게 보기`}
-        onClick={() => {
-          if (scenario.thumbnailUrl) {
-            onOpenImage({
-              url: scenario.thumbnailUrl,
-              title: scenario.title,
-              subtitle: "시나리오 이미지",
-            });
-          }
-        }}
-        type="button"
-      >
-        <SafeImage
-          src={scenario.thumbnailUrl}
-          alt={`${scenario.title} 대표 이미지`}
-          fallback={`CL-${String(scenario.scenarioId).padStart(3, "0")}`}
-        />
-      </button>
-      <div className="screen-title">
-        <p className="eyebrow">
-          {scenario.scenarioType === "CUSTOM" ? "CUSTOM CASE" : "OFFICIAL CASE"}
-        </p>
-        <h1>{scenario.title}</h1>
-        <p className="muted">
-          CL-{String(scenario.scenarioId).padStart(3, "0")}
-        </p>
-      </div>
-      {loading && <StateBlock title="상세 정보를 불러오고 있습니다" />}
-      {error && <p className="error-text">{error}</p>}
-      <div className="stats-grid">
-        <Stat label="난이도" value={formatDifficulty(scenario.difficulty)} />
-        <Stat
-          label="예상 시간"
-          value={`${scenario.estimatedPlayTimeMinutes}분`}
-        />
-        <Stat
-          label="평점"
-          value={(averageLocalRating ?? scenario.averageRating).toFixed(1)}
-        />
-      </div>
-      <div className="stats-grid">
-        <Stat label="인물" value={`${scenario.suspectCount}명`} />
-        <Stat label="증거" value={`${scenario.evidenceCount}개`} />
-        <Stat label="플레이" value={`${scenario.playCount}회`} />
-      </div>
-      <InfoPanel
-        title="시놉시스"
-        body={
-          scenario.synopsis || scenario.description || "사건 설명이 없습니다."
-        }
-      />
-      {!!scenario.tags?.length && (
-        <div className="chip-row">
-          {scenario.tags.map((tag) => (
-            <span className="chip" key={tag}>
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
-      {scenario.author && <InfoPanel title="제작자" body={scenario.author} />}
-      <ScenarioReviews
-        scenario={scenario}
-        reviews={reviews}
-        onWriteReview={onWriteReview}
-      />
-      <button
-        className="button primary"
-        onClick={onStart}
-        disabled={scenario.canPlay === false}
-        type="button"
-      >
-        {scenario.canPlay === false ? "플레이할 수 없는 사건" : "수사 시작"}
-      </button>
-    </section>
-  );
-}
-
-function ScenarioReviews({
-  scenario,
-  reviews,
-  onWriteReview,
-}: {
-  scenario: Scenario;
-  reviews: ScenarioReview[];
-  onWriteReview: () => void;
-}) {
-  return (
-    <article className="info-card">
-      <div className="section-header">
-        <div>
-          <p className="mini-title">평점 · 리뷰</p>
-          <p className="card-body">
-            평균 {scenario.averageRating.toFixed(1)} · 플레이{" "}
-            {scenario.playCount}회
-          </p>
-        </div>
-        <button className="chip" onClick={onWriteReview} type="button">
-          작성
-        </button>
-      </div>
-      {!reviews.length && (
-        <p className="card-body review-empty">
-          아직 등록된 리뷰가 없습니다.
-        </p>
-      )}
-      <div className="review-list">
-        {reviews.map((review) => (
-          <ReviewCard review={review} key={review.reviewId} />
-        ))}
-      </div>
-    </article>
-  );
-}
-
-function ReviewCard({ review }: { review: ScenarioReview }) {
-  const [revealed, setRevealed] = useState(!review.isSpoiler);
-  return (
-    <article className={`review-card ${review.isSpoiler ? "spoiler" : ""}`}>
-      <div className="review-head">
-        <div>
-          <strong>{review.authorName}</strong>
-          <span>{formatDateTime(review.createdAt)}</span>
-        </div>
-        <b>★ {review.rating.toFixed(1)}</b>
-      </div>
-      {review.isSpoiler && !revealed ? (
-        <button
-          className="spoiler-cover"
-          onClick={() => setRevealed(true)}
-          type="button"
-        >
-          스포일러가 포함된 리뷰입니다. 눌러서 보기
-        </button>
-      ) : (
-        <p>{review.body}</p>
-      )}
-    </article>
-  );
-}
-
 function ReviewDialog({
   target,
   authorName,
@@ -2384,55 +1989,6 @@ function ReviewDialog({
         </div>
       </div>
     </div>
-  );
-}
-
-function CaseBriefingScreen({
-  scenario,
-  onBack,
-  onStart,
-}: {
-  scenario: Scenario;
-  onBack: () => void;
-  onStart: () => void;
-}) {
-  return (
-    <section className="stack">
-      <button className="icon-button fit" onClick={onBack} type="button">
-        사건 상세로 돌아가기
-      </button>
-      <ScreenTitle title="수사 브리핑" subtitle="CASE BRIEFING" />
-      <div className="briefing-panel">
-        <p className="eyebrow">
-          CL-{String(scenario.scenarioId).padStart(3, "0")}
-        </p>
-        <h1>{scenario.title}</h1>
-        <p>
-          {scenario.synopsis ||
-            scenario.description ||
-            "사건 개요를 확인하세요."}
-        </p>
-      </div>
-      <div className="stats-grid">
-        <Stat label="난이도" value={formatDifficulty(scenario.difficulty)} />
-        <Stat
-          label="예상 시간"
-          value={`${scenario.estimatedPlayTimeMinutes}분`}
-        />
-        <Stat label="제출 증거" value="1~15개" />
-      </div>
-      <InfoPanel
-        title="수사 목표"
-        body="인물을 심문하고 증거를 비교해 범인, 동기, 수법, 은폐 방식을 정리하세요."
-      />
-      <InfoPanel
-        title="주의"
-        body="추천 질문은 입력창에만 채워집니다. 전송 버튼을 눌러야 AI 심문이 진행됩니다."
-      />
-      <button className="button primary" onClick={onStart} type="button">
-        수사 시작
-      </button>
-    </section>
   );
 }
 
