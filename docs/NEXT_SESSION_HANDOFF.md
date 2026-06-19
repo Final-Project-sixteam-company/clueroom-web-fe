@@ -43,7 +43,7 @@ ClueRoom Flutter→React 마이그레이션을 이어서 진행합니다. 작업
 
 ## 작업 규칙
 - 완료 주장 전 4 게이트. tsc -b 0 유지. 이식은 Flutter 정본과 1:1 대조 가능하게(파일 상단 .dart 출처 주석).
-- 커밋/푸시는 koo 명시 요청 시에만. .omc/ 커밋 제외. 작업 브랜치 feat/react-migration-tokens(미게시). ⚠ 이번까지의 상세/로그인/브리핑 작업은 **아직 미커밋**일 수 있음 — git status 확인하고 필요 시 koo에게 커밋 여부 확인.
+- 커밋/푸시는 koo 명시 요청 시에만. .omc/ 커밋 제외. 작업 브랜치 feat/react-migration-tokens(미게시, 로컬만). ✅ **§9 게임 화면 전부 커밋됨**(최신 `f2480bd` "Phase 5 — port all §9 game screens"). 작업 트리는 `.omc/`(untracked, 제외) 외 클린. 새 작업분은 koo 명시 요청 시 커밋.
 - 모범답안 대신 근거 기반. 불확실하면 koo에게 되묻기.
 ```
 
