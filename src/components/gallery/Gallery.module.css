@@ -1,0 +1,65 @@
+.page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top right, var(--primary-14), transparent 30%),
+    var(--bg);
+  color: var(--text);
+}
+
+.frame {
+  width: min(100%, 420px); /* 모바일 390 우선 기준 */
+  margin: 0 auto;
+  padding: var(--sp6) var(--sp4) var(--sp12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp6);
+}
+
+.heading {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-title-l); /* 24 */
+  font-weight: 700;
+  letter-spacing: var(--ls-title-l);
+  color: var(--text);
+}
+
+.sub {
+  margin: calc(-1 * var(--sp4)) 0 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  color: var(--text-sub);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp3);
+}
+
+.sectionBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp3);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp2);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp3);
+}
+
+.coverBox {
+  width: 100%;
+}
+
+.viewerThumb {
+  display: inline-flex;
+}
