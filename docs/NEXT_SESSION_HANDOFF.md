@@ -37,8 +37,8 @@ ClueRoom Flutter→React 마이그레이션을 이어서 진행합니다. 작업
 - 회귀 금지(보존): request 엔벨로프·401→refresh→retry(single-flight refreshInFlightRef + generation guard)·**30초 status-gated 폴링·1초 타이머(loadCaseRef)**·accessToken localStorage + http-only refresh 쿠키. auth는 순수헬퍼+테스트로 고정됨.
 - 홈은 / (앱 기본 view, 미로그인도 렌더). 각 컴포넌트 파일 상단에 .dart 정본 출처 주석 있음 → 1:1 대조 가능.
 
-## ▶ 다음 작업 (전 화면 이식 + game_modals ✅ 완료 — 남은 영역)
-- **Phase 4 기능 훅 분해**: god-state(App.tsx 1598줄) — useScenarios/useGameSession/useRecords/useResult. ⚠ 회귀 금지 폴링(30초)·1초 타이머 순수추출 → node:test.
+## ▶ 다음 작업 (전 화면 이식 + game_modals + Phase 4 ✅ 완료 — 남은 영역)
+- **Phase 4 기능 훅 분해 ✅ 완료**: god-state → useRecords/useScenarios/useGameSession/useResult + 순수 caseTimer/pollWithRetry(node:test). App.tsx 1598 → 800줄. 얇은 훅 + App 오케스트레이터. (미커밋, working tree.)
 - **Phase 6**: Splash 2.2s / Onboarding 5슬라이드(koo #5) — splash_screen.dart · onboarding_screen.dart.
 - **(선택) dead App.css 정리**: 옛 화면 전용 클래스(.profile-card/.record-card/.detective-grade-card/.menu-item/.screen-title/.info-card/.stat/.filter-group/.scenario-card 등) 삭제로 번들 축소(공유 여부 grep 후).
 
@@ -280,9 +280,19 @@ koo 지적("배포앱 https://www.clueroom.xyz 로그인에 Google·Kakao 세팅
 - **⚠ koo 확인(의도적 선택, 한 줄로 뒤집기 쉬움)**: ① **드래그-투-dismiss 제스처 미구현**(scrim/ESC 로 닫힘) — 핸드오프 타깃은 '핸들 비주얼 + 모션'이라 제스처는 범위 밖. ② EvidencePresent **DraggableScrollableSheet 가변높이 스냅 미이식**(고정 75dvh + 내부 스크롤). ③ ReviewWrite 평점 **0.5 step 반별점 허용**(Flutter Slider div8 충실, 웹 옛 정수 1~5 대비 변경). ④ HintSheet **per-hint '사용 중...' busy 미추적**(웹 미배선) — 그 외 used/locked/available 상태는 정본대로. ⑤ EvidencePresent 아이템 메타는 Flutter 대로 **이름+위치만**(웹 옛 카테고리 표기 생략, 검색엔 카테고리 유지).
 - **게이트 전부 통과**: `npm test` 12/12, `lint` 0(warn 0), `npx tsc -b` **0 errors**, `npm run build` 성공(메인 번들 css 100.21→104.90kB, js 338.76→341.66kB; Sheet+4시트 반영). 브라우저 육안 확인만 koo `npm run dev` → 현장 힌트 / HUD 브리핑 / 심문 증거제시 / 상세·결과 리뷰작성 진입으로 남음.
 
-## ▶ 다음 작업 (전 화면 이식 + game_modals ✅ 완료 — 남은 영역)
-화면·시트 정본화는 전부 끝났고, 남은 건 **분해 + Phase 6**:
-- **Phase 4 기능 훅 분해**: god-state(App.tsx 1598줄) — useScenarios/useGameSession/useRecords/useResult. 회귀 금지 폴링(30초)·1초 타이머 순수추출 → node:test.
+## ✅ Phase 4 — 기능 훅 분해 완료 (2026-06-20, 브랜치 `feat/react-migration-tokens`)
+god-state(App.tsx)를 도메인 훅으로 분해. **방침 = 얇은 도메인 훅 + App 오케스트레이터**(koo 승인). 훅은 도메인 상태 + 인트라도메인 로더를 소유하고, 교차도메인 글루(startSession→saveInProgressRecord, submitDeduction 등)와 `view`는 App 에 남김. 호출처(render)는 **same-name destructure** 로 무변경 — useAuth 분리와 동일 패턴. **모든 추출은 verbatim 1:1**(동작 보존, koo #4). 회귀 민감 코어(폴링/타이머/폴링 재시도)는 **순수 함수로 빼 node:test 로 고정**.
+- **Slice A — 순수 회귀로직 + 테스트**: `src/game/caseTimer.ts`(`advanceCaseTimer` — 1초 타이머 tick + 30초 refresh 게이트, 경계 29→30 발화/30→31 미발화·세션 불일치 no-op·불변성 테스트) + `src/lib/pollWithRetry.ts`(`pollWithRetry` — 결과 폴링 8회 재시도, 첫 성공 즉시 반환/마지막 에러 throw/실패 횟수만큼만 sleep, 주입형 sleep). App 의 폴링 effect·`pollResult` 를 이 순수 함수로 재배선. **테스트 12 → 23**(+6 caseTimer, +5 pollWithRetry). ⚠ 순수 모듈은 **로컬 import 0** 유지(`node --test` 모듈 해석 — pollWithRetry 의 기본 sleep 은 인라인, refreshController/withAuthRetry 와 동일 패턴).
+- **Slice B — `src/records/useRecords.ts`**: records 상태 + load/persist/upsert/save 스파인 + 부트스트랩 effect. `saveCompletedRecord(finalResult, context)` — 교차도메인 메타(sessionId/scenarioId/scenarioTitle)는 App 이 호출 시점 주입(`?? "완료한 사건"` 폴백은 훅 내부). 계정 API→로컬 폴백 동작 보존.
+- **Slice C — `src/scenarios/useScenarios.ts`**: 라이브러리(필터/페이지네이션)·상세·북마크·리뷰 17 state + 9 함수 + 부트스트랩 effect. 인증 안내(`setAuthError`)·화면 전환(`setView`)은 주입해 함수의 인라인 네비를 1:1 보존. `setSelectedScenario`/`setReviewDraftTarget` 만 App 이 외부 사용(resumeRecord/render) → 노출.
+- **Slice D — `src/game/useGameSession.ts`**(최대): 사건/증거/용의자/타임라인/심문/제출폼 29 state + 9 함수 + **회귀 민감 폴링 effect(30초)·1초 타이머(loadCaseRef)** + unlockedEvidences/accusableSuspects 메모 + `resetGameSession`. 주입 = `view`(폴링 게이트)·`authToken`·`authedRequest`·`setView`·`saveInProgressRecord`. 로그아웃 리셋은 `resetGameRef`(useGameSession 이 useAuth 뒤라 ref 로 연결, 기존 loadCaseRef 패턴과 동형). 결과 흐름(submitDeduction/retryResultLoad/openResultForSession)은 게임 폼·세션·기록을 교차로 읽어 **App 오케스트레이터에 잔류**.
+- **Slice E — `src/result/useResult.ts`**: 결과 상태(submitting/pendingResultSessionId/result) + `pollResult`(pollWithRetry 소비). 제출/재시도 오케스트레이션은 App 에 남고 이 훅의 state/pollResult 를 소비.
+- **결과**: **App.tsx 1598 → 800줄(−50% 이번 세션; 원본 5,565 → 800, −86%)**. App 은 이제 view/imagePreview state + 5 훅(auth/records/scenarios/game/result) + 오케스트레이터(submitDeduction/retryResultLoad/openResultForSession/resumeRecord/scenarioFromRecord/openProfile) + 렌더만. 새 파일 6 + 테스트 2(`src/auth/useAuth.ts` 에 공유 `AuthedRequest` 타입 export 추가).
+- **게이트 전부 통과(슬라이스마다)**: `npm test` **23/23**, `npm run lint` 0, `npx tsc -b` **0 errors**, `npm run build` 성공. tsc 0 = "App 이 참조하는 모든 훅 멤버가 return 에 존재"(배선 누락 0) 보증. 브라우저 육안 확인은 koo `npm run dev` 로 남음(폴링·제출·로그아웃 리셋 흐름 위주).
+- **⚠ 미커밋(working tree)**: 새 파일/수정 전부 로컬만. `.omc/` 외 `src/{game,lib/pollWithRetry*,records,scenarios,result}/` + `App.tsx`·`auth/useAuth.ts` 변경. koo 명시 요청 시 커밋.
+
+## ▶ 다음 작업 (전 화면 + game_modals + Phase 4 ✅ 완료 — 남은 영역)
+화면·시트 정본화 + 훅 분해 전부 끝났고, 남은 건 **Phase 6 + 정리**:
 - **Phase 6**: Splash 2.2s 모션 / Onboarding 5슬라이드(koo #5, 둘 다 픽셀 복원). `splash_screen.dart` · `onboarding_screen.dart`.
 - **(선택) dead App.css 정리**: 옛 화면 전용 클래스(.profile-card/.record-card/.detective-grade-card/.menu-item/.screen-title/.info-card/.stat/.filter-group/.scenario-card/.review-dialog/.modal-shell 등) 삭제로 번들 축소(공유 여부 grep 후).
 - **확립된 레시피**: bare 단일 화면 = 자체 AppBar + 페이지 스크롤(+sticky 하단 바 옵션). 탭 셸 = 고정 상단/하단 + 100dvh inner-overflow(허브/심문). 앱 탭(home/library/records/profile) = bare/비-bare + APP_NAV BottomNav(main 패딩 상속). 공유 카드 = `domain/ScenarioRow`. **바텀시트 = 공유 `Sheet` 프리미티브 위에 콘텐츠**(다이얼로그는 `Modal`).

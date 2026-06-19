@@ -40,6 +40,17 @@ export type UseAuthArgs = {
   onLogout: () => void;
 };
 
+/**
+ * 인증 요청 스파인의 호출 시그니처 — 도메인 훅(useRecords/useScenarios/…)이
+ * 주입받아 쓰는 공유 타입. authedRequest/optionalAuthRequest 둘 다 이 형태.
+ */
+export type AuthedRequest = <T>(
+  path: string,
+  options?: RequestInit & {
+    query?: Record<string, string | number | boolean>;
+  },
+) => Promise<T>;
+
 export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
   const [tokens, setTokens] = useState<Tokens | null>(null);
   const [authReady, setAuthReady] = useState(false);
