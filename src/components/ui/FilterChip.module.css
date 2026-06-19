@@ -1,0 +1,33 @@
+/* 정본: filter_chip_row.dart / filter_chip_widget.dart */
+.chip {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  padding: var(--chip-pad-v) var(--chip-pad-h); /* 5 10 */
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--text-sub);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-mono-label); /* 11 */
+  letter-spacing: var(--ls-mono-label); /* 1.98 */
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color var(--dur2) var(--ease-out),
+    border-color var(--dur2) var(--ease-out),
+    color var(--dur2) var(--ease-out); /* AnimatedContainer dur2 */
+}
+
+/* Flutter 칩은 press scale 없음 — index.css 전역 스케일 무력화 */
+.chip:active {
+  transform: none;
+}
+
+.active {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
+}

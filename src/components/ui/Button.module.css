@@ -1,0 +1,78 @@
+/* 정본: ms_button.dart */
+.button {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--btn-icon-gap); /* 6 — icon ↔ label */
+  height: var(--btn-h); /* 48 */
+  padding: var(--sp2) var(--sp4); /* 8 16 */
+  border: none;
+  border-radius: var(--r3); /* 8 */
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-sans);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition: transform var(--dur1) var(--ease-out); /* AnimatedScale dur1 */
+}
+
+.button:active {
+  transform: scale(0.98); /* Flutter press scale .98 */
+}
+
+.button:disabled {
+  cursor: default;
+}
+
+.expanded {
+  width: 100%;
+}
+
+/* 아이콘 전용: 정사각 48×48, 가로 패딩 축소 */
+.iconOnly {
+  width: var(--btn-h);
+  padding-left: var(--sp2);
+  padding-right: var(--sp2);
+  gap: 0;
+}
+
+.label {
+  min-width: 0; /* expanded 시 ellipsis 위해 축소 허용 */
+  font-size: var(--fs-lg); /* 14 */
+  font-weight: 600; /* Pretendard 400/700 번들 → 700로 매칭(= Flutter 동작) */
+  letter-spacing: -0.05px;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.icon {
+  flex: none;
+}
+
+/* ── variants ── */
+.primary {
+  background: var(--primary);
+  color: var(--primary-ink);
+}
+.secondary {
+  background: transparent;
+  color: var(--text);
+  border: var(--stroke-sm) solid var(--line);
+}
+.ghost {
+  background: transparent;
+  color: var(--text-sub);
+}
+.danger {
+  background: var(--danger);
+  color: var(--ink0);
+}
+
+/* onPress==null 일 때만 (loading 은 제외) */
+.disabled {
+  opacity: 0.42;
+}

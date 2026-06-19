@@ -1,0 +1,23 @@
+/* 정본: ms_kicker.dart */
+.kicker {
+  display: flex;
+  align-items: center;
+  gap: var(--sp2); /* 8 */
+}
+
+.label {
+  flex: none;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-mono-label); /* 11 */
+  letter-spacing: var(--ls-mono-label); /* 1.98 */
+  line-height: 1;
+  color: var(--text-mute);
+  white-space: nowrap;
+}
+
+.divider {
+  flex: 1 1 auto;
+  height: var(--stroke-sm); /* 1px Divider(thickness 1) */
+  background: var(--line);
+}

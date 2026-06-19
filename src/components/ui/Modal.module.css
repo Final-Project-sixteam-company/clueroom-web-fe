@@ -1,0 +1,114 @@
+/* 정본: overlays.dart showMSModal */
+.scrim {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp4); /* 카드 좌우 16 여백 */
+  background: var(--scrim); /* ink900 70% */
+  z-index: 1100;
+}
+
+.entering {
+  animation: modal-scrim-in var(--dur3) var(--ease-out) both;
+}
+.leaving {
+  animation: modal-scrim-out var(--dur3) var(--ease-out) both;
+}
+
+@keyframes modal-scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes modal-scrim-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.wrap {
+  width: 100%;
+  max-width: 360px;
+}
+
+.card {
+  box-sizing: border-box;
+  padding: var(--sp6); /* 24 */
+  background: var(--bg-elev);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r6); /* 14 */
+  box-shadow:
+    0 8px 24px var(--shadow-card),
+    0 2px 8px var(--shadow-card);
+}
+
+/* 카드는 scrim 과 함께 fade + scale(.98→1) + 8px up */
+.entering .card {
+  animation: modal-card-in var(--dur3) var(--ease-out) both;
+}
+.leaving .card {
+  animation: modal-card-out var(--dur3) var(--ease-out) both;
+}
+
+@keyframes modal-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes modal-card-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+.title {
+  margin: 0 0 var(--sp4); /* 16 */
+  font-family: var(--font-sans);
+  font-size: var(--fs-title-m); /* 18 */
+  font-weight: 700;
+  letter-spacing: var(--ls-title-m); /* -0.18 */
+  line-height: var(--lh-title-m); /* 1.25 */
+  color: var(--text);
+}
+
+.body {
+  margin: 0 0 var(--sp6); /* 24 */
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 body */
+  font-weight: 400;
+  line-height: var(--lh-body); /* 1.6 */
+  color: var(--text-sub);
+}
+
+.actions {
+  display: flex;
+  gap: var(--sp3); /* 12 */
+}
+
+.action {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* 액션 버튼은 셀 폭을 채움(Flutter Expanded + expanded:true) */
+.action > * {
+  width: 100%;
+}
