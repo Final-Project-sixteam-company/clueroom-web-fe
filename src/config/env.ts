@@ -1,0 +1,29 @@
+export const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? "https://api.clueroom.xyz";
+export const GOOGLE_CLIENT_ID =
+  import.meta.env.VITE_GOOGLE_CLIENT_ID ??
+  import.meta.env.VITE_GOOGLE_SERVER_CLIENT_ID ??
+  "";
+export const KAKAO_JAVASCRIPT_KEY =
+  import.meta.env.VITE_KAKAO_JAVASCRIPT_KEY ?? "";
+export const ENABLE_GOOGLE_LOGIN = !!GOOGLE_CLIENT_ID;
+export const ENABLE_KAKAO_LOGIN = !!KAKAO_JAVASCRIPT_KEY;
+export const ENABLE_DEV_LOGIN =
+  import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_LOGIN === "true";
+export const DEFAULT_QA_LOGIN_EMAIL = (
+  import.meta.env.VITE_QA_LOGIN_EMAIL ?? ""
+).trim();
+export const QA_LOGIN_NICKNAME =
+  (import.meta.env.VITE_QA_LOGIN_NICKNAME ?? "ClueRoom QA").trim() ||
+  "ClueRoom QA";
+export const ENABLE_QA_LOGIN =
+  (import.meta.env.DEV || import.meta.env.VITE_ENABLE_QA_LOGIN === "true");
+export const KAKAO_LOGIN_STATE = "clueroom-kakao-login";
+
+export const ACCESS_KEY = "clueroom.accessToken";
+export const REFRESH_KEY = "clueroom.refreshToken";
+export const DEVICE_KEY = "clueroom.deviceId";
+export const RECORDS_KEY = "clueroom.records";
+export const CASE_REFRESH_SECONDS = 30;
+export const SCENARIO_PAGE_SIZE = 20;
+export const MIN_DEDUCTION_TEXT_LENGTH = 5;
