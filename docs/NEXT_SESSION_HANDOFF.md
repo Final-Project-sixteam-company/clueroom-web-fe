@@ -68,12 +68,18 @@ ClueRoom Flutter 앱(`../project-fe`)을 이 React 웹앱(`clueroom-toss-miniapp
 - 테스트 인프라: `tsconfig.app.json`에 `exclude: ["src/**/*.test.ts"]`(빌드 타입체크에서 테스트 제외, `@types/node` 불필요).
 - App.tsx **4,607 → 4,487줄**. **게이트 4종 전부 통과: `npm test` 6/6, `tsc -b` 0 errors, `lint` 0, `build` 성공.** 동작 무변화(refresh/guard 의미 보존, 테스트로 고정).
 
-## ▶ 다음 작업: Phase 3b — useAuth/authClient 훅 분리 + 컴포넌트 킷 (계획 §3·§6)
-> ⚠ god-component split의 본체. `authedRequest`가 데이터 계층 **척추(30+ 호출처)**, `logout`이 게임/세션 상태 8종까지 리셋 → **경계 설계 필요**(useAuth가 auth만 소유, App이 game-state 리셋·`setView` 오케스트레이션).
-1. `src/auth/authClient.ts` — auth 엔드포인트 순수 래퍼(`/api/auth/oauth|oauth/kakao/code|dev|refresh|logout`, `GET /api/auth/me`). login 핸들러의 inline `request(...)` 제거.
-2. `src/auth/useAuth.ts` — auth state(`tokens`/`profile`/`authReady`/`authError`) + `refreshController` + `authedRequest`/`optionalAuthRequest` + login 3종 + `loadProfile`을 훅으로. `authedRequest`는 destructure로 같은 이름 유지 → **호출처 30+ 무변경**. `logout`은 auth 부분만 소유 + `onLogout` 콜백으로 App이 game-state 리셋.
-3. `src/components/ui/` ms_* 13종 포팅(+중복 통합: FilterChip·ImageViewerModal) — 계획 §6. (Phase 1 토큰 위에 올림.)
-- 게이트: `npm test`(useAuth/authedRequest 401→refresh→retry 통합 테스트 추가) + `lint`/`tsc -b`/`build`. 회귀 금지 나머지 2종(30초 폴링·1초 타이머)은 Phase 4 `useGameSession`.
+## ✅ Phase 3b — auth 훅 분리 완료 (2026-06-19) *(컴포넌트 킷은 별도 패스)*
+god-component split의 본체. 모든 회귀 민감 로직을 **순수 + 단위테스트**로 먼저 빼고, 훅은 그 위에 배선만.
+1. `src/auth/authClient.ts` — auth 엔드포인트 5종 순수 래퍼(`oauthLogin`/`kakaoCodeLogin`/`devLogin`/`refreshSession`/`serverLogout`). login·bootstrap·logout·refreshTokens의 inline `request(...)` 6곳 제거.
+2. `src/auth/withAuthRetry.ts` (+ `.test.ts` 6종) — `authedRequest`/`optionalAuthRequest`의 **401→refresh→retry 핸드셰이크를 순수 헬퍼로 추출**. `ApiError` 결합을 `isUnauthorized` 주입으로 끊어 fetch mock 없이 검증. required(throw)/optional(익명 폴백) 분기는 `onMissingToken`/`onRefreshExhausted` 주입으로 1:1 표현.
+3. `src/auth/useAuth.ts` — auth state(`tokens`/`profile`/`authReady`/`authError`+loading/error) + `refreshController` ref + `authedRequest`/`optionalAuthRequest` + `refreshTokens` + login 3종 + `loadProfile` + **부트스트랩 effect**를 훅으로 이동. **경계**: `useAuth({ onAuthenticated, onLogout })` — 로그인 성공→`onAuthenticated`(App이 `setView("home")`), logout의 게임상태 8종 리셋+`setView("login")`는 `onLogout` 콜백(App 소유). `authedRequest` 등은 destructure로 같은 이름 유지 → **호출처 30+ 무변경**.
+- App.tsx **4,487 → 4,244줄**(세션 누적 5,565→4,244, −24%). import 14개 정리(`createRefreshController`/authClient 5종/`withAuthRetry`/`request`/`getDeviceId`/`ACCESS_KEY`/`REFRESH_KEY`/`normalizeUserProfile`/`Tokens` 등).
+- **게이트 전부 통과: `npm test` 12/12, `tsc -b` 0 errors, `lint` 0, `build` 성공.** tsc 0은 "App이 참조하는 모든 auth 멤버가 훅 return에 존재"를 보증(배선 누락 0). 브라우저 육안 확인만 koo `npm run dev`로 남음.
+
+## ▶ 다음 작업: 컴포넌트 킷(ms_* 13종) → Phase 4 기능 훅
+1. **컴포넌트 킷** — `src/components/ui/` ms_* 13종 포팅(+중복 통합: FilterChip·ImageViewerModal) — 계획 §6. Phase 1 토큰 위에 올림. 성격이 디자인/픽셀이라 auth 분해와 분리된 패스.
+2. **Phase 4 — 기능 훅 분해** — `useScenarios`/`useGameSession`/`useRecords`/`useResult`로 god-state 마저 분리, `App.tsx`는 `view` 스위치만. ⚠ **회귀 금지 나머지 2종**(30초 status-gated 폴링·1초 타이머 `loadCaseRef`)은 `useGameSession` 추출 시 다룸 — **추출 후 단위테스트**(refreshController/withAuthRetry와 동일 패턴: 폴링 게이팅·타이머 로직을 순수 추출 후 검증).
+- auth 쪽 순수 헬퍼(refreshController/withAuthRetry)가 이미 테스트로 고정돼 있어, Phase 4의 폴링/타이머도 같은 "순수 추출 → node:test" 레시피로 가면 됨.
 
 ## 작업 규칙
 - 작업 브랜치 `feat/react-migration-tokens` 이어서 사용(또는 Phase별 분기). 커밋/푸시는 명시 요청 시에만.

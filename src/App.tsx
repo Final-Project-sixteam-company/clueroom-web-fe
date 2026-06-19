@@ -9,15 +9,12 @@ import {
   QA_LOGIN_NICKNAME,
   ENABLE_QA_LOGIN,
   KAKAO_LOGIN_STATE,
-  ACCESS_KEY,
-  REFRESH_KEY,
   RECORDS_KEY,
   CASE_REFRESH_SECONDS,
   MIN_DEDUCTION_TEXT_LENGTH,
 } from "./config/env";
 import type {
   View,
-  Tokens,
   UserProfile,
   RecordItem,
   ImagePreview,
@@ -38,9 +35,8 @@ import type {
   ChatMessage,
   Result,
 } from "./types";
-import { safeGet, safeSet, safeRemove, delay, getDeviceId } from "./lib/storage";
+import { safeGet, safeSet, safeRemove, delay } from "./lib/storage";
 import { ApiError } from "./api/ApiError";
-import { request } from "./api/request";
 import {
   normalizeScenario,
   buildScenarioQuery,
@@ -52,7 +48,6 @@ import {
   normalizeSuspect,
   normalizeInterrogationLog,
   messagesFromLogs,
-  normalizeUserProfile,
   normalizeRecord,
   normalizeReview,
   normalizeResult,
@@ -66,27 +61,10 @@ import {
   ensureKakaoInitialized,
   kakaoRedirectUri,
 } from "./auth/sdkLoaders";
-import {
-  createRefreshController,
-  type RefreshController,
-} from "./auth/refreshController";
-import {
-  oauthLogin,
-  kakaoCodeLogin,
-  devLogin,
-  refreshSession,
-  serverLogout,
-} from "./auth/authClient";
-import { withAuthRetry } from "./auth/withAuthRetry";
+import { useAuth } from "./auth/useAuth";
 
 function App() {
   const [view, setView] = useState<View>("home");
-  const [tokens, setTokens] = useState<Tokens | null>(null);
-  const [authReady, setAuthReady] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [profileLoading, setProfileLoading] = useState(false);
-  const [profileError, setProfileError] = useState<string | null>(null);
   const [records, setRecords] = useState<RecordItem[]>([]);
   const [recordsSource, setRecordsSource] = useState<"server" | "local">(
     "local",
@@ -174,57 +152,35 @@ function App() {
   >(null);
   const [result, setResult] = useState<Result | null>(null);
 
-  const authToken = tokens?.accessToken ?? null;
-  const refreshControllerRef = useRef<RefreshController | null>(null);
-  const refreshController = (refreshControllerRef.current ??=
-    createRefreshController());
-
-  useEffect(() => {
-    void (async () => {
-      const callbackParams = new URLSearchParams(window.location.search);
-      if (
-        ENABLE_KAKAO_LOGIN &&
-        callbackParams.get("state") === KAKAO_LOGIN_STATE
-      ) {
-        const code = callbackParams.get("code");
-        const kakaoError =
-          callbackParams.get("error_description") ?? callbackParams.get("error");
-        window.history.replaceState(null, "", "/");
-        if (code) {
-          await handleKakaoAuthorizationCode(code);
-        } else if (kakaoError) {
-          setAuthError(kakaoError);
-        } else {
-          setAuthError("Kakao 로그인 응답을 확인하지 못했습니다.");
-        }
-        setAuthReady(true);
-        return;
-      }
-
-      const accessToken = await safeGet(ACCESS_KEY);
-      const legacyRefreshToken = await safeGet(REFRESH_KEY);
-      if (accessToken) {
-        setTokens({ accessToken });
-        await safeRemove(REFRESH_KEY);
-      } else {
-        const generation = refreshController.generation;
-        try {
-          const next = await refreshSession(legacyRefreshToken);
-          if (generation === refreshController.generation) {
-            await persistTokens(next);
-          }
-        } catch {
-          if (generation === refreshController.generation) {
-            await safeRemove(ACCESS_KEY);
-            await safeRemove(REFRESH_KEY);
-          }
-        }
-      }
-      setAuthReady(true);
-    })();
-    // Kakao callback and persisted-token bootstrap must run once on initial load.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const {
+    tokens,
+    authToken,
+    authReady,
+    authError,
+    setAuthError,
+    profile,
+    profileLoading,
+    profileError,
+    authedRequest,
+    optionalAuthRequest,
+    loadProfile,
+    logout,
+    handleGoogleCredential,
+    handleDevLogin,
+  } = useAuth({
+    onAuthenticated: () => setView("home"),
+    onLogout: () => {
+      setSessionId(null);
+      setDashboard(null);
+      setEvidences([]);
+      setSuspects([]);
+      setTimeline([]);
+      setLocations([]);
+      setCaseMapImageUrl(undefined);
+      setHints([]);
+      setView("login");
+    },
+  });
 
   useEffect(() => {
     if (authReady) void loadScenarios();
@@ -267,45 +223,6 @@ function App() {
 
     return () => window.clearInterval(timerId);
   }, [dashboardSessionId, dashboardStatus, view]);
-
-  async function persistTokens(next: Tokens) {
-    const browserTokens: Tokens = {
-      ...next,
-      refreshToken: undefined,
-    };
-    await safeSet(ACCESS_KEY, next.accessToken);
-    await safeRemove(REFRESH_KEY);
-    setTokens(browserTokens);
-  }
-
-  async function replaceAuthSession(next: Tokens) {
-    refreshController.bumpGeneration();
-    await persistTokens(next);
-  }
-
-  async function logout() {
-    refreshController.reset();
-    const legacyRefreshToken = tokens?.refreshToken ?? (await safeGet(REFRESH_KEY));
-    try {
-      await serverLogout(legacyRefreshToken);
-    } catch {
-      // 서버 revoke 실패와 무관하게 로컬 로그아웃은 완료한다.
-    } finally {
-      await safeRemove(ACCESS_KEY);
-      await safeRemove(REFRESH_KEY);
-      setTokens(null);
-      setProfile(null);
-      setSessionId(null);
-      setDashboard(null);
-      setEvidences([]);
-      setSuspects([]);
-      setTimeline([]);
-      setLocations([]);
-      setCaseMapImageUrl(undefined);
-      setHints([]);
-      setView("login");
-    }
-  }
 
   async function loadLocalRecords() {
     const stored = await safeGet(RECORDS_KEY);
@@ -559,136 +476,6 @@ function App() {
       updatedAt: new Date().toISOString(),
       completedAt: new Date().toISOString(),
     });
-  }
-
-  async function loadProfile() {
-    setProfileLoading(true);
-    setProfileError(null);
-    try {
-      const data = await authedRequest<unknown>("/api/auth/me");
-      setProfile(normalizeUserProfile(data));
-    } catch (error) {
-      setProfileError(
-        error instanceof Error
-          ? error.message
-          : "내 정보를 불러오지 못했습니다.",
-      );
-      setProfile({
-        nickname: "탐정 견습생",
-        provider: "WEB",
-      });
-    } finally {
-      setProfileLoading(false);
-    }
-  }
-
-  async function refreshTokens() {
-    return refreshController.refresh<Tokens>({
-      fetchTokens: async () => {
-        const legacyRefreshToken =
-          tokens?.refreshToken ?? (await safeGet(REFRESH_KEY));
-        return refreshSession(legacyRefreshToken);
-      },
-      extractToken: (next) => next.accessToken,
-      persist: (next) => persistTokens(next),
-      clearOnFailure: async () => {
-        await safeRemove(ACCESS_KEY);
-        await safeRemove(REFRESH_KEY);
-        setTokens(null);
-      },
-    });
-  }
-
-  function authedRequest<T>(
-    path: string,
-    options: RequestInit & {
-      query?: Record<string, string | number | boolean>;
-    } = {},
-  ) {
-    return withAuthRetry<T>({
-      getToken: async () => tokens?.accessToken ?? (await safeGet(ACCESS_KEY)),
-      send: (token) => request<T>(path, { ...options, token }),
-      refresh: refreshTokens,
-      isUnauthorized: (error) =>
-        error instanceof ApiError && error.status === 401,
-      onMissingToken: () => {
-        throw new ApiError("로그인이 필요합니다.", "AUTH_REQUIRED", 401);
-      },
-      onRefreshExhausted: (original) => {
-        throw original;
-      },
-    });
-  }
-
-  function optionalAuthRequest<T>(
-    path: string,
-    options: RequestInit & {
-      query?: Record<string, string | number | boolean>;
-    } = {},
-  ) {
-    return withAuthRetry<T>({
-      getToken: async () => tokens?.accessToken ?? (await safeGet(ACCESS_KEY)),
-      send: (token) => request<T>(path, { ...options, token }),
-      refresh: refreshTokens,
-      isUnauthorized: (error) =>
-        error instanceof ApiError && error.status === 401,
-      onMissingToken: () => request<T>(path, options),
-      onRefreshExhausted: () => request<T>(path, options),
-    });
-  }
-
-  async function handleGoogleCredential(idToken: string) {
-    setAuthError(null);
-    try {
-      const deviceId = await getDeviceId();
-      const data = await oauthLogin(idToken, deviceId);
-      await replaceAuthSession(data);
-      setView("home");
-    } catch (error) {
-      setAuthError(
-        error instanceof Error
-          ? error.message
-          : "Google 로그인 연동에 실패했습니다.",
-      );
-    }
-  }
-
-  async function handleKakaoAuthorizationCode(authorizationCode: string) {
-    setAuthError(null);
-    try {
-      const deviceId = await getDeviceId();
-      const data = await kakaoCodeLogin(
-        authorizationCode,
-        kakaoRedirectUri(),
-        deviceId,
-      );
-      await replaceAuthSession(data);
-      setView("home");
-    } catch (error) {
-      setAuthError(
-        error instanceof Error
-          ? error.message
-          : "Kakao 로그인 연동에 실패했습니다.",
-      );
-    }
-  }
-
-  async function handleDevLogin(
-    email: string,
-    nickname?: string,
-    fallbackMessage = "개발 로그인에 실패했습니다.",
-  ) {
-    setAuthError(null);
-    try {
-      const deviceId = await getDeviceId();
-      const data = await devLogin(email, nickname, deviceId);
-      await replaceAuthSession(data);
-      setView("home");
-    } catch (error) {
-      setAuthError(
-        error instanceof Error ? error.message : fallbackMessage,
-      );
-    }
   }
 
   async function loadScenarios(filter = scenarioFilter) {
