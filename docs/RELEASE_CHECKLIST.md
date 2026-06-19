@@ -3,7 +3,7 @@
 Last updated: 2026-06-19
 
 이 문서는 `https://www.clueroom.xyz` 일반 웹 배포 기준 체크리스트다.
-외부 미니앱 패키징 경로는 폐기되었고, standalone Android 앱 배포는 `start-up-fe`에서 별도로 관리한다.
+외부 SDK/패키징 경로는 폐기되었고, standalone Android 앱 배포는 `start-up-fe`에서 별도로 관리한다.
 
 ## Local Build Gate
 

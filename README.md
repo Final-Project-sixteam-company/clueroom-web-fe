@@ -94,7 +94,7 @@ npm run build
 
 ```text
 로컬 PC Git Bash
-C:\java\assignment\spring\clueroom-toss-miniapp
+React/Vite web frontend checkout root
 ```
 
 사전 조건:
