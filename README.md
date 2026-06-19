@@ -181,7 +181,5 @@ SSH_TARGET=clueroom-staging PUBLIC_URL=https://staging.example.com bash scripts/
 
 제외한 것:
 
-- Apps in Toss `.ait` 빌드
-- Toss `appLogin()`
 - Android APK/AAB
 - FCM
