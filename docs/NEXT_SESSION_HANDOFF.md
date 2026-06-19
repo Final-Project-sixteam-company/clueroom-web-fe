@@ -26,20 +26,21 @@ ClueRoom Flutter→React 마이그레이션을 이어서 진행합니다. 작업
   · 심문 채팅 InterrogationChatScreen + EvidencePresentSheet(src/components/screens/interrogation/ — interrogation_chat_screen.dart 외). bare 100dvh flex: AppBar(back/이름·역할/증거제시) + 메시지(용의자·탐정 말풍선+대기, 자동 하단 스크롤) + 추천질문 칩(웹 캔드 3개) + 입력바. 증거 제시=EvidencePresentSheet 바텀시트(검색+리스트, 기능 이식). prop 계약 동일 → ChatScreen 태그명만 교체. 옛 ChatScreen/EvidencePickerDialog(~202줄) 제거 → App.tsx 2960줄. ⚠ 정본 AppBar 힌트 버튼 생략(웹 챗 hints 미전달).
   · 증거 상세 EvidenceDetailScreen + 용의자 상세 SuspectDetailScreen(src/components/screens/ — evidence_detail/suspect_detail_*.dart). bare 상세 레시피(자체 AppBar + 페이지 스크롤). 증거=히어로86/상태 Pill/관찰 정보 카드(설명·관련 용의자·타임라인·가이던스). 용의자=프로필(CharacterPortrait 80)/관계/관련 증거(EvidenceItem)/진술 카드/심문 로그 + sticky 하단 바(뒤로/심문하기/범인 지목). prop 계약 동일 → 태그명만 교체. 옛 GuidanceBlock/EvidenceDetailScreen/SuspectDetailScreen/Avatar/인라인 TimelineList 제거 → App.tsx 2537줄.
   · 제출 SubmitScreen + 결과 ResultScreen(src/components/screens/ — submit/result_*.dart). **§9 게임 흐름 전부 이식 완료.** 제출=bare(back 바)+폼(헤더/진범 select/동기·방법·은폐 TextField/증거 셀렉터/체크리스트/제출 danger) + kit Modal 확인. 결과=bare('CASE CLOSED')+등급 헤더(display96 fade-in)/매칭 카드/맞춘·놓친/해설/확인된 증거/추천 사건/3버튼. prop 계약 동일 → 태그명만 교체. 옛 인라인 5함수 제거 → App.tsx 2125줄(세션 누적 −62%).
+  · **비-게임 3종(2026-06-20)**: 기록 RecordsScreen(my_records_screen.dart — 탭, 등급카드+StatRow+필터칩+세션카드) · 내 정보 ProfileScreen(my_page_screen.dart — 탭, 프로필카드+메뉴, 로그아웃=kit Modal·준비중=kit Toast) · 북마크 BookmarksScreen(전용 정본 없음 — bare 자체 AppBar + 공유 ScenarioRow). **라이브러리 _ScenarioRow → domain/ScenarioRow 공유 추출**(Library/Bookmarks 공용). **ToastProvider 를 main.tsx 앱 루트에 마운트**. 옛 인라인 9함수 + recordsSource state 제거 → **App.tsx 1693줄(세션 누적 −70%)**. ✅ **전 화면 이식 완료.**
 
 ## ⚠ 알아둘 것
 - 게이트(완료 주장 전 필수): npm test && npm run lint && npx tsc -b && npm run build. tsc -b가 타입 게이트 정본(build=vite/esbuild라 타입체크 안 함). 현재 0 errors 유지.
 - 테스트=node --test(Node 23 타입스트리핑, 의존성 0). tsconfig.app.json은 *.test.ts를 빌드 타입체크에서 exclude.
 - 화면 이식 방침: 픽셀=Flutter 정본, 데이터/동작=웹 보존(koo 확정 #4). 컴포넌트는 프리젠테이션(웹 타입 props + 콜백). Flutter엔 있고 웹에 없는 필드는 옵션 prop.
-- 셸 현황: **§9 게임 화면 전부 이식 완료**(home/library/scenarioDetail/briefing/case 허브+4탭/chat/evidenceDetail/suspectDetail/submit/result). **아직 옛 마크업(미이식)** = **records/profile/bookmarks(비-게임)만**. 비-탭 단일 화면 = 자체 AppBar + 페이지 스크롤(+sticky 하단 바 옵션). 탭/채팅 셸 = 고정 상단/하단 + 100dvh inner-overflow. 앱 탭(records/profile) = bare + APP_NAV BottomNav.
+- 셸 현황: **전 화면 이식 완료**(§9 게임 흐름 + 비-게임 records/profile/bookmarks). App.tsx 에 옛 화면 인라인 마크업 0. 비-탭 단일 화면 = 자체 AppBar + 페이지 스크롤(+sticky 하단 바 옵션). 탭/채팅 셸 = 고정 상단/하단 + 100dvh inner-overflow. 앱 탭(home/library/records/profile) = bare/비-bare + APP_NAV BottomNav. 공유 리스트 카드 = domain/ScenarioRow.
 - 회귀 금지(보존): request 엔벨로프·401→refresh→retry(single-flight refreshInFlightRef + generation guard)·**30초 status-gated 폴링·1초 타이머(loadCaseRef)**·accessToken localStorage + http-only refresh 쿠키. auth는 순수헬퍼+테스트로 고정됨.
 - 홈은 / (앱 기본 view, 미로그인도 렌더). 각 컴포넌트 파일 상단에 .dart 정본 출처 주석 있음 → 1:1 대조 가능.
 
-## ▶ 다음 작업 (§9 게임 화면 ✅ 완료 — 남은 영역)
-- **비-게임 옛 마크업 이식**: 기록 my_records_screen.dart(records) · 내 정보 my_page_screen.dart(profile) · 북마크(bookmarks). 앱 탭 화면(records/profile)은 bare + APP_NAV BottomNav 셸. 옛 인라인 교체.
-- **game_modals 정본 픽셀화**: HintSheet/EvidencePresentSheet/CaseBriefingSheet/ReviewWriteSheet(현재 힌트/브리핑/제출확인=kit Modal 임시, EvidencePresentSheet=기능 이식 → 정본 바텀시트 드래그 핸들·모션).
-- **Phase 4 기능 훅 분해**: god-state(App.tsx 2125줄) — useScenarios/useGameSession/useRecords/useResult. ⚠ 회귀 금지 폴링(30초)·1초 타이머 순수추출 → node:test.
+## ▶ 다음 작업 (전 화면 이식 ✅ 완료 — 남은 영역)
+- **game_modals 정본 픽셀화**: HintSheet/EvidencePresentSheet/CaseBriefingSheet/ReviewWriteSheet(현재 힌트/브리핑/제출확인/로그아웃확인=kit Modal 임시, EvidencePresentSheet=기능 이식 → 정본 바텀시트 드래그 핸들·모션).
+- **Phase 4 기능 훅 분해**: god-state(App.tsx 1693줄) — useScenarios/useGameSession/useRecords/useResult. ⚠ 회귀 금지 폴링(30초)·1초 타이머 순수추출 → node:test.
 - **Phase 6**: Splash 2.2s / Onboarding 5슬라이드(koo #5) — splash_screen.dart · onboarding_screen.dart.
+- **(선택) dead App.css 정리**: 옛 화면 전용 클래스(.profile-card/.record-card/.detective-grade-card/.menu-item/.screen-title/.info-card/.stat/.filter-group/.scenario-card 등) 삭제로 번들 축소(공유 여부 grep 후).
 
 ## 작업 규칙
 - 완료 주장 전 4 게이트. tsc -b 0 유지. 이식은 Flutter 정본과 1:1 대조 가능하게(파일 상단 .dart 출처 주석).
@@ -253,13 +254,27 @@ koo 지적("배포앱 https://www.clueroom.xyz 로그인에 Google·Kakao 세팅
 - **⚠ koo 확인**: ① 정본 4번 '종합 추리 설명(선택)' summary 생략(웹 계약에 없음). ② 제출 체크리스트는 정본대로 미충족 시에만 노출(웹은 항상). ③ 결과 버튼 = 정본 단일('홈으로')과 달리 웹 3버튼 보존. ④ '다음 추천 사건'은 웹 전용(정본 result 엔 없음).
 - **게이트 전부 통과**: `npm test` 12/12, `lint` 0, `npx tsc -b` **0 errors**, `npm run build` 성공(메인 번들 css 82.34→90.93kB, js 330.71→336.43kB; lucide TriangleAlert/CircleCheck/Circle/CircleX/FileQuestion 포함). 브라우저 육안 확인만 koo `npm run dev` → 허브 제출탭/용의자 범인지목 → 제출 → 결과로 남음.
 
-## ▶ 다음 작업 (§9 게임 화면 완료 — 남은 영역)
-게임 흐름은 전부 이식됐고, 남은 건 **비-게임 화면 + 부품 폴리시 + 분해 + Phase 6**:
-- **비-게임 옛 마크업 이식**: 기록 `my_records_screen.dart`(records) · 내 정보 `my_page_screen.dart`(profile) · 북마크(bookmarks). 앱 탭 화면(records/profile)은 허브가 아닌 **앱 BottomNav** 셸 — 탭 화면 레시피(bare + BottomNav). 옛 인라인 교체.
-- **game_modals 정본 픽셀화**: HintSheet/EvidencePresentSheet/CaseBriefingSheet/ReviewWriteSheet — 현재 힌트/브리핑=kit Modal 임시, 제출 확인도 kit Modal, EvidencePresentSheet=기능 이식 → 정본 바텀시트 픽셀(드래그 핸들·진입/퇴장 모션)로 교체.
-- **Phase 4 기능 훅 분해**: god-state(App.tsx 2125줄, 아직 큼) — useScenarios/useGameSession/useRecords/useResult. 회귀 금지 폴링(30초)·1초 타이머 순수추출 → node:test.
+## ✅ Phase 5 — 비-게임 화면 이식 완료 = 전 화면 이식 완료 🎉 (2026-06-20, 브랜치 `feat/react-migration-tokens`)
+§9 게임 흐름 밖의 **마지막 옛 인라인 마크업 3종**(records/profile/bookmarks)을 이식. 이로써 **앱의 모든 화면이 Flutter 충실 React 컴포넌트**가 됐고, App.tsx에서 옛 화면 마크업이 0이 됨. koo 확정(2026-06-20, AskUserQuestion): ① 프로필=Flutter 충실+북마크 진입 보존, ② 북마크=bare 단일화면+라이브러리 카드 재사용.
+
+- **신규 파일(각 `.module.css` + 상단 출처 주석)**: `RecordsScreen`(my_records_screen.dart) · `ProfileScreen`(my_page_screen.dart) · `BookmarksScreen`(전용 정본 없음). + 공유 카드 `domain/ScenarioRow`(아래).
+- **`ScenarioRow` 공유 추출**: 라이브러리 `_ScenarioRow`(48×60 썸네일+메타+통계 카드)를 `LibraryScreen` 로컬 → `src/components/domain/ScenarioRow.{tsx,module.css}`로 **verbatim 이동**(컴포넌트+CSS 1:1, 회귀 0) → Library/Bookmarks 공용. LibraryScreen 은 import만 교체(렌더 동일). `formatPlays` 는 ScenarioRow 내부 비공개(react-refresh 0 warn).
+- **RecordsScreen(탭, bare 아님 — main 패딩 상속)**: 헤더(내 기록 titleL + DETECTIVE FILE) → 탐정 등급 카드(그라디언트 ink800→teal30% · 52×52 마크 monoNum28 · 등급 A/B 동적) → `StatRow`(해결 사건/평균 점수/제작 수) → Kicker '기록 목록' → 킷 `FilterChip` 4탭(전체/완료/진행 중/내 시나리오) → 세션 카드 / 빈 상태(필터 문맥). **세션 카드**=상태 아이콘(완료 CircleCheck/진행 Clock)+코드(CL-NNN, scenarioId 0패딩)·날짜(MM.DD)+제목+ [완료=등급 박스 32×32 / 진행=카드 전체가 '이어하기' 버튼]. 옛 백버튼 제거(탭, 핸드오프 §176).
+- **ProfileScreen(탭)**: 헤더(마이페이지 titleL + PROFILE) → 프로필 카드(아바타 56 이미지우선+teal→sky 그라디언트 이니셜 폴백 · nickname · email, **웹 실데이터**) → (웹 전용)동기화 에러 카드 → 메뉴 [저장한 사건→북마크 · 알림 설정/도움말·튜토리얼/이용약관=준비중 토스트 · 로그아웃=danger]. **로그아웃 = 킷 Modal 확인**(취소/로그아웃 danger → onLogout). **준비중 = 킷 useToast**(Flutter SnackBar 대응). stats-grid·수사기록·라이브러리 메뉴는 koo 확정대로 제거(하단 네비/내 기록 중복).
+- **BookmarksScreen(비-탭, bare 자체 AppBar)**: 상세/브리핑 bare 레시피(100dvh flex + sticky AppBar 'SAVED CASES' + 페이지 스크롤). Kicker '저장한 사건 ── N건' + 공유 `ScenarioRow` 리스트. 상태=ListSkeleton/Empty(CloudOff 재시도)/Empty(Bookmark '아직 저장한 사건이 없습니다' + 사건 보러가기). prop 계약 동일 → `<BookmarkedScenariosScreen>` → `<BookmarksScreen>` 태그명만 교체. `view==="bookmarks"`를 bare 조건에 추가.
+- **ToastProvider 앱 루트 마운트**: `main.tsx`에서 `<App/>`을 `<ToastProvider>`로 감쌈(이전엔 미마운트 → useToast 첫 소비처가 profile이라 필수). Flutter MSToast 의 앱-전역 오버레이 대응.
+- **App.tsx 정리**: 옛 인라인 9함수 제거(`ProfileScreen`/`RecordsScreen`/`BookmarkedScenariosScreen`/`ScenarioCardList`/`FilterChips` + 고아 헬퍼 `SafeImage`/`ScreenTitle`/`InfoPanel`/`Stat`). `recordsSource` state+setter 4종 제거(Flutter 충실 records 가 server/local 라벨을 안 써 vestigial). 고아 import 정리(`initials`/`formatDateTime`/`formatDifficulty`/`UserProfile`). **App.tsx 2125 → 1693줄**(세션 누적 5,565→1,693, **−70%**). `StateBlock`/`TextArea`/`ReviewDialog`/`ImageViewer` 는 타 화면 공용이라 유지.
+- **⚠ koo 확인 필요(의도적 선택, 한 줄로 뒤집기 쉬움)**: ① RecordsScreen 등급은 Flutter 하드코딩 'A'/'주임 탐정' 대신 **웹 동적 A/B**(completed≥5 주임/이하 견습) 보존(koo #4 데이터=웹). ② 평균 stat = Flutter '평균 정답률 {n}%' 대신 **'평균 점수' raw** — 웹 score 가 %인지 불확실해 오라벨 방지. ③ RecordsScreen **진행바 생략**(웹 RecordItem 엔 progressPercent 없음) → 진행 카드는 '이어하기' 버튼으로 대체(웹 동작 보존). 완료 카드는 점수 숫자 미표시(등급 박스만, Flutter 픽셀). ④ records 필터칩=킷 FilterChip(10×5)로 통일(records 로컬 _FilterChip 12×6과 2px 차, 앱 칩 일관 트레이드오프). ⑤ Profile 동기화 에러 카드는 Flutter 엔 없는 웹 전용(로드 실패 재시도, koo #4 동작 보존). ⑥ Profile 헤더='마이페이지'/'PROFILE'(Flutter screen 정본; 하단 네비 탭 라벨은 '내 정보' = Flutter app_shell 정본 그대로, Flutter 자체 차이라 유지).
+- **남은 잔재(비차단)**: App.css 의 옛 화면 전용 클래스(`.profile-card`/`.record-card`/`.detective-grade-card`/`.menu-item`/`.screen-title`/`.info-card`/`.stat`/`.filter-group`/`.scenario-card` 등)는 이제 **dead CSS**(번들엔 남음 → css 90.9→100.2kB 증가분 일부). 공유 여부 확인 후 별도 정리 권장(이번엔 안전상 미삭제).
+- **게이트 전부 통과**: `npm test` 12/12, `lint` 0(warn 0), `npx tsc -b` **0 errors**, `npm run build` 성공(메인 번들 css 90.93→100.21kB, js 336.43→338.76kB; lucide CircleCheck/Clock/ClipboardList/SquarePen/Bookmark/Bell/HelpCircle/FileText/LogOut/ChevronRight/ArrowLeft/CloudOff 포함). 브라우저 육안 확인만 koo `npm run dev` → 기록/내 정보 탭 + 내 정보 '저장한 사건' 진입으로 남음.
+
+## ▶ 다음 작업 (전 화면 이식 완료 — 남은 영역)
+화면 이식은 전부 끝났고(게임 흐름 + 비-게임 3종), 남은 건 **부품 폴리시 + 분해 + Phase 6**:
+- **game_modals 정본 픽셀화**: HintSheet/EvidencePresentSheet/CaseBriefingSheet/ReviewWriteSheet — 현재 힌트/브리핑=kit Modal 임시, 제출/로그아웃 확인도 kit Modal, EvidencePresentSheet=기능 이식 → 정본 바텀시트 픽셀(드래그 핸들·진입/퇴장 모션)로 교체.
+- **Phase 4 기능 훅 분해**: god-state(App.tsx 1693줄) — useScenarios/useGameSession/useRecords/useResult. 회귀 금지 폴링(30초)·1초 타이머 순수추출 → node:test.
 - **Phase 6**: Splash 2.2s 모션 / Onboarding 5슬라이드(koo #5, 둘 다 픽셀 복원). `splash_screen.dart` · `onboarding_screen.dart`.
-- **확립된 레시피**: bare 단일 화면 = 자체 AppBar + 페이지 스크롤(+sticky 하단 바 옵션). 탭 셸 = 고정 상단/하단 + 100dvh inner-overflow(허브/심문). 앱 탭(records/profile) = bare + APP_NAV BottomNav.
+- **(선택) dead App.css 정리**: 위 ⚠ 잔재 — 옛 화면 전용 클래스 삭제로 번들 축소(공유 여부 grep 후).
+- **확립된 레시피**: bare 단일 화면 = 자체 AppBar + 페이지 스크롤(+sticky 하단 바 옵션). 탭 셸 = 고정 상단/하단 + 100dvh inner-overflow(허브/심문). 앱 탭(home/library/records/profile) = bare/비-bare + APP_NAV BottomNav(main 패딩 상속). 공유 카드 = `domain/ScenarioRow`.
 
 ## 🔎 컴포넌트 갤러리 (육안 검증용, 2026-06-19)
 프리미티브 12 + 도메인 카드를 한 화면에서 픽셀 대조하려고 갤러리를 깔아둠.

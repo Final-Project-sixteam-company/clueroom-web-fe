@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import "./theme/tokens.css";
 import "./index.css";
 import App from "./App.tsx";
+import { ToastProvider } from "./components/ui";
 
 // #gallery 해시일 때만 컴포넌트 킷 갤러리를 lazy 로드(별도 청크 → 앱 번들 무영향).
 // 평소 URL = 앱, http://localhost:5173/#gallery = 갤러리.
@@ -16,7 +17,9 @@ createRoot(document.getElementById("root")!).render(
         <Gallery />
       </Suspense>
     ) : (
-      <App />
+      <ToastProvider>
+        <App />
+      </ToastProvider>
     )}
   </StrictMode>,
 );

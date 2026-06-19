@@ -11,6 +11,9 @@ import { EvidenceDetailScreen } from "./components/screens/EvidenceDetailScreen"
 import { SuspectDetailScreen } from "./components/screens/SuspectDetailScreen";
 import { SubmitScreen } from "./components/screens/SubmitScreen";
 import { ResultScreen } from "./components/screens/ResultScreen";
+import { RecordsScreen } from "./components/screens/RecordsScreen";
+import { ProfileScreen } from "./components/screens/ProfileScreen";
+import { BookmarksScreen } from "./components/screens/BookmarksScreen";
 import { BottomNav, APP_NAV_ITEMS } from "./components/ui";
 import {
   RECORDS_KEY,
@@ -19,7 +22,6 @@ import {
 } from "./config/env";
 import type {
   View,
-  UserProfile,
   RecordItem,
   ImagePreview,
   ScenarioFilterState,
@@ -54,18 +56,12 @@ import {
   normalizeRecord,
   normalizeReview,
   normalizeResult,
-  formatDifficulty,
-  initials,
-  formatDateTime,
 } from "./api/normalizers";
 import { useAuth } from "./auth/useAuth";
 
 function App() {
   const [view, setView] = useState<View>("home");
   const [records, setRecords] = useState<RecordItem[]>([]);
-  const [recordsSource, setRecordsSource] = useState<"server" | "local">(
-    "local",
-  );
   const [imagePreview, setImagePreview] = useState<ImagePreview | null>(null);
 
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
@@ -224,7 +220,6 @@ function App() {
   async function loadLocalRecords() {
     const stored = await safeGet(RECORDS_KEY);
     if (!stored) {
-      setRecordsSource("local");
       setRecords([]);
       return;
     }
@@ -235,11 +230,9 @@ function App() {
             .map(normalizeRecord)
             .filter((item): item is RecordItem => !!item)
         : [];
-      setRecordsSource("local");
       setRecords(list);
     } catch {
       await safeRemove(RECORDS_KEY);
-      setRecordsSource("local");
       setRecords([]);
     }
   }
@@ -253,7 +246,6 @@ function App() {
         const list = (Array.isArray(data) ? data : (data.content ?? []))
           .map(normalizeRecord)
           .filter((item): item is RecordItem => !!item);
-        setRecordsSource("server");
         setRecords(list);
         return;
       } catch {
@@ -1188,7 +1180,8 @@ function App() {
         view === "evidenceDetail" ||
         view === "suspectDetail" ||
         view === "submit" ||
-        view === "result"
+        view === "result" ||
+        view === "bookmarks"
       }
       nav={
         navIndex === -1
@@ -1239,11 +1232,7 @@ function App() {
           profile={profile}
           loading={profileLoading}
           error={profileError}
-          records={records}
-          recordsSource={recordsSource}
           onRefresh={loadProfile}
-          onRecords={() => setView("records")}
-          onLibrary={() => setView("library")}
           onBookmarks={() => void loadBookmarkedScenarios()}
           onLogout={logout}
         />
@@ -1252,9 +1241,6 @@ function App() {
       {view === "records" && (
         <RecordsScreen
           records={records}
-          source={recordsSource}
-          onBack={() => setView("profile")}
-          onLibrary={() => setView("library")}
           onResume={(record) => void resumeRecord(record)}
         />
       )}
@@ -1275,7 +1261,7 @@ function App() {
       )}
 
       {view === "bookmarks" && (
-        <BookmarkedScenariosScreen
+        <BookmarksScreen
           scenarios={bookmarkedScenarios}
           loading={bookmarksLoading}
           error={bookmarksError}
@@ -1553,376 +1539,6 @@ function Shell({
   );
 }
 
-function ProfileScreen({
-  profile,
-  loading,
-  error,
-  records,
-  recordsSource,
-  onRefresh,
-  onRecords,
-  onLibrary,
-  onBookmarks,
-  onLogout,
-}: {
-  profile: UserProfile | null;
-  loading: boolean;
-  error: string | null;
-  records: RecordItem[];
-  recordsSource: "server" | "local";
-  onRefresh: () => void;
-  onRecords: () => void;
-  onLibrary: () => void;
-  onBookmarks: () => void;
-  onLogout: () => void;
-}) {
-  const completed = records.filter((record) => record.status === "COMPLETED");
-  const bestScore = completed.reduce(
-    (max, record) => Math.max(max, record.score ?? 0),
-    0,
-  );
-  const displayName = profile?.nickname ?? "탐정 견습생";
-
-  return (
-    <section className="stack">
-      <ScreenTitle title="내 정보" subtitle="MY PAGE" />
-      <article className="profile-card">
-        <div className="profile-avatar">
-          <SafeImage
-            src={profile?.profileImageUrl}
-            alt={`${displayName} 프로필`}
-            fallback={initials(displayName)}
-          />
-        </div>
-        <div>
-          <h2>{displayName}</h2>
-          <p className="muted">{profile?.email ?? "웹 로그인 사용자"}</p>
-          <div className="meta-row">
-            <span>{profile?.provider ?? "WEB"}</span>
-            <span>{loading ? "동기화 중" : "인증됨"}</span>
-          </div>
-        </div>
-      </article>
-      {error && (
-        <article className="info-card">
-          <p className="mini-title">동기화 안내</p>
-          <p className="card-body">{error}</p>
-          <button className="chip" onClick={onRefresh} type="button">
-            다시 확인
-          </button>
-        </article>
-      )}
-      <div className="stats-grid">
-        <Stat label="완료" value={`${completed.length}건`} />
-        <Stat label="최고 점수" value={bestScore ? `${bestScore}` : "-"} />
-        <Stat
-          label="진행"
-          value={
-            records.some((record) => record.status === "IN_PROGRESS")
-              ? "있음"
-              : "없음"
-          }
-        />
-      </div>
-      <div className="menu-list">
-        <button className="menu-item" onClick={onRecords} type="button">
-          <span>수사 기록</span>
-          <small>
-            {recordsSource === "server"
-              ? "계정에 저장된 사건 진행 상태를 확인합니다"
-              : "이 브라우저의 완료/진행 기록을 확인합니다"}
-          </small>
-        </button>
-        <button className="menu-item" onClick={onLibrary} type="button">
-          <span>사건 라이브러리</span>
-          <small>새로운 사건을 선택합니다</small>
-        </button>
-        <button className="menu-item" onClick={onBookmarks} type="button">
-          <span>저장한 사건</span>
-          <small>같은 계정으로 저장한 사건을 확인합니다</small>
-        </button>
-        <button className="menu-item danger" onClick={onLogout} type="button">
-          <span>로그아웃</span>
-          <small>이 기기의 로그인 세션을 종료합니다</small>
-        </button>
-      </div>
-    </section>
-  );
-}
-
-function RecordsScreen({
-  records,
-  source,
-  onBack,
-  onLibrary,
-  onResume,
-}: {
-  records: RecordItem[];
-  source: "server" | "local";
-  onBack: () => void;
-  onLibrary: () => void;
-  onResume: (record: RecordItem) => void;
-}) {
-  const [filter, setFilter] = useState<
-    "all" | "completed" | "inProgress" | "mine"
-  >("all");
-  const completed = records.filter((record) => record.status === "COMPLETED");
-  const inProgress = records.filter(
-    (record) => record.status === "IN_PROGRESS",
-  );
-  const authoredRecords: RecordItem[] = [];
-  const averageScore =
-    completed.length > 0
-      ? Math.round(
-          completed.reduce((sum, record) => sum + (record.score ?? 0), 0) /
-            completed.length,
-        )
-      : null;
-  const filtered =
-    filter === "completed"
-      ? completed
-      : filter === "inProgress"
-        ? inProgress
-        : filter === "mine"
-          ? authoredRecords
-          : records;
-  const emptyTitle =
-    filter === "completed"
-      ? "완료된 사건이 없습니다"
-      : filter === "inProgress"
-        ? "진행 중인 사건이 없습니다"
-        : filter === "mine"
-          ? "제작한 시나리오가 없습니다"
-          : "아직 기록이 없습니다";
-  const emptyBody =
-    filter === "completed"
-      ? "사건을 끝까지 해결하면 여기에 기록됩니다."
-      : filter === "inProgress"
-        ? "새 사건을 시작하면 여기에 표시됩니다."
-        : filter === "mine"
-          ? "웹에서는 아직 제작한 시나리오 목록을 제공하지 않습니다."
-          : "사건을 시작하거나 최종 추리를 제출하면 이곳에 기록됩니다.";
-
-  return (
-    <section className="stack">
-      <button className="icon-button fit" onClick={onBack} type="button">
-        내 정보로 돌아가기
-      </button>
-      <ScreenTitle
-        title={source === "server" ? "수사 기록" : "이 기기 수사 기록"}
-        subtitle={source === "server" ? "ACCOUNT RECORDS" : "LOCAL RECORDS"}
-      />
-      <InfoPanel
-        title={source === "server" ? "계정 기록" : "기록 범위"}
-        body={
-          source === "server"
-            ? "현재 목록은 서버에 저장된 계정 기준 기록입니다. 같은 계정이면 앱과 웹에서 이어볼 수 있습니다."
-            : "현재 웹 기록은 이 브라우저에만 저장됩니다. 앱이나 다른 기기와 자동 동기화되지 않습니다."
-        }
-      />
-      <div className="detective-grade-card">
-        <div className="grade-mark">{completed.length >= 5 ? "A" : "B"}</div>
-        <div>
-          <h2>{completed.length >= 5 ? "주임 탐정" : "견습 탐정"}</h2>
-          <p className="eyebrow">
-            {completed.length >= 5
-              ? "ASSOCIATE DETECTIVE"
-              : "TRAINEE DETECTIVE"}
-          </p>
-          <p className="card-body">
-            다음 등급까지 {Math.max(0, 5 - completed.length)}건 해결 필요
-          </p>
-        </div>
-      </div>
-      <div className="stats-grid">
-        <Stat label="해결" value={`${completed.length}건`} />
-        <Stat
-          label="평균 점수"
-          value={averageScore != null ? `${averageScore}` : "-"}
-        />
-        <Stat label="진행" value={`${inProgress.length}건`} />
-      </div>
-      <FilterChips
-        label="기록 목록"
-        options={[
-          ["all", "전체"],
-          ["completed", "완료"],
-          ["inProgress", "진행 중"],
-          ["mine", "내 시나리오"],
-        ]}
-        value={filter}
-        onChange={(value) => setFilter(value as typeof filter)}
-      />
-      {!filtered.length && (
-        <StateBlock
-          title={emptyTitle}
-          body={emptyBody}
-          action={filter === "mine" ? undefined : onLibrary}
-          actionLabel="사건 보러가기"
-        />
-      )}
-      <div className="records-list">
-        {filtered.map((record) => (
-          <article className="record-card" key={record.recordId}>
-            <div>
-              <p className="eyebrow">
-                {record.status === "COMPLETED" ? "COMPLETED" : "IN PROGRESS"}
-              </p>
-              <h2>{record.scenarioTitle}</h2>
-              <p className="muted">
-                {record.status === "COMPLETED"
-                  ? `${formatDateTime(record.completedAt ?? record.updatedAt)} 완료`
-                  : `${formatDateTime(record.updatedAt)} 업데이트`}
-              </p>
-            </div>
-            <div className="record-score">
-              <strong>{record.grade ?? "-"}</strong>
-              <span>
-                {record.score != null ? `${record.score}점` : "진행 중"}
-              </span>
-              {record.status === "IN_PROGRESS" && (
-                <button
-                  className="chip"
-                  onClick={() => onResume(record)}
-                  type="button"
-                >
-                  이어하기
-                </button>
-              )}
-            </div>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function BookmarkedScenariosScreen({
-  scenarios,
-  loading,
-  error,
-  onBack,
-  onRefresh,
-  onLibrary,
-  onSelect,
-}: {
-  scenarios: Scenario[];
-  loading: boolean;
-  error: string | null;
-  onBack: () => void;
-  onRefresh: () => void;
-  onLibrary: () => void;
-  onSelect: (scenario: Scenario) => void;
-}) {
-  return (
-    <section className="stack">
-      <button className="icon-button fit" onClick={onBack} type="button">
-        내 정보로 돌아가기
-      </button>
-      <ScreenTitle title="저장한 사건" subtitle="SAVED CASES" />
-      <InfoPanel
-        title="계정 동기화"
-        body="이 목록은 서버 북마크 기준입니다. 같은 계정이면 앱과 웹에서 저장 상태를 공유합니다."
-      />
-      <div className="meta-row">
-        <span>{loading ? "동기화 중" : `${scenarios.length}건`}</span>
-      </div>
-      {loading && <StateBlock title="저장한 사건을 불러오고 있습니다" />}
-      {error && (
-        <StateBlock
-          title="불러오지 못했습니다"
-          body={error}
-          action={onRefresh}
-        />
-      )}
-      {!loading && !error && scenarios.length === 0 && (
-        <article className="info-card">
-          <p className="mini-title">아직 저장한 사건이 없습니다</p>
-          <p className="card-body">
-            사건 상세에서 저장을 누르면 이 목록에 추가됩니다.
-          </p>
-          <button className="chip" onClick={onLibrary} type="button">
-            사건 보러가기
-          </button>
-        </article>
-      )}
-      {!loading && !error && scenarios.length > 0 && (
-        <ScenarioCardList scenarios={scenarios} onSelect={onSelect} />
-      )}
-    </section>
-  );
-}
-
-function ScenarioCardList({
-  scenarios,
-  onSelect,
-}: {
-  scenarios: Scenario[];
-  onSelect: (scenario: Scenario) => void;
-}) {
-  return (
-    <div className="card-list">
-      {scenarios.map((scenario) => (
-        <button
-          className="scenario-card"
-          key={scenario.scenarioId}
-          onClick={() => onSelect(scenario)}
-          type="button"
-        >
-          <div className="scenario-thumb">
-            <SafeImage
-              src={scenario.thumbnailUrl}
-              alt={`${scenario.title} 대표 이미지`}
-              fallback="CL"
-            />
-          </div>
-          <div>
-            <div className="card-title">{scenario.title}</div>
-            <p className="card-body">{scenario.description}</p>
-            <div className="meta-row">
-              <span>{formatDifficulty(scenario.difficulty)}</span>
-              <span>{scenario.estimatedPlayTimeMinutes}분</span>
-              <span>인물 {scenario.suspectCount}</span>
-              <span>증거 {scenario.evidenceCount}</span>
-            </div>
-          </div>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function FilterChips({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  label: string;
-  options: [string, string][];
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div className="filter-group">
-      <span>{label}</span>
-      <div className="chip-row">
-        {options.map(([optionValue, text]) => (
-          <button
-            className={`chip ${value === optionValue ? "active" : ""}`}
-            key={`${label}-${optionValue}`}
-            onClick={() => onChange(optionValue)}
-            aria-pressed={value === optionValue}
-            type="button"
-          >
-            {text}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function ReviewDialog({
   target,
   authorName,
@@ -1996,55 +1612,6 @@ function ReviewDialog({
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-function SafeImage({
-  src,
-  alt,
-  fallback,
-}: {
-  src?: string;
-  alt: string;
-  fallback: string;
-}) {
-  const [failed, setFailed] = useState(false);
-  if (!src || failed) return <span>{fallback}</span>;
-  return (
-    <img
-      src={src}
-      alt={alt}
-      loading="lazy"
-      decoding="async"
-      onError={() => setFailed(true)}
-    />
-  );
-}
-
-function ScreenTitle({ title, subtitle }: { title: string; subtitle: string }) {
-  return (
-    <div className="screen-title">
-      <h1>{title}</h1>
-      <p className="eyebrow">{subtitle}</p>
-    </div>
-  );
-}
-
-function InfoPanel({ title, body }: { title: string; body: string }) {
-  return (
-    <article className="info-card">
-      <p className="mini-title">{title}</p>
-      <p className="card-body">{body}</p>
-    </article>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="stat">
-      <span>{label}</span>
-      <strong>{value}</strong>
     </div>
   );
 }

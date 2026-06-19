@@ -6,13 +6,10 @@ import {
   FilterChip,
   Kicker,
   ListSkeleton,
-  Pill,
   Spinner,
   TextField,
 } from "../ui";
-import type { PillTone } from "../ui";
-import { AssetImage } from "../domain";
-import { formatDifficulty } from "../../api/normalizers";
+import { ScenarioRow } from "../domain";
 import type { Scenario, ScenarioFilterState } from "../../types";
 import styles from "./LibraryScreen.module.css";
 
@@ -47,18 +44,6 @@ const DIFFICULTY_OPTIONS: ReadonlyArray<readonly [string, string]> = [
   ["NORMAL", "보통"],
   ["HARD", "어려움"],
 ];
-
-// 난이도 → Pill tone (Flutter: easy→success / medium→primary / hard→danger).
-const DIFFICULTY_TONE: Record<string, PillTone> = {
-  EASY: "success",
-  HARD: "danger",
-};
-
-// Flutter _ScenarioStats._formatPlays 와 동일: 1000 이상은 'x.xk'.
-function formatPlays(plays: number) {
-  if (plays >= 1000) return `${(plays / 1000).toFixed(1)}k`;
-  return String(plays);
-}
 
 export interface LibraryScreenProps {
   scenarios: Scenario[];
@@ -248,65 +233,5 @@ function FilterAxis({
         ))}
       </div>
     </div>
-  );
-}
-
-// ── 시나리오 카드(_ScenarioRow / _CodeThumb / _ScenarioMeta / _ScenarioStats) ──
-function ScenarioRow({
-  scenario,
-  onPress,
-}: {
-  scenario: Scenario;
-  onPress: () => void;
-}) {
-  const tone = DIFFICULTY_TONE[scenario.difficulty] ?? "primary";
-  const isOfficial = scenario.scenarioType === "OFFICIAL";
-  // 백엔드가 suspectCount 0(미집계)을 줄 때 "용의자 0명" 오인 방지 — 구절 숨김(Flutter 와 일관).
-  const meta =
-    scenario.suspectCount > 0
-      ? `${scenario.estimatedPlayTimeMinutes}분 · 용의자 ${scenario.suspectCount}명`
-      : `${scenario.estimatedPlayTimeMinutes}분`;
-  const tags = (scenario.tags ?? []).slice(0, 3);
-
-  return (
-    <button type="button" className={styles.card} onClick={onPress}>
-      <AssetImage
-        src={scenario.thumbnailUrl}
-        alt={`${scenario.title} 썸네일`}
-        width={48}
-        height={60}
-        radius={8}
-        fit="cover"
-        className={styles.thumb}
-        fallback={
-          <span
-            className={`${styles.thumbFallback} ${isOfficial ? styles.thumbOfficial : styles.thumbCustom}`}
-            aria-hidden
-          />
-        }
-      />
-
-      <div className={styles.meta}>
-        <div className={styles.metaTop}>
-          <Pill label={formatDifficulty(scenario.difficulty)} tone={tone} />
-          <span className={styles.sub}>{meta}</span>
-        </div>
-        <div className={styles.cardTitle}>{scenario.title}</div>
-        {tags.length > 0 ? (
-          <div className={styles.tags}>
-            {tags.map((tag) => (
-              <span key={tag} className={styles.tag}>
-                #{tag}
-              </span>
-            ))}
-          </div>
-        ) : null}
-      </div>
-
-      <div className={styles.stats}>
-        <span className={styles.rating}>★ {scenario.averageRating.toFixed(1)}</span>
-        <span className={styles.plays}>{formatPlays(scenario.playCount)}</span>
-      </div>
-    </button>
   );
 }

@@ -23,5 +23,8 @@ export type { SuspectCardProps } from "./SuspectCard";
 export { TimelineList } from "./TimelineList";
 export type { TimelineListProps, TimelineRow } from "./TimelineList";
 
+export { ScenarioRow } from "./ScenarioRow";
+export type { ScenarioRowProps } from "./ScenarioRow";
+
 export { ImageViewerModal } from "./ImageViewerModal";
 export type { ImageViewerModalProps } from "./ImageViewerModal";
