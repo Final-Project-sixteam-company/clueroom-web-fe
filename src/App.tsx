@@ -1,5 +1,7 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
+import { SplashScreen } from "./components/screens/SplashScreen";
+import { OnboardingScreen } from "./components/screens/OnboardingScreen";
 import { HomeScreen } from "./components/screens/HomeScreen";
 import { LibraryScreen } from "./components/screens/LibraryScreen";
 import { ScenarioDetailScreen } from "./components/screens/ScenarioDetailScreen";
@@ -16,7 +18,11 @@ import { ProfileScreen } from "./components/screens/ProfileScreen";
 import { BookmarksScreen } from "./components/screens/BookmarksScreen";
 import { ReviewWriteSheet } from "./components/screens/ReviewWriteSheet";
 import { BottomNav, APP_NAV_ITEMS } from "./components/ui";
-import { MIN_DEDUCTION_TEXT_LENGTH } from "./config/env";
+import { MIN_DEDUCTION_TEXT_LENGTH, SPLASH_DURATION_MS } from "./config/env";
+import {
+  hasSeenOnboarding,
+  markOnboardingSeen,
+} from "./onboarding/onboardingStorage";
 import type { View, RecordItem, ImagePreview, Scenario } from "./types";
 import { useRecords } from "./records/useRecords";
 import { useScenarios } from "./scenarios/useScenarios";
@@ -26,7 +32,7 @@ import { ApiError } from "./api/ApiError";
 import { useAuth } from "./auth/useAuth";
 
 function App() {
-  const [view, setView] = useState<View>("home");
+  const [view, setView] = useState<View>("splash");
   const [imagePreview, setImagePreview] = useState<ImagePreview | null>(null);
 
   // 로그아웃 시 게임 상태 리셋은 useGameSession 소유 — 훅이 useAuth 뒤에 오므로 ref 로 연결.
@@ -172,6 +178,39 @@ function App() {
     setResult,
     pollResult,
   } = useResult({ authedRequest });
+
+  // 부트(정본 splash_screen.dart): 스플래시를 최소 2.2s 노출한 뒤 authReady 가 되면
+  // 온보딩 여부로 분기(미시청→onboarding, 시청→home). authReady 대기 = 로그인/홈 상태가
+  // 정해진 뒤 라우팅해 깜빡임 방지. (Flutter 는 미로그인 시 login 이지만 웹 home 은 미로그인도
+  // 열려 있어 koo #4(동작 보존)대로 home 으로 — login 강제는 한 줄로 뒤집기 가능.)
+  const [splashElapsed, setSplashElapsed] = useState(false);
+  const splashRoutedRef = useRef(false);
+  useEffect(() => {
+    const timer = window.setTimeout(
+      () => setSplashElapsed(true),
+      SPLASH_DURATION_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, []);
+  useEffect(() => {
+    if (
+      view !== "splash" ||
+      !splashElapsed ||
+      !authReady ||
+      splashRoutedRef.current
+    ) {
+      return;
+    }
+    splashRoutedRef.current = true;
+    void hasSeenOnboarding().then((seen) =>
+      setView(seen ? "home" : "onboarding"),
+    );
+  }, [view, splashElapsed, authReady]);
+
+  async function handleOnboardingComplete() {
+    await markOnboardingSeen();
+    setView("home");
+  }
 
   async function submitDeduction() {
     if (!sessionId || !authToken || !selectedCulpritId || submitting) return;
@@ -357,14 +396,6 @@ function App() {
     await startSession(scenario);
   }
 
-  if (!authReady) {
-    return (
-      <Shell title="ClueRoom">
-        <StateBlock title="앱을 준비하고 있습니다" />
-      </Shell>
-    );
-  }
-
   // 앱 셸 하단 네비 탭 → view 매핑 (Flutter app_shell.dart, 만들기 제외 4탭).
   // 비-탭 화면(상세/게임/로그인 등)은 navIndex === -1 → 네비 미표시 + topbar 유지.
   const APP_NAV_VIEWS: View[] = ["home", "library", "records", "profile"];
@@ -374,6 +405,8 @@ function App() {
     <Shell
       title="ClueRoom"
       bare={
+        view === "splash" ||
+        view === "onboarding" ||
         view === "home" ||
         view === "scenarioDetail" ||
         view === "login" ||
@@ -406,6 +439,12 @@ function App() {
       onProfile={tokens ? openProfile : undefined}
       onLogout={tokens ? logout : undefined}
     >
+      {view === "splash" && <SplashScreen />}
+
+      {view === "onboarding" && (
+        <OnboardingScreen onComplete={handleOnboardingComplete} />
+      )}
+
       {view === "login" && (
         <LoginScreen
           error={authError}
@@ -737,31 +776,6 @@ function Shell({
         </div>
       </header>
       <main>{children}</main>
-    </div>
-  );
-}
-
-function StateBlock({
-  title,
-  body,
-  action,
-  actionLabel = "다시 시도",
-}: {
-  title: string;
-  body?: string;
-  action?: () => void;
-  actionLabel?: string;
-}) {
-  return (
-    <div className="state-block" role="status" aria-live="polite">
-      <div className="state-icon">CR</div>
-      <h2>{title}</h2>
-      {body && <p>{body}</p>}
-      {action && (
-        <button className="button secondary" onClick={action} type="button">
-          {actionLabel}
-        </button>
-      )}
     </div>
   );
 }

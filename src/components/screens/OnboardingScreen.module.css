@@ -1,0 +1,110 @@
+/* 정본: lib/screens/onboarding_screen.dart — 픽셀 1:1. 비-탭 전체화면(셸 bare). */
+
+.root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* 건너뛰기: 우상단, Flutter Padding(top sp2, right sp2) */
+.skipRow {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--sp2) var(--sp2) 0;
+}
+
+/* 슬라이드 트랙: Flutter PageView → 가로 scroll-snap(네이티브 스와이프) */
+.track {
+  flex: 1;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none; /* Firefox */
+}
+.track::-webkit-scrollbar {
+  display: none; /* WebKit */
+}
+
+.slide {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 var(--sp8); /* Flutter horizontal sp8 */
+  text-align: center;
+}
+/* Flutter Spacer(flex:2) / Spacer(flex:3) — 작은 폰~태블릿 동일 위치(부유 방지) */
+.spacerTop {
+  flex: 2;
+}
+.spacerBottom {
+  flex: 3;
+}
+
+.iconBadge {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  /* Flutter LinearGradient topLeft→bottomRight [tealBase, skyBase] */
+  background: linear-gradient(
+    135deg,
+    var(--teal-base),
+    var(--sky-base)
+  );
+  border-radius: var(--r6); /* 14 */
+  color: var(--ink950); /* Icon color ink950 (lucide currentColor) */
+  margin-bottom: var(--sp6); /* badge ↔ title */
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-title-l); /* 24 titleL */
+  font-weight: 700;
+  letter-spacing: var(--ls-title-l);
+  line-height: var(--lh-title-l);
+  color: var(--text);
+}
+.body {
+  margin: var(--sp3) 0 0; /* title ↔ body sp3 */
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 body */
+  line-height: 1.65; /* Flutter body copyWith(height: 1.65) */
+  color: var(--text-sub);
+}
+
+.footer {
+  flex: none;
+  padding: var(--sp6); /* Flutter EdgeInsets.all(sp6) */
+}
+.dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--sp6); /* dots ↔ button sp6 */
+}
+.dot,
+.dotActive {
+  height: 6px;
+  margin: 0 3px; /* Flutter horizontal 3 */
+  border-radius: var(--r-pill);
+  /* Flutter AnimatedContainer dur2: width + color */
+  transition:
+    width var(--dur2) var(--ease-out),
+    background-color var(--dur2) var(--ease-out);
+}
+.dot {
+  width: 6px;
+  background: var(--line);
+}
+.dotActive {
+  width: 20px;
+  background: var(--primary);
+}

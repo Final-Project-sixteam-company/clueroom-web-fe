@@ -1,4 +1,6 @@
 export type View =
+  | "splash"
+  | "onboarding"
   | "login"
   | "home"
   | "profile"

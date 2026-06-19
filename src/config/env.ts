@@ -24,6 +24,10 @@ export const ACCESS_KEY = "clueroom.accessToken";
 export const REFRESH_KEY = "clueroom.refreshToken";
 export const DEVICE_KEY = "clueroom.deviceId";
 export const RECORDS_KEY = "clueroom.records";
+// 온보딩 1회 노출 플래그 — Flutter OnboardingFlag(SharedPreferences 'onboarding_complete') 대응.
+export const ONBOARDING_KEY = "clueroom.onboardingComplete";
 export const CASE_REFRESH_SECONDS = 30;
+// 스플래시 최소 노출 시간(ms) — Flutter splash_screen.dart 의 2200ms.
+export const SPLASH_DURATION_MS = 2200;
 export const SCENARIO_PAGE_SIZE = 20;
 export const MIN_DEDUCTION_TEXT_LENGTH = 5;
