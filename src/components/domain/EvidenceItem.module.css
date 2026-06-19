@@ -1,0 +1,56 @@
+/* 정본: evidence_item.dart */
+.item {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--sp3); /* 12 */
+  width: 100%;
+  text-align: left;
+  padding: var(--evidence-pad-v) var(--evidence-pad-h); /* 11 13 */
+  background: var(--bg);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r4); /* 10 */
+  cursor: pointer;
+  transition: background-color var(--dur1) var(--ease-out);
+}
+.item:disabled {
+  cursor: default;
+}
+.item:active {
+  transform: none;
+}
+
+.glow {
+  box-shadow: 0 0 0 2px var(--primary-soft); /* isNew, spread2 blur0 */
+}
+
+.body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--row-gap); /* 6 */
+}
+
+.name {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 */
+  font-weight: 600;
+  line-height: var(--lh-body-sm); /* 1.55 */
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.location {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-sm); /* 9.5 */
+  letter-spacing: 0.57px; /* fsSm * 0.06 */
+  line-height: 1;
+  color: var(--text-mute);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

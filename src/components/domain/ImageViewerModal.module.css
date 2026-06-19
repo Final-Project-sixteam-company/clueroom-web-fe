@@ -1,0 +1,92 @@
+/* 정본: image_viewer_modal.dart */
+.scrim {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp4); /* inset 16 */
+  background: var(--scrim);
+  z-index: 1200;
+}
+.entering {
+  animation: viewer-in var(--dur2) var(--ease-out) both;
+}
+.leaving {
+  animation: viewer-out var(--dur2) var(--ease-out) both;
+}
+@keyframes viewer-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes viewer-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp3); /* 12 */
+  max-width: 100%;
+}
+
+.closeRow {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+}
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp2);
+  border: none;
+  background: transparent;
+  border-radius: var(--r-pill);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.imageWrap {
+  position: relative;
+  display: flex;
+}
+.image {
+  max-width: 100%;
+  max-height: 80vh;
+  border-radius: var(--r6); /* 14 */
+  object-fit: contain;
+  display: block;
+}
+
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 192px; /* sp16 * 3 */
+  background: var(--bg-elev);
+  border-radius: var(--r6);
+  color: var(--text-mute);
+}
+
+.label {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-mono-label); /* 11 */
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--text-sub);
+  text-align: center;
+}

@@ -1,0 +1,110 @@
+/* 정본: asset_image_widget.dart */
+.wrap {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  background: var(--bg-elev);
+  flex: none;
+}
+
+.img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.fitCover {
+  object-fit: cover;
+}
+.fitContain {
+  object-fit: contain;
+}
+
+/* 로딩 shimmer — asset 위젯은 1400ms (states.dart Skeleton 1600ms 와 별개) */
+.shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--bg-elev) 0%, var(--bg-hover) 50%, var(--bg-elev) 100%);
+  background-size: 200% 100%;
+  animation: asset-shimmer 1400ms var(--ease-in-out) infinite;
+}
+@keyframes asset-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.defaultFallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-elev);
+  color: var(--text-mute);
+}
+
+/* ── CharacterPortrait 이니셜 아바타 ── */
+.portraitFallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: var(--stroke-sm) solid rgba(255, 255, 255, 0.14); /* ink0 14% */
+  font-family: var(--font-sans);
+  font-weight: 700; /* titleM */
+  line-height: 1;
+  color: var(--ink950);
+}
+.subject {
+  background: linear-gradient(135deg, var(--teal-base), var(--sky-base));
+}
+.witness {
+  background: linear-gradient(135deg, var(--ink600), var(--ink500));
+}
+
+/* ── EvidenceThumb 아이콘 박스 ── */
+.thumbWrap {
+  display: inline-flex;
+  flex: none;
+}
+.iconBox {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-hover);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r2); /* 4 */
+  box-sizing: border-box;
+}
+
+/* ── ScenarioCoverImage ── */
+.cover {
+  position: relative;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+}
+.coverGradient {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--ink900) 30%, var(--teal-base) 100%);
+}
+.coverCode {
+  font-family: var(--font-mono);
+  font-weight: 600; /* monoNum */
+  font-size: 36px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: rgba(56, 189, 248, 0.3); /* primary 30% */
+}

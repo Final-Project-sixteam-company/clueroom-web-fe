@@ -1,0 +1,65 @@
+/* 정본: timeline_list.dart */
+.list {
+  box-sizing: border-box;
+  padding: var(--timeline-pad-v) var(--timeline-pad-h); /* 12 14 */
+  background: var(--bg);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r4); /* 10 */
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  padding: var(--timeline-row-pad-v) 0; /* v5 */
+}
+
+.time {
+  flex: none;
+  width: var(--timeline-col-w); /* 46 */
+  font-family: var(--font-mono);
+  font-weight: 700; /* 정본 w700 — JetBrains Mono 600 번들이라 렌더는 600 */
+  font-size: var(--nav-label-fs); /* 11 */
+  line-height: var(--lh-body-sm); /* 1.55 */
+  color: var(--primary);
+}
+.conflictTime {
+  color: var(--danger);
+}
+
+.content {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: var(--sp2); /* 8 */
+  display: flex;
+  flex-direction: column;
+}
+
+.label {
+  font-family: var(--font-sans);
+  font-size: var(--fs-md); /* 12 */
+  font-weight: 400;
+  line-height: var(--lh-body-sm); /* 1.55 */
+  color: var(--text);
+}
+
+.desc {
+  margin-top: var(--sp1); /* 4 */
+  font-family: var(--font-sans);
+  font-size: var(--nav-label-fs); /* 11 */
+  font-weight: 400;
+  line-height: var(--lh-body-sm);
+  color: var(--text-sub);
+}
+
+.conflictBox {
+  margin-top: var(--sp2); /* 8 */
+  padding: var(--row-gap) var(--conflict-pad-h); /* v6 h9 */
+  background: var(--danger-soft);
+  border: var(--stroke-sm) solid var(--danger);
+  border-radius: var(--r2); /* 4 */
+  font-family: var(--font-sans);
+  font-size: var(--nav-label-fs); /* 11 */
+  font-weight: 400;
+  line-height: var(--lh-body-sm);
+  color: var(--danger);
+}

@@ -1,0 +1,100 @@
+/* 정본: evidence_tile.dart */
+.tile {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--sp3); /* 12 */
+  width: 100%;
+  text-align: left;
+  padding: var(--card-pad-v) var(--card-pad-h); /* 12 16 */
+  background: var(--bg);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r4); /* 10 */
+  cursor: pointer;
+  transition: background-color var(--dur1) var(--ease-out);
+}
+.tile:disabled {
+  cursor: default;
+}
+.tile:active {
+  transform: none; /* 카드 — press scale 없음 */
+}
+
+/* 이번 해금: success 1.5px 보더 */
+.unlocked {
+  border-color: var(--success);
+  border-width: 1.5px;
+}
+
+/* NEW/해금 글로우 — spread2 blur0 (선명한 halo) */
+.glow {
+  box-shadow: 0 0 0 2px var(--primary-soft);
+}
+.glowSuccess {
+  box-shadow: 0 0 0 2px var(--success-soft);
+}
+
+.body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--row-gap); /* 6 */
+}
+
+.name {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 */
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp2); /* 8 */
+  min-width: 0;
+}
+
+.location {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-sm); /* 9.5 */
+  letter-spacing: 0.57px; /* fsSm(9.5) * 0.06 */
+  line-height: 1;
+  color: var(--text-mute);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.categoryBadge {
+  flex: none;
+  box-sizing: border-box;
+  padding: var(--sp1) 2px; /* h4 v2 */
+  background: var(--bg-hover);
+  border-radius: var(--r1); /* 2 */
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 8.5px;
+  line-height: 1;
+  color: var(--text-mute);
+  white-space: nowrap;
+}
+
+.lockedWrap {
+  position: relative;
+  opacity: 0.5;
+}
+.lockIcon {
+  position: absolute;
+  top: 50%;
+  right: var(--sp4); /* 16 */
+  transform: translateY(-50%);
+  color: var(--text-mute);
+  pointer-events: none;
+}
