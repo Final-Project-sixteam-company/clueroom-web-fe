@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import {
   GOOGLE_CLIENT_ID,
-  KAKAO_JAVASCRIPT_KEY,
   ENABLE_GOOGLE_LOGIN,
   ENABLE_KAKAO_LOGIN,
   ENABLE_DEV_LOGIN,
@@ -62,130 +61,15 @@ import {
   initials,
   formatDateTime,
 } from "./api/normalizers";
-
-type GoogleCredentialResponse = {
-  credential?: string;
-};
-
-declare global {
-  interface Window {
-    Kakao?: {
-      init: (javascriptKey: string) => void;
-      isInitialized: () => boolean;
-      Auth: {
-        authorize: (options: {
-          redirectUri: string;
-          state?: string;
-        }) => void;
-      };
-    };
-    google?: {
-      accounts: {
-        id: {
-          initialize: (options: {
-            client_id: string;
-            callback: (response: GoogleCredentialResponse) => void;
-            auto_select?: boolean;
-            cancel_on_tap_outside?: boolean;
-          }) => void;
-          renderButton: (
-            parent: HTMLElement,
-            options: {
-              theme?: "outline" | "filled_blue" | "filled_black";
-              size?: "large" | "medium" | "small";
-              text?: "signin_with" | "signup_with" | "continue_with";
-              shape?: "rectangular" | "pill" | "circle" | "square";
-              width?: number;
-            },
-          ) => void;
-        };
-      };
-    };
-  }
-}
-
-let googleIdentityScriptPromise: Promise<void> | null = null;
-let kakaoIdentityScriptPromise: Promise<void> | null = null;
-
-function loadGoogleIdentityScript() {
-  if (window.google?.accounts?.id) return Promise.resolve();
-  if (googleIdentityScriptPromise) return googleIdentityScriptPromise;
-
-  googleIdentityScriptPromise = new Promise<void>((resolve, reject) => {
-    const existingScript = document.getElementById("google-identity-script");
-    if (existingScript) {
-      existingScript.addEventListener("load", () => resolve(), { once: true });
-      existingScript.addEventListener(
-        "error",
-        () => reject(new Error("Google 로그인 스크립트를 불러오지 못했습니다.")),
-        { once: true },
-      );
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.id = "google-identity-script";
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-    script.addEventListener("load", () => resolve(), { once: true });
-    script.addEventListener(
-      "error",
-      () => reject(new Error("Google 로그인 스크립트를 불러오지 못했습니다.")),
-      { once: true },
-    );
-    document.head.appendChild(script);
-  });
-
-  return googleIdentityScriptPromise;
-}
-
-function loadKakaoIdentityScript() {
-  if (window.Kakao) return Promise.resolve();
-  if (kakaoIdentityScriptPromise) return kakaoIdentityScriptPromise;
-
-  kakaoIdentityScriptPromise = new Promise<void>((resolve, reject) => {
-    const existingScript = document.getElementById("kakao-identity-script");
-    if (existingScript) {
-      existingScript.addEventListener("load", () => resolve(), { once: true });
-      existingScript.addEventListener(
-        "error",
-        () => reject(new Error("Kakao 로그인 스크립트를 불러오지 못했습니다.")),
-        { once: true },
-      );
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.id = "kakao-identity-script";
-    script.src = "https://t1.kakaocdn.net/kakao_js_sdk/2.7.5/kakao.min.js";
-    script.async = true;
-    script.defer = true;
-    script.addEventListener("load", () => resolve(), { once: true });
-    script.addEventListener(
-      "error",
-      () => reject(new Error("Kakao 로그인 스크립트를 불러오지 못했습니다.")),
-      { once: true },
-    );
-    document.head.appendChild(script);
-  });
-
-  return kakaoIdentityScriptPromise;
-}
-
-async function ensureKakaoInitialized() {
-  await loadKakaoIdentityScript();
-  if (!window.Kakao) {
-    throw new Error("Kakao 로그인 SDK를 사용할 수 없습니다.");
-  }
-  if (!window.Kakao.isInitialized()) {
-    window.Kakao.init(KAKAO_JAVASCRIPT_KEY);
-  }
-}
-
-function kakaoRedirectUri() {
-  return window.location.origin;
-}
+import {
+  loadGoogleIdentityScript,
+  ensureKakaoInitialized,
+  kakaoRedirectUri,
+} from "./auth/sdkLoaders";
+import {
+  createRefreshController,
+  type RefreshController,
+} from "./auth/refreshController";
 
 function App() {
   const [view, setView] = useState<View>("home");
@@ -283,8 +167,9 @@ function App() {
   const [result, setResult] = useState<Result | null>(null);
 
   const authToken = tokens?.accessToken ?? null;
-  const refreshInFlightRef = useRef<Promise<string | null> | null>(null);
-  const authGenerationRef = useRef(0);
+  const refreshControllerRef = useRef<RefreshController | null>(null);
+  const refreshController = (refreshControllerRef.current ??=
+    createRefreshController());
 
   useEffect(() => {
     void (async () => {
@@ -314,7 +199,7 @@ function App() {
         setTokens({ accessToken });
         await safeRemove(REFRESH_KEY);
       } else {
-        const generation = authGenerationRef.current;
+        const generation = refreshController.generation;
         try {
           const next = await request<Tokens>("/api/auth/refresh", {
             method: "POST",
@@ -322,11 +207,11 @@ function App() {
               ? JSON.stringify({ refreshToken: legacyRefreshToken })
               : undefined,
           });
-          if (generation === authGenerationRef.current) {
+          if (generation === refreshController.generation) {
             await persistTokens(next);
           }
         } catch {
-          if (generation === authGenerationRef.current) {
+          if (generation === refreshController.generation) {
             await safeRemove(ACCESS_KEY);
             await safeRemove(REFRESH_KEY);
           }
@@ -391,13 +276,12 @@ function App() {
   }
 
   async function replaceAuthSession(next: Tokens) {
-    authGenerationRef.current += 1;
+    refreshController.bumpGeneration();
     await persistTokens(next);
   }
 
   async function logout() {
-    authGenerationRef.current += 1;
-    refreshInFlightRef.current = null;
+    refreshController.reset();
     const legacyRefreshToken = tokens?.refreshToken ?? (await safeGet(REFRESH_KEY));
     try {
       await request<void>("/api/auth/logout", {
@@ -701,38 +585,25 @@ function App() {
   }
 
   async function refreshTokens() {
-    if (refreshInFlightRef.current) return refreshInFlightRef.current;
-
-    const legacyRefreshToken = tokens?.refreshToken ?? (await safeGet(REFRESH_KEY));
-
-    const generation = authGenerationRef.current;
-    const refreshPromise: Promise<string | null> = (async () => {
-      try {
-        const next = await request<Tokens>("/api/auth/refresh", {
+    return refreshController.refresh<Tokens>({
+      fetchTokens: async () => {
+        const legacyRefreshToken =
+          tokens?.refreshToken ?? (await safeGet(REFRESH_KEY));
+        return request<Tokens>("/api/auth/refresh", {
           method: "POST",
           body: legacyRefreshToken
             ? JSON.stringify({ refreshToken: legacyRefreshToken })
             : undefined,
         });
-        if (generation !== authGenerationRef.current) return null;
-        await persistTokens(next);
-        return next.accessToken;
-      } catch {
-        if (generation === authGenerationRef.current) {
-          await safeRemove(ACCESS_KEY);
-          await safeRemove(REFRESH_KEY);
-          setTokens(null);
-        }
-        return null;
-      } finally {
-        if (refreshInFlightRef.current === refreshPromise) {
-          refreshInFlightRef.current = null;
-        }
-      }
-    })();
-
-    refreshInFlightRef.current = refreshPromise;
-    return refreshPromise;
+      },
+      extractToken: (next) => next.accessToken,
+      persist: (next) => persistTokens(next),
+      clearOnFailure: async () => {
+        await safeRemove(ACCESS_KEY);
+        await safeRemove(REFRESH_KEY);
+        setTokens(null);
+      },
+    });
   }
 
   async function authedRequest<T>(

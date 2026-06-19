@@ -536,9 +536,7 @@ export function normalizeResult(raw: unknown): Result {
             title,
           };
         })
-        .filter(
-          (item): item is { evidenceId?: number; title: string } => !!item,
-        )
+        .filter((item): item is NonNullable<typeof item> => !!item)
     : undefined;
   const recommendations = Array.isArray(data.nextRecommendedScenarios)
     ? data.nextRecommendedScenarios
@@ -558,10 +556,7 @@ export function normalizeResult(raw: unknown): Result {
                 : undefined,
           };
         })
-        .filter(
-          (item): item is NonNullable<Result["nextRecommendedScenarios"]>[0] =>
-            !!item,
-        )
+        .filter((item): item is NonNullable<typeof item> => !!item)
     : undefined;
 
   return {

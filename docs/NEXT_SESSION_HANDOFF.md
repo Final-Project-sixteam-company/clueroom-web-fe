@@ -55,22 +55,27 @@ ClueRoom Flutter 앱(`../project-fe`)을 이 React 웹앱(`clueroom-toss-miniapp
 - 모듈 그래프 무순환: env←storage, env←request←normalizers, ApiError←request, types는 type-only(런타임 소거). build의 36 modules transformed로 그래프 해석 확인.
 - 게이트 통과: **`lint` exit=0, `build`(vite) 성공**(dist 방출). 동작 무변화 — 모든 추출은 verbatim, 로직 미변경.
 
-### ⚠ Phase 2에서 발견한 기존 갭 (Phase 2가 만든 게 아님 — 회귀 아님)
-- `npm run build`는 **`vite build`(esbuild)라 타입체크를 안 함** → 계획 §10의 "build(타입 포함)"은 사실과 다름. 타입 게이트는 **`npx tsc -b`를 따로 돌려야** 함.
-- `tsc -b`가 **기존 잠재 타입 에러 5개**를 잡음 — 리팩터 전 백업 모놀리식을 단독 타입체크해도 **동일 위치·동일 5개**가 나옴(= 전부 pre-existing, Phase 2 무관 입증):
-  1. `normalizers.ts:540/562` (구 App.tsx 1047/1069) `normalizeResult`의 type predicate가 `evidenceId?`/`description?`(optional)인데 map 결과는 required-but-`undefined` → TS2677.
-  2. `normalizers.ts:598/599` (구 1105/1106) 위 predicate 때문에 `null` 미소거 → Result 필드 할당 TS2322.
-  3. `App.tsx:728` (구 1687) auth refresh의 `refreshPromise` used-before-assigned (TS2454).
-- 권고: 1~2는 predicate를 `item is NonNullable<typeof item>`로 바꾸면 **타입 전용·런타임 0** 수정으로 닫힘. 3은 **회귀 금지 refresh 로직**이라 Phase 3 `useAuth` 추출 + 단위테스트 때 함께 다루는 게 안전(지금 단독 수정 금지).
+### 🔧 Phase 2에서 발견한 기존 갭 → Phase 3a에서 전부 해소
+- `npm run build`는 **`vite build`(esbuild)라 타입체크를 안 함** → 계획 §10의 "build(타입 포함)"은 사실과 다름. **타입 게이트는 `npx tsc -b`** 가 정본. (Phase 3a부터 게이트에 정식 포함.)
+- `tsc -b`가 잡았던 **기존 잠재 타입 에러 5개**(백업 모놀리식 단독 타입체크에서도 동일 5개 → 전부 pre-existing 입증)는 **Phase 3a에서 0개로 닫음**:
+  - `normalizers.ts` 4개(`normalizeResult`의 keyEvidences/recommendations predicate) → `item is NonNullable<typeof item>` **타입 전용** 수정.
+  - auth refresh `refreshPromise` used-before-assigned 1개 → 아래 refreshController 추출로 자연 해소.
 
-## ▶ 다음 작업: Phase 3 — 인증 + 컴포넌트 킷 (계획 §3·§9)
-1. App.tsx에 남겨둔 SDK 영역 → `src/auth/sdkLoaders.ts`: `GoogleCredentialResponse` 타입·`Window` global 선언·`googleIdentityScriptPromise`/`kakaoIdentityScriptPromise`·`loadGoogleIdentityScript`/`loadKakaoIdentityScript`/`ensureKakaoInitialized`/`kakaoRedirectUri`.
-2. `src/auth/authClient.ts` — auth 엔드포인트(`/api/auth/oauth|oauth/kakao/code|dev|refresh|logout`, `GET /api/auth/me`).
-3. `src/auth/useAuth.ts` — god-state에서 인증 분리. ⚠ **회귀 금지 4종 중 2종 여기서 다룸**: refresh single-flight(`refreshInFlightRef`) + generation guard(`authGenerationRef`). **추출 후 단위테스트 필수**. (나머지 2종 — 30초 status-gated 폴링·1초 타이머 `loadCaseRef` — 은 Phase 4 `useGameSession`.)
-4. `src/components/ui/` ms_* 13종 포팅(+중복 통합: FilterChip·ImageViewerModal) — 계획 §6.
-- 게이트: refresh race 단위테스트 + `lint`/`build`/`tsc -b`. (이번부터 `tsc -b`를 게이트에 포함하되, 위 pre-existing 3은 별도 트래킹.)
+## ✅ Phase 3a — SDK 로더 추출 + refresh 컨트롤러(테스트) 완료 (2026-06-19)
+1. `src/auth/sdkLoaders.ts` — App.tsx의 SDK 영역 **verbatim 추출**: `GoogleCredentialResponse`·`Window` global 선언·스크립트 promise 2개·`load{Google,Kakao}IdentityScript`/`ensureKakaoInitialized`/`kakaoRedirectUri`. `KAKAO_JAVASCRIPT_KEY`만 env에서 import. App는 3개(loadGoogle/ensureKakao/kakaoRedirect)만 import하고 `KAKAO_JAVASCRIPT_KEY` import는 제거(미사용화).
+2. `src/auth/refreshController.ts` — **refresh 단일비행 + generation guard를 React 무관 순수 컨트롤러로 추출**. `createRefreshController()` → `{ generation, bumpGeneration(), reset(), refresh(handlers) }`. App.tsx 재배선: 두 ref(`refreshInFlightRef`/`authGenerationRef`) → 컨트롤러 ref 1개. 부트스트랩 가드는 `controller.generation`, `replaceAuthSession`→`bumpGeneration()`, `logout`→`reset()`, `refreshTokens`→`controller.refresh(...)`. (in-flight 식별은 promise 동일성 대신 단조 id — self-reference 타입 에러 회피, 의미 동일.)
+3. `src/auth/refreshController.test.ts` — **단위테스트 6종**: 단일비행(동시호출 1 promise·1 fetch), in-flight 해제 후 재시도, 성공/실패 generation guard, 실패 시 토큰 클리어, `reset()` 후 새 flight. `node --test`(Node 23 타입스트리핑, 설치 0) — `npm test` 스크립트 추가.
+- 테스트 인프라: `tsconfig.app.json`에 `exclude: ["src/**/*.test.ts"]`(빌드 타입체크에서 테스트 제외, `@types/node` 불필요).
+- App.tsx **4,607 → 4,487줄**. **게이트 4종 전부 통과: `npm test` 6/6, `tsc -b` 0 errors, `lint` 0, `build` 성공.** 동작 무변화(refresh/guard 의미 보존, 테스트로 고정).
+
+## ▶ 다음 작업: Phase 3b — useAuth/authClient 훅 분리 + 컴포넌트 킷 (계획 §3·§6)
+> ⚠ god-component split의 본체. `authedRequest`가 데이터 계층 **척추(30+ 호출처)**, `logout`이 게임/세션 상태 8종까지 리셋 → **경계 설계 필요**(useAuth가 auth만 소유, App이 game-state 리셋·`setView` 오케스트레이션).
+1. `src/auth/authClient.ts` — auth 엔드포인트 순수 래퍼(`/api/auth/oauth|oauth/kakao/code|dev|refresh|logout`, `GET /api/auth/me`). login 핸들러의 inline `request(...)` 제거.
+2. `src/auth/useAuth.ts` — auth state(`tokens`/`profile`/`authReady`/`authError`) + `refreshController` + `authedRequest`/`optionalAuthRequest` + login 3종 + `loadProfile`을 훅으로. `authedRequest`는 destructure로 같은 이름 유지 → **호출처 30+ 무변경**. `logout`은 auth 부분만 소유 + `onLogout` 콜백으로 App이 game-state 리셋.
+3. `src/components/ui/` ms_* 13종 포팅(+중복 통합: FilterChip·ImageViewerModal) — 계획 §6. (Phase 1 토큰 위에 올림.)
+- 게이트: `npm test`(useAuth/authedRequest 401→refresh→retry 통합 테스트 추가) + `lint`/`tsc -b`/`build`. 회귀 금지 나머지 2종(30초 폴링·1초 타이머)은 Phase 4 `useGameSession`.
 
 ## 작업 규칙
 - 작업 브랜치 `feat/react-migration-tokens` 이어서 사용(또는 Phase별 분기). 커밋/푸시는 명시 요청 시에만.
 - 분해(Phase 2~4)와 화면 정합(Phase 5)은 기능 단위로 인터리브 가능. 토큰(Phase 1)은 완료됨.
-- 완료 주장 전 항상 `npm run lint && npm run build`로 검증.
+- 완료 주장 전 항상 `npm test && npm run lint && npx tsc -b && npm run build`로 검증. (`tsc -b`는 build가 esbuild라 타입체크를 안 하므로 필수. 현재 `tsc -b` 0 errors 상태를 유지할 것.)
