@@ -37,10 +37,11 @@ ClueRoom Flutter→React 마이그레이션을 이어서 진행합니다. 작업
 - 회귀 금지(보존): request 엔벨로프·401→refresh→retry(single-flight refreshInFlightRef + generation guard)·**30초 status-gated 폴링·1초 타이머(loadCaseRef)**·accessToken localStorage + http-only refresh 쿠키. auth는 순수헬퍼+테스트로 고정됨.
 - 홈은 / (앱 기본 view, 미로그인도 렌더). 각 컴포넌트 파일 상단에 .dart 정본 출처 주석 있음 → 1:1 대조 가능.
 
-## ▶ 다음 작업 (전 화면 이식 + game_modals + Phase 4 + Phase 6 ✅ 완료 — 남은 영역)
-- **Phase 4 기능 훅 분해 ✅ 완료**(커밋 `4958b33`): god-state → useRecords/useScenarios/useGameSession/useResult + 순수 caseTimer/pollWithRetry(node:test). App.tsx 1598 → 800줄. 얇은 훅 + App 오케스트레이터.
-- **Phase 6 Splash/Onboarding ✅ 완료**: splash 2.2s 모션 + 분기(미시청→onboarding, 시청→home) / onboarding 5슬라이드(scroll-snap 스와이프). 초기 view=splash, onboarding 플래그=localStorage. (미커밋, working tree — 육안 QA 후 커밋.)
-- **(선택) dead App.css 정리**: 옛 화면 전용 클래스(.profile-card/.record-card/.detective-grade-card/.menu-item/.screen-title/.info-card/.stat/.filter-group/.scenario-card/.state-block 등) 삭제로 번들 축소(공유 여부 grep 후).
+## ▶ 마이그레이션 사실상 완료 🎉 (전 화면 + game_modals + Phase 4 + Phase 6 + dead CSS 정리 ✅)
+- **Phase 4 기능 훅 분해 ✅**(커밋 `4958b33`): god-state → useRecords/useScenarios/useGameSession/useResult + 순수 caseTimer/pollWithRetry(node:test). App.tsx 1598 → 800줄.
+- **Phase 6 Splash/Onboarding ✅**(커밋 `3017450`): splash 2.2s + 분기(미시청→onboarding, 시청→home) / onboarding 5슬라이드(scroll-snap). 초기 view=splash, 플래그=localStorage.
+- **dead App.css 정리 ✅**(미커밋): 증거 기반 안전 삭제 — App.css 1671→259줄, 187 규칙 제거, CSS 번들 108.6→91.0kB. 실제 글로벌 className 12개(App.tsx Shell/ImageViewer)만 생존.
+- 남은 건 선택 마감(잔류 .button*/.timeline 마이크로 제거 · 갤러리 제거 · 푸시/PR) + koo 육안 QA.
 
 ## 작업 규칙
 - 완료 주장 전 4 게이트. tsc -b 0 유지. 이식은 Flutter 정본과 1:1 대조 가능하게(파일 상단 .dart 출처 주석).
@@ -300,9 +301,17 @@ koo #5 의 마지막 두 화면을 픽셀+모션 복원. 정본 = `lib/screens/s
 - **게이트 전부 통과**: `npm test` **23/23**, `lint` 0, `npx tsc -b` **0 errors**, `build` 성공(메인 css 104.89→108.64kB, js 345.83→349.99kB; 두 화면 + lucide Lightbulb 반영). **브라우저 육안 확인은 koo `npm run dev` 로 남음** — 특히 스플래시 2.2s 모션·분기 / 온보딩 스와이프·인디케이터 / 재노출은 localStorage `clueroom.onboardingComplete` 삭제로 리셋.
 - **⚠ 미커밋(working tree)**: koo 명시 요청 시 커밋.
 
-## ▶ 다음 작업 (전 화면 + game_modals + Phase 4 + Phase 6 ✅ 완료 — 남은 영역)
-화면·시트 정본화 + 훅 분해 + Splash/Onboarding 전부 끝났고, 남은 건 **(선택) 정리뿐**:
-- **(선택) dead App.css 정리**: 옛 화면 전용 클래스(.profile-card/.record-card/.detective-grade-card/.menu-item/.screen-title/.info-card/.stat/.filter-group/.scenario-card/.review-dialog/.modal-shell 등) 삭제로 번들 축소(공유 여부 grep 후). StateBlock 제거로 `.state-block`/`.state-icon` 도 후보.
+## ✅ dead App.css 정리 완료 (2026-06-20, 브랜치 `feat/react-migration-tokens`)
+전 화면이 CSS Modules 로 이식되면서 `App.css`(글로벌)의 옛 화면 전용 클래스가 전부 죽은 코드가 됨. **증거 기반 안전 삭제**로 제거.
+- **방법**: ① App.css 정의 클래스 134개 추출 → ② 실제 글로벌 className 으로 적용되는 건 **TSX `className=` 리터럴에 등장하는 12개뿐**(전부 App.tsx 의 Shell/ImageViewer: app-frame(--tabbed)/topbar/brand(-mark)/topbar-actions/icon-button/eyebrow/image-viewer(-backdrop/-panel/-topbar)). 나머지는 `styles.X`(모듈) 참조라 글로벌 미적용 → 죽음. ③ **셀렉터가 dead 클래스를 1개라도 참조하면 매칭 0**이라는 불변식으로, 모든 콤마-셀렉터가 dead 인 규칙만 삭제(brace-aware 파서, 유지 규칙은 바이트 보존). ④ 가드: 12개 리터럴 클래스가 출력에 전부 생존하는지 확인 후에만 기록.
+- **결과**: **App.css 1671 → 259줄, 187 규칙 삭제**. 빌드 CSS 번들 **108.64 → 90.97kB(gzip 17.41 → 14.30, −3.1kB)**. `.button` 시스템·`.timeline` 등 일부는 이름이 따옴표 문자열(`type="button"`/variant/caseTab)로 등장해 **보수적으로 잔류**(글로벌 className 미적용 확인했으나 안전 우선) — 원하면 마이크로 패스로 추가 제거 가능.
+- **게이트 전부 통과**: `npm test` 23/23, `lint` 0, `npx tsc -b` 0, `build` 성공(CSS 파싱 OK = 구문 손상 0). 순수 미사용 규칙 삭제라 적용 스타일 변화 0 — 육안상 동일해야 함(koo `npm run dev` 확인 권장).
+
+## ▶ 다음 작업 — 마이그레이션 사실상 완료 🎉
+전 화면 이식 + game_modals + Phase 4(훅 분해) + Phase 6(Splash/Onboarding) + dead CSS 정리까지 **전부 끝남**. 남은 건 선택적 마감뿐:
+- (선택) 잔류 dead 클래스(`.button*`/`.timeline`) 마이크로 제거.
+- (선택) 갤러리(`gallery/` + main.tsx 3줄) 제거 — 부품 검증 끝났으면.
+- koo 육안 QA 후 브랜치 푸시/PR.
 - **확립된 레시피**: bare 단일 화면 = 자체 AppBar + 페이지 스크롤(+sticky 하단 바 옵션). 탭 셸 = 고정 상단/하단 + 100dvh inner-overflow(허브/심문). 앱 탭(home/library/records/profile) = bare/비-bare + APP_NAV BottomNav(main 패딩 상속). 공유 카드 = `domain/ScenarioRow`. **바텀시트 = 공유 `Sheet` 프리미티브 위에 콘텐츠**(다이얼로그는 `Modal`).
 
 ## 🔎 컴포넌트 갤러리 (육안 검증용, 2026-06-19)
