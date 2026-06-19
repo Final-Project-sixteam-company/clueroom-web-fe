@@ -77,6 +77,7 @@ import {
   refreshSession,
   serverLogout,
 } from "./auth/authClient";
+import { withAuthRetry } from "./auth/withAuthRetry";
 
 function App() {
   const [view, setView] = useState<View>("home");
@@ -598,46 +599,42 @@ function App() {
     });
   }
 
-  async function authedRequest<T>(
+  function authedRequest<T>(
     path: string,
     options: RequestInit & {
       query?: Record<string, string | number | boolean>;
     } = {},
   ) {
-    const token = tokens?.accessToken ?? (await safeGet(ACCESS_KEY));
-    if (!token) {
-      throw new ApiError("로그인이 필요합니다.", "AUTH_REQUIRED", 401);
-    }
-
-    try {
-      return await request<T>(path, { ...options, token });
-    } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== 401) throw error;
-      const refreshed = await refreshTokens();
-      if (!refreshed) throw error;
-      return request<T>(path, { ...options, token: refreshed });
-    }
+    return withAuthRetry<T>({
+      getToken: async () => tokens?.accessToken ?? (await safeGet(ACCESS_KEY)),
+      send: (token) => request<T>(path, { ...options, token }),
+      refresh: refreshTokens,
+      isUnauthorized: (error) =>
+        error instanceof ApiError && error.status === 401,
+      onMissingToken: () => {
+        throw new ApiError("로그인이 필요합니다.", "AUTH_REQUIRED", 401);
+      },
+      onRefreshExhausted: (original) => {
+        throw original;
+      },
+    });
   }
 
-  async function optionalAuthRequest<T>(
+  function optionalAuthRequest<T>(
     path: string,
     options: RequestInit & {
       query?: Record<string, string | number | boolean>;
     } = {},
   ) {
-    const token = tokens?.accessToken ?? (await safeGet(ACCESS_KEY));
-    if (!token) return request<T>(path, options);
-
-    try {
-      return await request<T>(path, { ...options, token });
-    } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== 401) throw error;
-      const refreshed = await refreshTokens();
-      if (refreshed) {
-        return request<T>(path, { ...options, token: refreshed });
-      }
-      return request<T>(path, options);
-    }
+    return withAuthRetry<T>({
+      getToken: async () => tokens?.accessToken ?? (await safeGet(ACCESS_KEY)),
+      send: (token) => request<T>(path, { ...options, token }),
+      refresh: refreshTokens,
+      isUnauthorized: (error) =>
+        error instanceof ApiError && error.status === 401,
+      onMissingToken: () => request<T>(path, options),
+      onRefreshExhausted: () => request<T>(path, options),
+    });
   }
 
   async function handleGoogleCredential(idToken: string) {
