@@ -70,6 +70,13 @@ import {
   createRefreshController,
   type RefreshController,
 } from "./auth/refreshController";
+import {
+  oauthLogin,
+  kakaoCodeLogin,
+  devLogin,
+  refreshSession,
+  serverLogout,
+} from "./auth/authClient";
 
 function App() {
   const [view, setView] = useState<View>("home");
@@ -201,12 +208,7 @@ function App() {
       } else {
         const generation = refreshController.generation;
         try {
-          const next = await request<Tokens>("/api/auth/refresh", {
-            method: "POST",
-            body: legacyRefreshToken
-              ? JSON.stringify({ refreshToken: legacyRefreshToken })
-              : undefined,
-          });
+          const next = await refreshSession(legacyRefreshToken);
           if (generation === refreshController.generation) {
             await persistTokens(next);
           }
@@ -284,12 +286,7 @@ function App() {
     refreshController.reset();
     const legacyRefreshToken = tokens?.refreshToken ?? (await safeGet(REFRESH_KEY));
     try {
-      await request<void>("/api/auth/logout", {
-        method: "POST",
-        body: legacyRefreshToken
-          ? JSON.stringify({ refreshToken: legacyRefreshToken })
-          : undefined,
-      });
+      await serverLogout(legacyRefreshToken);
     } catch {
       // 서버 revoke 실패와 무관하게 로컬 로그아웃은 완료한다.
     } finally {
@@ -589,12 +586,7 @@ function App() {
       fetchTokens: async () => {
         const legacyRefreshToken =
           tokens?.refreshToken ?? (await safeGet(REFRESH_KEY));
-        return request<Tokens>("/api/auth/refresh", {
-          method: "POST",
-          body: legacyRefreshToken
-            ? JSON.stringify({ refreshToken: legacyRefreshToken })
-            : undefined,
-        });
+        return refreshSession(legacyRefreshToken);
       },
       extractToken: (next) => next.accessToken,
       persist: (next) => persistTokens(next),
@@ -652,10 +644,7 @@ function App() {
     setAuthError(null);
     try {
       const deviceId = await getDeviceId();
-      const data = await request<Tokens>("/api/auth/oauth", {
-        method: "POST",
-        body: JSON.stringify({ provider: "GOOGLE", idToken, deviceId }),
-      });
+      const data = await oauthLogin(idToken, deviceId);
       await replaceAuthSession(data);
       setView("home");
     } catch (error) {
@@ -671,14 +660,11 @@ function App() {
     setAuthError(null);
     try {
       const deviceId = await getDeviceId();
-      const data = await request<Tokens>("/api/auth/oauth/kakao/code", {
-        method: "POST",
-        body: JSON.stringify({
-          authorizationCode,
-          redirectUri: kakaoRedirectUri(),
-          deviceId,
-        }),
-      });
+      const data = await kakaoCodeLogin(
+        authorizationCode,
+        kakaoRedirectUri(),
+        deviceId,
+      );
       await replaceAuthSession(data);
       setView("home");
     } catch (error) {
@@ -698,10 +684,7 @@ function App() {
     setAuthError(null);
     try {
       const deviceId = await getDeviceId();
-      const data = await request<Tokens>("/api/auth/dev", {
-        method: "POST",
-        body: JSON.stringify({ email, nickname, deviceId }),
-      });
+      const data = await devLogin(email, nickname, deviceId);
       await replaceAuthSession(data);
       setView("home");
     } catch (error) {
