@@ -8,6 +8,14 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+*,
+*::before,
+*::after {
+  /* 전역 border-box 리셋 — 미적용 시 width:100%+padding 요소(예: main)가
+   * 430 폰 컬럼을 우측으로 삐져나감. 킷/도메인 모듈 16종이 개별 선언하던 것을 정본화. */
+  box-sizing: border-box;
+}
+
 * {
   -webkit-tap-highlight-color: transparent;
 }

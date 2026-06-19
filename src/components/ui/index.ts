@@ -22,6 +22,7 @@ export type { FilterChipProps } from "./FilterChip";
 export { BottomNav } from "./BottomNav";
 export type { BottomNavProps, BottomNavItem } from "./BottomNav";
 export { CASE_NAV_ITEMS } from "./case-nav-items";
+export { APP_NAV_ITEMS } from "./app-nav-items";
 
 export { Spinner } from "./Spinner";
 export type { SpinnerProps } from "./Spinner";

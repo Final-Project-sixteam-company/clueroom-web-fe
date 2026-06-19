@@ -15,9 +15,26 @@
 }
 
 main {
-  width: min(100%, 1180px);
-  margin: 0 auto;
+  width: 100%;
   padding: 20px 20px 48px;
+}
+
+/* 탭 화면(홈/라이브러리/기록/내 정보): Flutter Scaffold body + bottomNavigationBar.
+ * 프레임을 뷰포트 높이로 고정 → main 영역만 스크롤, 하단 네비는 항상 바닥에 고정.
+ * (콘텐츠가 네비 뒤로 스크롤되지 않음 = Flutter 와 동일) */
+.app-frame--tabbed {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh; /* 모바일 동적 뷰포트(주소창 변동) 대응 */
+}
+.app-frame--tabbed > main {
+  flex: 1 1 auto;
+  min-height: 0; /* flex 자식이 스크롤되도록 */
+  overflow-y: auto;
+}
+.app-frame--tabbed > nav {
+  flex: none; /* 하단 네비는 고정 높이 */
 }
 
 button:focus-visible,
@@ -48,7 +65,7 @@ select:focus-visible {
   justify-content: space-between;
   gap: 12px;
   min-height: 56px;
-  padding: 8px max(20px, calc((100vw - 1180px) / 2 + 20px));
+  padding: 8px 20px; /* 430 폰 컬럼 내부 — 옛 full-width(1180 중앙) 정렬 공식 제거 */
   background: rgba(15, 23, 42, 0.94);
   border-bottom: 1px solid var(--line-soft);
   backdrop-filter: blur(16px);

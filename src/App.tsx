@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import { HomeScreen } from "./components/screens/HomeScreen";
+import { LibraryScreen } from "./components/screens/LibraryScreen";
+import { BottomNav, APP_NAV_ITEMS } from "./components/ui";
 import {
   GOOGLE_CLIENT_ID,
   ENABLE_GOOGLE_LOGIN,
@@ -1176,10 +1178,30 @@ function App() {
     );
   }
 
+  // 앱 셸 하단 네비 탭 → view 매핑 (Flutter app_shell.dart, 만들기 제외 4탭).
+  // 비-탭 화면(상세/게임/로그인 등)은 navIndex === -1 → 네비 미표시 + topbar 유지.
+  const APP_NAV_VIEWS: View[] = ["home", "library", "records", "profile"];
+  const navIndex = APP_NAV_VIEWS.indexOf(view);
+
   return (
     <Shell
       title="ClueRoom"
       bare={view === "home"}
+      nav={
+        navIndex === -1
+          ? undefined
+          : {
+              currentIndex: navIndex,
+              onTap: (index) => {
+                // 기존 진입점과 동일하게 동작 보존(openProfile/records 는 자체 로그인 게이팅).
+                const target = APP_NAV_VIEWS[index];
+                if (target === "profile") openProfile();
+                else if (target === "records")
+                  setView(tokens ? "records" : "login");
+                else setView(target);
+              },
+            }
+      }
       onHome={() => setView("home")}
       onLibrary={() => setView("library")}
       onProfile={tokens ? openProfile : undefined}
@@ -1450,6 +1472,7 @@ function Shell({
   onProfile,
   onLogout,
   bare = false,
+  nav,
 }: {
   children: React.ReactNode;
   title: string;
@@ -1458,7 +1481,22 @@ function Shell({
   onProfile?: () => void;
   onLogout?: () => void;
   bare?: boolean;
+  /** 탭 화면이면 하단 네비를 표시(+topbar 제거). 정본 app_shell.dart. */
+  nav?: { currentIndex: number; onTap: (index: number) => void };
 }) {
+  // 탭 화면: topbar 없이 하단 네비로 이동(Flutter 탭 화면엔 앱바 없음). bare(home)면 main 패딩 0.
+  if (nav) {
+    return (
+      <div className="app-frame app-frame--tabbed">
+        <main style={bare ? { padding: 0 } : undefined}>{children}</main>
+        <BottomNav
+          items={APP_NAV_ITEMS}
+          currentIndex={nav.currentIndex}
+          onTap={nav.onTap}
+        />
+      </div>
+    );
+  }
   if (bare) {
     return (
       <div className="app-frame">
@@ -1956,120 +1994,6 @@ function RecordsScreen({
           </article>
         ))}
       </div>
-    </section>
-  );
-}
-
-function LibraryScreen({
-  scenarios,
-  filter,
-  loading,
-  loadingMore,
-  hasNext,
-  error,
-  onRefresh,
-  onLoadMore,
-  onFilterChange,
-  onSelect,
-}: {
-  scenarios: Scenario[];
-  filter: ScenarioFilterState;
-  loading: boolean;
-  loadingMore: boolean;
-  hasNext: boolean;
-  error: string | null;
-  onRefresh: () => void;
-  onLoadMore: () => void;
-  onFilterChange: (filter: ScenarioFilterState) => void;
-  onSelect: (scenario: Scenario) => void;
-}) {
-  const [query, setQuery] = useState(filter.query);
-  const updateFilter = (next: Partial<ScenarioFilterState>) => {
-    onFilterChange({ ...filter, ...next });
-  };
-
-  return (
-    <section className="stack">
-      <ScreenTitle title="시나리오 라이브러리" subtitle="MYSTERY LIBRARY" />
-      <div className="search-row">
-        <input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="사건명 또는 키워드"
-          onKeyDown={(event) => {
-            if (event.key === "Enter") updateFilter({ query });
-          }}
-        />
-        <button
-          className="button secondary compact"
-          onClick={() => updateFilter({ query })}
-          type="button"
-        >
-          검색
-        </button>
-      </div>
-      <FilterChips
-        label="정렬"
-        options={[
-          ["popular", "인기"],
-          ["latest", "최신"],
-          ["rating", "평점"],
-        ]}
-        value={filter.sort}
-        onChange={(value) =>
-          updateFilter({ sort: value as ScenarioFilterState["sort"] })
-        }
-      />
-      <FilterChips
-        label="유형"
-        options={[
-          ["", "전체"],
-          ["OFFICIAL", "공식"],
-          ["CUSTOM", "커스텀"],
-        ]}
-        value={filter.type}
-        onChange={(value) =>
-          updateFilter({ type: value as ScenarioFilterState["type"] })
-        }
-      />
-      <FilterChips
-        label="난이도"
-        options={[
-          ["", "전체"],
-          ["EASY", "쉬움"],
-          ["NORMAL", "보통"],
-          ["HARD", "어려움"],
-        ]}
-        value={filter.difficulty}
-        onChange={(value) =>
-          updateFilter({
-            difficulty: value as ScenarioFilterState["difficulty"],
-          })
-        }
-      />
-      <div className="meta-row">
-        <span>{loading ? "검색 중" : `${scenarios.length}건`}</span>
-        {filter.query && <span>키워드: {filter.query}</span>}
-      </div>
-      {loading && <StateBlock title="사건 목록을 불러오고 있습니다" />}
-      {error && (
-        <StateBlock
-          title="불러오지 못했습니다"
-          body={error}
-          action={onRefresh}
-        />
-      )}
-      <ScenarioCardList scenarios={scenarios} onSelect={onSelect} />
-      {!loading && !error && hasNext && (
-        <button
-          className="button secondary"
-          onClick={onLoadMore}
-          disabled={loadingMore}
-          type="button"
-        >
-          {loadingMore ? "더 불러오는 중" : "더보기"}
-        </button>
-      )}
     </section>
   );
 }
