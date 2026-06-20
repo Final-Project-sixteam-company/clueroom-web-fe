@@ -1,0 +1,83 @@
+/* 정본: game_modals.dart · review_write_sheet.dart 의 showModalBottomSheet 공통 chrome.
+ * scrim(ink900 70%) + 하단 고정 bgElev 패널(상단 r6) + 드래그 핸들. tokens.css var 소비. */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-end; /* 하단 고정 바텀시트 */
+  justify-content: center;
+  background: var(--scrim); /* ink900 70% */
+  z-index: 1100;
+}
+
+.entering {
+  animation: sheet-scrim-in var(--dur3) var(--ease-out) both;
+}
+.leaving {
+  animation: sheet-scrim-out var(--dur3) var(--ease-out) both;
+}
+@keyframes sheet-scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes sheet-scrim-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* ── 바텀시트 패널(앱 프레임 폭, 상단 모서리 r6) ── */
+.panel {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 430px; /* .app-frame 폭과 동일(폰 컬럼) */
+  max-height: 88dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-elev);
+  border-top-left-radius: var(--r6); /* 14 */
+  border-top-right-radius: var(--r6);
+  /* Flutter SafeArea(top:false) + Padding 가로 sp4 / 하단 sp4(+안전영역) */
+  padding: 0 var(--sp4) max(var(--sp4), env(safe-area-inset-bottom));
+  box-shadow: 0 -8px 24px var(--shadow-card); /* 바텀시트 상단 분리 그림자(웹 보조) */
+}
+.entering .panel {
+  animation: sheet-panel-in var(--dur3) var(--ease-out) both;
+}
+.leaving .panel {
+  animation: sheet-panel-out var(--dur3) var(--ease-out) both;
+}
+@keyframes sheet-panel-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes sheet-panel-out {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+/* ── 드래그 핸들(36×4 line rPill) ── */
+.handle {
+  flex: none;
+  width: var(--handle-w); /* 36 */
+  height: var(--handle-h); /* 4 */
+  margin: var(--sp4) auto; /* 위/아래 sp4 (Hint/Briefing/Review Padding.all 기준) */
+  background: var(--line);
+  border-radius: var(--r-pill);
+}

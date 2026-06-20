@@ -1,0 +1,125 @@
+/* 정본: review_write_sheet.dart. 공유 Sheet 프리미티브 위.
+ * scrim/패널/핸들/모션은 Sheet.module.css 소유 — 여기선 시트 내부 콘텐츠만. */
+
+.title {
+  margin: 0 0 var(--sp4); /* 제목 → 평점 sp4 */
+  font-family: var(--font-sans);
+  font-size: var(--fs-title-m); /* 18 titleM */
+  font-weight: 700;
+  letter-spacing: var(--ls-title-m);
+  line-height: var(--lh-title-m);
+  color: var(--text);
+}
+
+/* ── 평점 행(라벨 + ★ 값) ── */
+.ratingRow {
+  display: flex;
+  align-items: center;
+}
+.ratingLabel {
+  flex: 1 1 auto;
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 body */
+  line-height: var(--lh-body);
+  color: var(--text-sub);
+}
+.ratingValue {
+  flex: none;
+  font-family: var(--font-mono);
+  font-weight: 600; /* monoNum */
+  font-size: var(--fs-xl2); /* 16 */
+  font-variant-numeric: tabular-nums;
+  line-height: var(--lh-label); /* 1 */
+  color: var(--primary);
+}
+
+/* ── 슬라이더(1.0~5.0, 0.5 step) ── */
+.slider {
+  display: block;
+  width: 100%;
+  margin: var(--sp1) 0; /* Slider 상하 여백 */
+  accent-color: var(--primary); /* active track/thumb = primary */
+  cursor: pointer;
+}
+
+/* ── 본문 입력(4줄) ── */
+.bodyBox {
+  margin-top: var(--sp3); /* 슬라이더 → 본문 sp3 */
+  background: var(--bg);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r3); /* 8 */
+  overflow: hidden;
+}
+.textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: calc(4 * 1.6em + 2 * var(--sp3)); /* 4줄 + 상하 패딩 */
+  padding: var(--sp3);
+  border: none;
+  background: transparent;
+  resize: vertical;
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 body */
+  line-height: 1.6;
+  color: var(--text);
+}
+.textarea::placeholder {
+  color: var(--text-mute);
+}
+.textarea:focus {
+  outline: none;
+}
+
+/* ── 스포일러 스위치 행 ── */
+.spoilerRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp2);
+  margin-top: var(--sp3); /* 본문 → 스포일러 sp3 */
+}
+.switch {
+  flex: none;
+  position: relative;
+  width: 44px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--r-pill);
+  background: var(--bg-hover); /* off */
+  cursor: pointer;
+  transition: background-color var(--dur2) var(--ease-out);
+}
+.switchOn {
+  background: var(--danger); /* on = danger(Flutter activeThumbColor) */
+}
+.switch:active {
+  transform: none; /* 전역 button:active 스케일 무력화 */
+}
+.switchThumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--ink50);
+  transition: transform var(--dur2) var(--ease-out);
+}
+.switchOn .switchThumb {
+  transform: translateX(20px); /* 44 - 18 - 3 - 3 */
+}
+.spoilerLabel {
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 body */
+  line-height: var(--lh-body);
+  color: var(--text-sub);
+}
+.spoilerOn {
+  color: var(--danger);
+}
+
+/* ── 등록 버튼 ── */
+.footer {
+  margin-top: var(--sp4);
+}

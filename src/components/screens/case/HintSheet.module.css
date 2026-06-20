@@ -1,0 +1,96 @@
+/* 정본: game_modals.dart _HintSheet / _HintTile. 공유 Sheet 프리미티브 위.
+ * scrim/패널/핸들/모션은 Sheet.module.css 소유 — 여기선 시트 내부 콘텐츠만. */
+
+.title {
+  flex: none;
+  margin: 0 0 var(--sp2); /* 제목 → 경고 sp2 */
+  font-family: var(--font-sans);
+  font-size: var(--fs-title-l); /* 24 titleL */
+  font-weight: 700;
+  letter-spacing: var(--ls-title-l);
+  line-height: var(--lh-title-l);
+  color: var(--text);
+}
+.warn {
+  flex: none;
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 bodySm */
+  line-height: var(--lh-body-sm);
+  color: var(--danger);
+}
+
+/* 누적 감점 박스(dangerSoft) */
+.penalty {
+  flex: none;
+  align-self: flex-start;
+  margin-top: var(--sp3);
+  padding: var(--sp2) var(--sp3); /* v sp2 / h sp3 */
+  background: var(--danger-soft);
+  border: var(--stroke-sm) solid var(--danger);
+  border-radius: var(--r3); /* 8 */
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-mono-label); /* 11 */
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--danger);
+}
+
+/* ── 힌트 목록(내부 스크롤, separator sp3) ── */
+.list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin-top: var(--sp6); /* 경고/감점 → 목록 sp6 */
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp3); /* Flutter 타일 bottom sp3 */
+}
+.empty {
+  margin: var(--sp6) 0;
+  text-align: center;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 bodySm */
+  line-height: var(--lh-body-sm);
+  color: var(--text-sub);
+}
+
+/* ── 사용 완료 타일 ── */
+.usedTile {
+  padding: var(--sp3);
+  background: var(--bg);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r3); /* 8 */
+}
+.usedHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp2);
+}
+.usedLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-mono-label); /* 11 */
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--text-sub);
+}
+.usedPenalty {
+  flex: none;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-mono-label); /* 11 */
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--danger);
+}
+.usedContent {
+  margin: var(--sp2) 0 0; /* 라벨 → 내용 sp2 */
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 — Flutter body copyWith(13) */
+  line-height: 1.55;
+  color: var(--text);
+}

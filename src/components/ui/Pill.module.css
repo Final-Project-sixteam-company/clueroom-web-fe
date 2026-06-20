@@ -1,0 +1,36 @@
+/* 정본: ms_pill.dart */
+.pill {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  padding: var(--pill-pad-v) var(--pill-pad-h); /* 3 7 */
+  border: var(--stroke-sm) solid transparent;
+  border-radius: var(--r1); /* 2 — 각짐 */
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-sm); /* 9.5 */
+  letter-spacing: var(--ls-mono-label); /* 1.98px (절대값, fontSize 변경에도 유지) */
+  line-height: var(--lh-label); /* 1 */
+  white-space: nowrap;
+}
+
+.primary {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.success {
+  background: var(--success-soft);
+  border-color: var(--success);
+  color: var(--success);
+}
+.danger {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.mute {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--text-mute);
+}

@@ -1,0 +1,187 @@
+/* 정본: lib/screens/login_screen.dart
+ * 픽셀=Flutter 레이아웃, 데이터/동작=웹 보존(koo #4). 값은 tokens.css var 소비
+ * (브랜드색 #FEE500 / ink0 85% 등 Kakao 브랜드 리터럴, 1.5px 보더는 주석 단 리터럴 허용).
+ * 비-탭 전체화면 로그인 → 셸 bare. 페이지 스크롤. */
+
+.screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: var(--sp12) var(--sp8); /* Flutter SingleChildScrollView padding h32 v48 */
+  background: var(--bg);
+}
+.spacerTop {
+  flex: none;
+  height: 40px; /* Flutter SizedBox(height: 40) */
+}
+
+/* ── 로고 오브 (80×80 원형, primary glow) ── */
+.orb {
+  flex: none;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--bg-elev);
+  border: 1.5px solid var(--primary-60); /* Flutter primary@.6, width 1.5 */
+  box-shadow: 0 0 24px 4px var(--primary-18); /* Flutter primary@.18 blur24 spread4 */
+}
+.orbMark {
+  font-family: var(--font-sans);
+  font-weight: 700; /* titleM */
+  font-size: var(--fs-title-m); /* 18 */
+  letter-spacing: 2px; /* Flutter copyWith(letterSpacing: 2) */
+  line-height: 1;
+  color: var(--primary);
+}
+
+.title {
+  margin: var(--sp8) 0 0; /* orb ↔ title sp8 */
+  text-align: center;
+  font-family: var(--font-sans);
+  font-size: var(--fs-hero); /* 28 (titleL copyWith fontSize 28) */
+  font-weight: 700;
+  letter-spacing: var(--ls-title-l);
+  line-height: var(--lh-title-l);
+  color: var(--text);
+}
+.subtitle {
+  margin: var(--sp2) 0 0; /* title ↔ subtitle sp2 */
+  text-align: center;
+  white-space: pre-line; /* "...접근하려면\n로그인해주세요." 줄바꿈 */
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 body */
+  line-height: 1.5; /* Flutter body height 1.5 */
+  color: var(--text-sub);
+}
+.gap48 {
+  flex: none;
+  height: 48px; /* Flutter SizedBox(height: 48) */
+}
+
+/* ── 개발/QA 로그인 (게이트, Flutter dev login 캐논) ── */
+.devBlock {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: var(--sp8);
+}
+.devLabel {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 bodySm */
+  color: var(--text-mute);
+}
+.devInput {
+  margin-top: var(--sp2);
+  height: var(--btn-h); /* 48 */
+  padding: 0 var(--sp3);
+  background: var(--bg-elev);
+  border: 1.5px solid transparent; /* focus 시 1.5px 로 색만 바뀌어 레이아웃 시프트 0 */
+  border-radius: var(--r4); /* 10 */
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg);
+  outline: none;
+}
+.devInput::placeholder {
+  color: var(--text-mute);
+}
+.devInput:focus {
+  border-color: var(--primary); /* Flutter focusedBorder primary 1.5 */
+}
+.devBlock button {
+  margin-top: var(--sp6); /* 입력 ↔ 버튼 sp6 */
+}
+
+.error {
+  margin: 0 0 var(--sp6);
+  text-align: center;
+  font-family: var(--font-sans);
+  font-size: var(--fs-caption); /* 11.5 caption */
+  line-height: var(--lh-body-sm);
+  color: var(--danger); /* Flutter roseBase */
+}
+
+/* ── '또는' divider (dev + provider 둘 다 있을 때만) ── */
+.divider {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--sp8);
+}
+.dividerLine {
+  flex: 1 1 auto;
+  height: var(--stroke-sm);
+  background: var(--line);
+}
+.dividerText {
+  flex: none;
+  margin: 0 var(--sp4);
+  font-family: var(--font-sans);
+  font-size: var(--fs-caption); /* 11.5 */
+  color: var(--text-mute);
+}
+
+/* ── OAuth 버튼 그룹 (Google → sp4 → Kakao) ── */
+.providers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp4);
+}
+
+/* Google: GIS 공식 버튼 컨테이너(위젯 폭은 GIS 가 결정, 중앙 정렬) */
+.googleBox {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-height: var(--btn-h); /* 로드 전 레이아웃 점프 방지 */
+}
+
+/* Kakao: 노란 브랜드 버튼(#FEE500, ink0 85% 텍스트) — r3/h48/label 14·700 = MSButton 정합 */
+.kakaoButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp2);
+  width: 100%;
+  height: var(--btn-h); /* 48 */
+  border: none;
+  border-radius: var(--r3); /* 8 = MSButton r3 */
+  background: #fee500; /* Kakao 브랜드 옐로우 */
+  color: rgba(0, 0, 0, 0.85); /* Kakao 가이드 텍스트(ink0 85%) */
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 */
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform var(--dur1) var(--ease-out),
+    opacity var(--dur1) var(--ease-out);
+}
+.kakaoButton:hover {
+  opacity: 0.94;
+}
+.kakaoButton:active {
+  transform: scale(0.98); /* MSButton press scale .98 @dur1 */
+}
+.kakaoButton:disabled {
+  opacity: 0.42; /* MSButton disabled */
+  cursor: default;
+}
+.kakaoSymbol {
+  flex: none;
+}
+
+.notice {
+  margin: var(--sp4) 0 0;
+  text-align: center;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 */
+  line-height: var(--lh-body-sm);
+  color: var(--text-sub);
+}
+.notice code {
+  font-family: var(--font-mono);
+  font-size: var(--fs-md); /* 12 */
+  color: var(--text);
+}

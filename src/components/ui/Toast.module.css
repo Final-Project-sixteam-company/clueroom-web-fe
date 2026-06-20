@@ -1,0 +1,82 @@
+/* 정본: overlays.dart MSToast */
+.viewport {
+  position: fixed;
+  left: 50%;
+  bottom: var(--sp10); /* 40 */
+  transform: translateX(-50%);
+  width: min(calc(100% - 2 * var(--sp4)), 480px); /* 좌우 sp4 여백, 최대 480 */
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp2);
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.toast {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--sp3); /* 12 */
+  padding: var(--sp3) var(--sp4); /* v12 h16 */
+  border: var(--stroke-sm) solid currentColor; /* base 색 */
+  border-radius: var(--r3); /* 8 */
+  pointer-events: auto;
+  animation: toast-in var(--dur2) var(--ease-out) both; /* fade + slide up 12 */
+}
+
+.leaving {
+  animation: toast-out var(--dur2) var(--ease-out) both;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: currentColor;
+}
+
+.message {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 bodySm */
+  font-weight: 400;
+  line-height: var(--lh-body-sm); /* 1.55 */
+}
+
+/* tone: color = base(테두리·dot·텍스트 currentColor), background = soft */
+.primary {
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+.success {
+  color: var(--success);
+  background: var(--success-soft);
+}
+.danger {
+  color: var(--danger);
+  background: var(--danger-soft);
+}

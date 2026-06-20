@@ -1,18 +1,19 @@
 :root {
-  font-family:
-    Pretendard,
-    Inter,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
-  color: #f1f5f9;
-  background: #080f1e;
+  font-family: var(--font-sans);
+  color: var(--text);
+  background: var(--ink950);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  /* 전역 border-box 리셋 — 미적용 시 width:100%+padding 요소(예: main)가
+   * 430 폰 컬럼을 우측으로 삐져나감. 킷/도메인 모듈 16종이 개별 선언하던 것을 정본화. */
+  box-sizing: border-box;
 }
 
 * {
@@ -20,14 +21,14 @@
 }
 
 html {
-  background: #080f1e;
+  background: var(--ink950);
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #080f1e;
+  background: var(--ink950);
 }
 
 button,

@@ -1,0 +1,29 @@
+/* 정본: states.dart MSSkeleton — shimmer 1600ms easeInOut, bgElev→bgHover→bgElev */
+.skeleton {
+  display: block;
+  border-radius: var(--skeleton-radius, var(--r2)); /* 기본 r2(4) */
+  background: linear-gradient(
+    90deg,
+    var(--bg-elev) 0%,
+    var(--bg-hover) 50%,
+    var(--bg-elev) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1600ms var(--ease-in-out) infinite;
+}
+
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* MSListSkeleton: 카드 스켈레톤 세로 스택, separator 12 */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp3); /* 12 */
+}

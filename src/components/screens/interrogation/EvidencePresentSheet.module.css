@@ -1,0 +1,125 @@
+/* 정본: game_modals.dart _EvidencePresentSheet / _EvidencePickItem. 공유 Sheet 프리미티브 위.
+ * scrim/패널/핸들/슬라이드 모션은 Sheet.module.css 소유 — 여기선 시트 내부 콘텐츠만. */
+
+/* DraggableScrollableSheet initialChildSize 0.75 근사(Sheet max 88dvh 안에서). */
+.panel {
+  height: 75dvh;
+}
+
+/* ── 헤더(제목 + 닫기 X) ── */
+.header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--sp2);
+}
+.title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-title-m); /* 18 titleM */
+  font-weight: 700;
+  letter-spacing: var(--ls-title-m);
+  line-height: var(--lh-title-m);
+  color: var(--text);
+}
+.closeBtn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  color: var(--text-sub);
+  transition: background-color var(--dur1) var(--ease-out);
+}
+.closeBtn:hover {
+  background: var(--bg-hover);
+}
+
+/* ── 검색 ── */
+.search {
+  flex: none;
+  margin-top: var(--sp4);
+}
+
+/* ── 빈 상태(가운데) ── */
+.empty {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── 증거 리스트(내부 스크롤, separator sp2) ── */
+.list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin: var(--sp4) 0 0;
+  padding: 0 0 var(--sp4);
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp2);
+}
+
+/* ── 증거 선택 아이템(_EvidencePickItem) ── */
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp3);
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--card-pad-v) var(--card-pad-h); /* 12 / 16 */
+  background: var(--bg);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r4); /* 10 */
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition:
+    background-color var(--dur2) var(--ease-out),
+    border-color var(--dur2) var(--ease-out);
+}
+.row:hover {
+  background: var(--bg-hover);
+}
+.row:active {
+  transform: none;
+}
+.rowActive {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+}
+.rowInfo {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.rowTitle {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 body copyWith(13) */
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rowMeta {
+  margin-top: 3px; /* Flutter SizedBox(height: 3) */
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-sm); /* 9.5 monoLabel copyWith(9.5) */
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--text-mute);
+}

@@ -1,0 +1,16 @@
+/* 정본: states.dart MSSpinner — strokeWidth 2(--stroke-md), color primary 기본 */
+.spinner {
+  display: inline-block;
+  box-sizing: border-box;
+  border: var(--stroke-md) solid var(--spinner-color, var(--primary));
+  border-right-color: transparent;
+  border-radius: var(--r-pill);
+  animation: ms-spin 0.7s linear infinite;
+  flex: none;
+}
+
+@keyframes ms-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

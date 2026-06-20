@@ -1,0 +1,133 @@
+/* 정본: lib/screens/scenario_library_screen.dart
+ * 픽셀=Flutter, 데이터/동작=웹 보존(koo #4). 필터는 웹 3축(정렬/유형/난이도) 조합 유지 + Flutter FilterChip 픽셀.
+ * 가로 패딩은 Shell <main>(20px) 상속(타 비-bare 화면과 동일). bare 전환은 바텀 네비 도입 시. */
+
+.library {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp4); /* 16 — 헤더/검색/필터/구분선/리스트 사이 */
+}
+
+/* ── 헤더 (titleL + MYSTERY LIBRARY eyebrow) ── */
+.head {
+  display: flex;
+  flex-direction: column;
+}
+.title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-title-l); /* 24 titleL */
+  font-weight: 700;
+  letter-spacing: var(--ls-title-l); /* -0.36 */
+  line-height: var(--lh-title-l); /* 1.25 */
+  color: var(--text);
+}
+.eyebrow {
+  margin-top: 2px; /* Flutter SizedBox(height:2) */
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-mono-label); /* 11 monoLabel */
+  letter-spacing: var(--ls-mono-label); /* 1.98 */
+  line-height: 1;
+  color: var(--text-mute);
+}
+
+/* ── 필터 3축 (각 행: 라벨 + 칩 가로 스크롤) ── */
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp3); /* 12 — Flutter field↔chips sp3 리듬을 축 사이에 적용 */
+}
+.axis {
+  display: flex;
+  align-items: center;
+  gap: var(--sp2); /* 8 라벨↔칩 */
+}
+.axisLabel {
+  flex: none;
+  min-width: 40px; /* 정렬/유형/난이도 라벨 시작 정렬 */
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-mono-label); /* 11 */
+  line-height: 1;
+  color: var(--text-mute);
+  white-space: nowrap;
+}
+.chips {
+  display: flex;
+  align-items: center;
+  gap: var(--sp2); /* 8 — Flutter EdgeInsets.only(right: sp2) */
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+  padding-bottom: 2px; /* 가로 스크롤 시 칩 보더 클리핑 방지 */
+}
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── 필터↔리스트 구분선 (Flutter Divider thickness 1) ── */
+.divider {
+  height: var(--stroke-sm); /* 1px */
+  background: var(--line);
+}
+
+/* ── 리스트 헤더 (Kicker '사건 목록' ── N건) ── */
+.listHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp2); /* 8 — MSKicker 뒤 SizedBox(sp2) */
+}
+.kickerGrow {
+  flex: 1 1 auto; /* Kicker 내부 divider 가 남은 폭을 채워 건수를 우측으로 민다 */
+  min-width: 0;
+}
+.count {
+  flex: none;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-mono-label); /* 11 */
+  letter-spacing: var(--ls-mono-label); /* 1.98 */
+  line-height: 1;
+  color: var(--text-mute);
+  white-space: nowrap;
+}
+
+/* ── 리스트 (ListView.separated, separator sp3) ── */
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp3); /* 12 */
+}
+
+/* 시나리오 카드(_ScenarioRow)는 라이브러리/북마크 공용이라 domain/ScenarioRow.module.css 로 분리. */
+
+/* 더보기 / 추가 로딩 (마지막 행 위 sp2 — Flutter EdgeInsets.only(top: sp2)) */
+.more {
+  margin-top: var(--sp2);
+}
+.moreSpinner {
+  display: flex;
+  justify-content: center;
+  padding: var(--sp3); /* Center + Padding(sp3) */
+}
+
+/* 추가 로드 실패 시 인라인 알림(웹 동작 보존 — 목록은 유지) */
+.errorRow {
+  margin-top: var(--sp2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp2);
+  padding: var(--sp3);
+  background: var(--bg-elev);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r4);
+}
+.errorText {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 */
+  line-height: var(--lh-body-sm);
+  color: var(--text-sub);
+}

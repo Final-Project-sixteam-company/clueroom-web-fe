@@ -1,0 +1,77 @@
+/* 정본: suspect_card.dart */
+.card {
+  box-sizing: border-box;
+  width: 100%;
+  text-align: left;
+  padding: var(--sp4); /* 16 */
+  background: var(--bg);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r4); /* 10 */
+  cursor: pointer;
+  transition: background-color var(--dur1) var(--ease-out);
+}
+.card:disabled {
+  cursor: default;
+}
+.card:active {
+  transform: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp3); /* 12 */
+}
+
+.info {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp2); /* 8 */
+}
+
+.name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 (titleM copyWith fontSize 14) */
+  font-weight: 700;
+  letter-spacing: var(--ls-title-m); /* -0.18 (titleM 절대 ls 유지) */
+  line-height: var(--lh-title-m); /* 1.25 */
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role {
+  margin-top: 2px;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 bodySm */
+  font-weight: 400;
+  line-height: var(--lh-body-sm); /* 1.55 */
+  color: var(--text-sub);
+}
+
+.interrogationChip {
+  align-self: flex-start;
+  margin-top: var(--sp2); /* 8 */
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp1); /* 4 */
+  padding: 2px var(--sp2); /* v2 h8 */
+  background: var(--primary-soft);
+  border-radius: var(--r2); /* 4 */
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-mono-label); /* 11 */
+  letter-spacing: var(--ls-mono-label); /* 1.98 */
+  line-height: 1;
+  color: var(--primary);
+}

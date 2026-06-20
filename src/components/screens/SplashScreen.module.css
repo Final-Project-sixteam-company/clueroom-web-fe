@@ -1,0 +1,141 @@
+/* 정본: lib/screens/splash_screen.dart — 픽셀/모션 1:1. 비-탭 전체화면(셸 bare).
+ * 값은 tokens.css var 소비(라디얼의 teal .06 / rose .04 alpha 는 1회성 리터럴, 주석 표기). */
+
+.root {
+  position: relative;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* 방사형 배경: Flutter RadialGradient center(0,-0.2)=50% 40%, radius .9(근사),
+ * colors [tealBase .06, roseBase .04, ink950] stops [0, .5, 1]. */
+.bg {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at 50% 40%,
+    rgba(13, 148, 136, 0.06) 0%,
+    rgba(244, 63, 94, 0.04) 50%,
+    var(--ink950) 100%
+  );
+}
+
+/* 콘텐츠: FadeTransition + SlideTransition(0,0.06→0) 1100ms easeOut (배경 제외). */
+.content {
+  position: relative;
+  z-index: 1;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: splashIn 1100ms var(--ease-out) both;
+}
+@keyframes splashIn {
+  from {
+    opacity: 0;
+    transform: translateY(6%);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.spacer {
+  flex: 1;
+}
+
+/* 로고 배지 80 원형 (login orb 와 동일 + 십자선) */
+.badge {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--bg-elev);
+  border: 1.5px solid var(--primary-60); /* Flutter primary@.6, width 1.5 */
+  box-shadow: 0 0 24px 4px var(--primary-18); /* Flutter primary@.18 blur24 spread4 */
+  margin-bottom: var(--sp6); /* badge ↔ brandRow */
+}
+.crosshair {
+  position: absolute;
+  inset: 0;
+  width: 80px;
+  height: 80px;
+}
+.crosshair line {
+  stroke: var(--line); /* Flutter _CrosshairPainter color = c.line */
+  stroke-width: 1;
+}
+.badgeMark {
+  position: relative;
+  font-family: var(--font-sans);
+  font-weight: 700; /* titleM */
+  font-size: var(--fs-title-m); /* 18 */
+  letter-spacing: 2px; /* Flutter copyWith(letterSpacing: 2) */
+  line-height: 1;
+  color: var(--primary);
+}
+
+.brandRow {
+  display: flex;
+  align-items: baseline; /* Flutter Row crossAxisAlignment.baseline */
+  justify-content: center;
+  gap: 5px; /* Flutter SizedBox(width: 5) */
+  margin-bottom: var(--sp3); /* brandRow ↔ pulse */
+}
+.brand {
+  font-family: var(--font-sans);
+  font-size: var(--fs-hero); /* 28 (titleL copyWith fontSize 28) */
+  font-weight: 700;
+  letter-spacing: -0.5px; /* Flutter copyWith(letterSpacing: -0.5) */
+  line-height: var(--lh-title-l);
+  color: var(--text);
+}
+.aiBadge {
+  padding: 2px 6px; /* Flutter vertical 2, horizontal 6 */
+  background: var(--primary-soft);
+  border: 1px solid var(--primary);
+  border-radius: var(--r1); /* 2 */
+  font-family: var(--font-mono);
+  font-size: var(--fs-xxs); /* 10 */
+  font-weight: 600;
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--primary);
+}
+
+.pulse {
+  flex: none;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono-label); /* 11 monoLabel */
+  font-weight: 600;
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--text-mute);
+  animation: splashPulse 900ms var(--ease-in-out) infinite alternate;
+}
+@keyframes splashPulse {
+  from {
+    opacity: 0.3;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.version {
+  flex: none;
+  margin: 0;
+  padding-bottom: var(--sp8); /* Flutter Padding(bottom: sp8) */
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono-label);
+  font-weight: 600;
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--text-mute);
+}

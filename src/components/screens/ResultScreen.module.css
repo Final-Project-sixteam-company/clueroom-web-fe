@@ -1,0 +1,243 @@
+/* 정본: lib/screens/result_screen.dart (+ widgets/cards)
+ * bare AppBar('CASE CLOSED') + 페이지 스크롤. */
+
+.screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  padding: 0 var(--sp4);
+  padding-top: env(safe-area-inset-top);
+  background: var(--bg);
+}
+.barTitle {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-mono-label);
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--text-mute);
+}
+.stateWrap {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp6);
+}
+.scroll {
+  flex: 1 1 auto;
+  padding: var(--sp6) var(--sp4) var(--sp10);
+}
+
+/* ── 등급 헤더 ── */
+.gradeHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: var(--sp8);
+  animation: resultIn var(--dur3) var(--ease-out) both;
+}
+.grade {
+  font-family: var(--font-sans);
+  font-size: var(--fs-d3); /* 96 */
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+}
+.gradeTop {
+  color: var(--success); /* S / A */
+}
+.score {
+  margin-top: var(--sp3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-lg); /* 14 */
+  letter-spacing: 2px;
+  line-height: 1;
+  color: var(--primary);
+}
+@keyframes resultIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gradeHeader {
+    animation: none;
+  }
+}
+
+.kicker {
+  margin: var(--sp8) 0 var(--sp3);
+}
+
+/* ── 카드 공통 ── */
+.card {
+  padding: var(--sp4);
+  background: var(--bg-elev);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r4);
+}
+
+/* 매칭 행 */
+.matchRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp3);
+  padding: var(--row-gap) 0;
+}
+.matchOn {
+  flex: none;
+  color: var(--success);
+}
+.matchOff {
+  flex: none;
+  color: var(--danger);
+}
+.matchLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 body */
+  color: var(--text-sub);
+}
+.matchTagOn,
+.matchTagOff {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono-label);
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+}
+.matchTagOn {
+  color: var(--success);
+}
+.matchTagOff {
+  color: var(--danger);
+}
+
+/* 맞춘/놓친 행 */
+.partRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp3);
+  padding: var(--row-gap) 0;
+}
+.partText {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg);
+  line-height: 1.5;
+  color: var(--text);
+}
+.partTextMuted {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg);
+  line-height: 1.5;
+  color: var(--text-sub);
+}
+
+/* ── 사건 해설 카드 ── */
+.revelationCard {
+  padding: var(--sp4);
+  background: var(--bg);
+  border: var(--stroke-sm) solid var(--primary-soft);
+  border-radius: var(--r4);
+}
+.culprit {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-title-m); /* 18 titleM */
+  font-weight: 700;
+  letter-spacing: var(--ls-title-m);
+  line-height: var(--lh-title-m);
+  color: var(--danger);
+}
+.feedback {
+  margin: var(--sp3) 0 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg);
+  line-height: 1.6;
+  color: var(--text);
+}
+.explanation {
+  margin: var(--sp3) 0 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg);
+  line-height: 1.6;
+  color: var(--text-sub);
+}
+
+/* ── 확인된 증거 ── */
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp2);
+}
+
+/* ── 다음 추천 사건(웹 전용) ── */
+.recs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp2);
+}
+.recCard {
+  display: flex;
+  align-items: center;
+  gap: var(--sp3);
+  padding: var(--sp2);
+  background: var(--bg-elev);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r3);
+}
+.recInfo {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.recTitle {
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.recDesc {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: var(--lh-body-sm);
+  color: var(--text-sub);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── 액션 버튼 ── */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp3);
+  margin-top: var(--sp8);
+}

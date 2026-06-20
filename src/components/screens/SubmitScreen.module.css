@@ -1,0 +1,281 @@
+/* 정본: lib/screens/submit_screen.dart (+ widgets/evidence_selector)
+ * bare: 얇은 back 바 + 페이지 스크롤 폼. */
+
+.screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  padding: 0 var(--sp1);
+  padding-top: env(safe-area-inset-top);
+  background: var(--bg);
+}
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  color: var(--text);
+  transition: background-color var(--dur1) var(--ease-out);
+}
+.backBtn:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+.backBtn:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+.scroll {
+  flex: 1 1 auto;
+  padding: var(--sp4) var(--sp4) var(--sp10);
+}
+
+/* ── 헤더 ── */
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: var(--sp8);
+}
+.warnIcon {
+  color: var(--danger);
+}
+.title {
+  margin: var(--sp4) 0 0;
+  text-align: center;
+  font-family: var(--font-sans);
+  font-size: var(--fs-title-l); /* 24 titleL */
+  font-weight: 700;
+  letter-spacing: var(--ls-title-l);
+  line-height: var(--lh-title-l);
+  color: var(--text);
+}
+.subtitle {
+  margin: var(--sp2) 0 0;
+  text-align: center;
+  white-space: pre-line;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 bodySm */
+  line-height: var(--lh-body-sm);
+  color: var(--text-sub);
+}
+
+.kicker {
+  margin: var(--sp6) 0 var(--sp3);
+}
+
+/* ── 진범 드롭다운 ── */
+.select {
+  width: 100%;
+  padding: var(--sp2) var(--sp3);
+  background: var(--bg);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r3);
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 body */
+  line-height: 1.4;
+  color: var(--text);
+  color-scheme: dark;
+  cursor: pointer;
+}
+
+/* ── 서술 입력 ── */
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp3);
+}
+
+/* ── 증거 셀렉터 ── */
+.emptyText {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: var(--lh-body-sm);
+  color: var(--text-sub);
+}
+.selector {
+  display: flex;
+  flex-direction: column;
+}
+.selectedPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp2);
+  margin-bottom: var(--sp3);
+}
+.pillBtn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+.evRows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp2);
+}
+.evRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp3);
+  width: 100%;
+  padding: var(--sp2) var(--sp3);
+  background: transparent;
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r3);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--dur2) var(--ease-out),
+    border-color var(--dur2) var(--ease-out);
+}
+.evRowActive {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+}
+.evRow:disabled {
+  cursor: default;
+}
+.evCheckOn {
+  flex: none;
+  color: var(--primary);
+}
+.evCheckOff {
+  flex: none;
+  color: var(--text-sub);
+}
+.evRow:disabled .evCheckOff {
+  color: var(--text-mute);
+}
+.evName {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 */
+  line-height: 1.4;
+  color: var(--text);
+}
+.evRow:disabled .evName {
+  color: var(--text-mute);
+}
+.evLoc {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm); /* 9.5 */
+  letter-spacing: var(--ls-mono-label);
+  color: var(--text-mute);
+}
+
+/* ── 체크리스트 ── */
+.checklist {
+  margin-top: var(--sp8);
+  padding: var(--sp4);
+  background: var(--bg-elev);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r4);
+}
+.checkTitle {
+  margin: 0 0 var(--sp3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono-label);
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--text-sub);
+}
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp3);
+  padding: var(--row-gap) 0;
+}
+.checkOn {
+  flex: none;
+  color: var(--success);
+}
+.checkOff {
+  flex: none;
+  color: var(--text-mute);
+}
+.checkLabel {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  color: var(--text);
+}
+.checkLabelMet {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  color: var(--text-mute);
+}
+
+.error {
+  margin: var(--sp4) 0 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  color: var(--danger);
+}
+
+/* ── 결과 대기 카드 ── */
+.pendingCard {
+  margin-top: var(--sp4);
+  padding: var(--sp4);
+  background: var(--bg-elev);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp2);
+}
+.pendingTitle {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--text);
+}
+.pendingBody {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: var(--lh-body-sm);
+  color: var(--text-sub);
+}
+
+.submitBtn {
+  margin-top: var(--sp6);
+}
+
+/* ── 확인 Modal 본문 ── */
+.confirmText {
+  margin: 0;
+  white-space: pre-line;
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg);
+  line-height: 1.6;
+  color: var(--text-sub);
+}
+.confirmStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp2) var(--sp4);
+  margin-top: var(--sp3);
+}
+.confirmStat {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  color: var(--text);
+}

@@ -1,0 +1,89 @@
+/* 정본: 전용 화면 없음(북마크=상세 토글) — koo 확정 bare 단일 화면 레시피.
+ * 픽셀=상세/브리핑 bare 레시피(100dvh flex + sticky AppBar) + 라이브러리 리스트 헤더/카드.
+ * tokens.css var 소비. */
+
+.screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* ── AppBar (back + 'SAVED CASES') ── */
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  padding: 0 var(--sp1);
+  padding-top: env(safe-area-inset-top);
+  background: var(--bg);
+}
+.barBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  color: var(--text);
+  transition: background-color var(--dur1) var(--ease-out);
+}
+.barBtn:hover {
+  background: var(--bg-hover);
+}
+.barTitle {
+  margin-left: var(--sp2);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-mono-label); /* 11 monoLabel */
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--text-mute);
+}
+
+/* ── 스크롤 본문(페이지 스크롤) ── */
+.scroll {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp4);
+  padding: var(--sp2) var(--sp4) var(--sp8); /* top sp2, h sp4, bottom sp8 */
+}
+
+/* ── 리스트 헤더 (Kicker '저장한 사건' ── N건) ── */
+.listHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp2);
+}
+.kickerGrow {
+  flex: 1 1 auto; /* Kicker 내부 divider 가 남은 폭을 채워 건수를 우측으로 민다 */
+  min-width: 0;
+}
+.count {
+  flex: none;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-mono-label); /* 11 */
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--text-mute);
+  white-space: nowrap;
+}
+
+/* ── 리스트 (ScenarioRow, separator sp3) ── */
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp3); /* 12 */
+}

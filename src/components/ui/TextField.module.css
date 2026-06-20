@@ -1,0 +1,67 @@
+/* 정본: ms_text_field.dart */
+.field {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  background: var(--bg);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r3); /* 8 */
+  transition:
+    border-color var(--dur2) var(--ease-out),
+    box-shadow var(--dur2) var(--ease-out); /* AnimatedContainer dur2 */
+}
+
+/* focus → 1.5px primary + glow halo(blur0 spread3 @28%) */
+.field:focus-within {
+  border-color: var(--primary);
+  border-width: 1.5px;
+  box-shadow: var(--glow-focus);
+}
+
+.multiline {
+  align-items: flex-start;
+}
+
+.input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 */
+  font-weight: 400;
+  line-height: var(--lh-body); /* 1.6 */
+  padding: 9px var(--sp3); /* TB9 L/R12 */
+  caret-color: var(--primary);
+}
+
+/* suffix 있으면 입력 우측 패딩 8 (Flutter contentPadding.right = 8) */
+.hasSuffix .input {
+  padding-right: var(--sp2); /* 8 */
+}
+
+.multiline .input {
+  padding-top: var(--sp3); /* 12 */
+  padding-bottom: var(--sp3);
+  resize: none;
+}
+
+.input::placeholder {
+  color: var(--text-mute);
+  opacity: 1;
+}
+
+.suffix {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  padding-right: var(--sp3); /* 12 */
+  color: var(--text-sub);
+}
+
+.multiline .suffix {
+  align-self: flex-start;
+  padding-top: var(--sp3);
+}

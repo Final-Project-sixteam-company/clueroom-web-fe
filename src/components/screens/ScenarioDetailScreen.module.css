@@ -1,0 +1,414 @@
+/* 정본: lib/screens/scenario_detail_{screen,widgets,cards,rating}.dart
+ * 픽셀=Flutter, 데이터/동작=웹 보존(koo #4). 모든 값은 tokens.css var 소비(리터럴 0,
+ * 단 브랜드색 알파 미세단계는 도메인 CSS 관례대로 주석 단 리터럴 rgba 허용).
+ *
+ * 레이아웃: Flutter Scaffold = 고정 AppBar + 스크롤 본문 + 고정 bottomNavigationBar.
+ *   비-탭 화면이라 셸은 bare(.app-frame, 페이지 스크롤). 화면을 min-height:100dvh flex 컬럼으로
+ *   세우고 AppBar/CTA 를 position:sticky 로 뷰포트에 고정 → vh/dvh 차이로 인한 더블스크롤 회피. */
+
+.screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg); /* Flutter scaffold bg(c.bg) — 셸 라디얼 그라디언트 대신 단색(정본 충실) */
+}
+
+/* ── AppBar (투명 AppBar: arrow_back / spacer / bookmark / more_vert) ── */
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  min-height: 56px; /* AppBar toolbar height */
+  padding: 0 var(--sp1); /* IconButton 자체 패딩으로 좌우 여백 형성 */
+  padding-top: env(safe-area-inset-top); /* 노치 대응(Flutter AppBar SafeArea) */
+  background: var(--bg); /* 스크롤 콘텐츠가 비치지 않도록 불투명 */
+}
+.barSpacer {
+  flex: 1 1 auto;
+}
+.barBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  color: var(--text-sub); /* bookmark 비활성 기본 */
+  transition: background-color var(--dur1) var(--ease-out);
+}
+.barBtn:hover {
+  background: var(--bg-hover);
+}
+.barBack {
+  color: var(--text); /* Flutter back = c.text */
+}
+.barBtnActive {
+  color: var(--primary); /* Flutter bookmark 활성 = c.primary */
+}
+.barBtnGhost {
+  /* more_vert: Flutter onPressed(){} 무동작 placeholder → 비상호작용 표시. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  color: var(--text-mute);
+}
+
+/* ── 스크롤 본문(페이지 스크롤; .scroll 은 단순 신축 영역) ── */
+.scroll {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ── 히어로 16:9 (ScenarioHeroArt) ── */
+.hero {
+  position: relative;
+  display: flex; /* AssetImage(inline-block) 의 baseline 갭 제거 + 100% 충전 */
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  line-height: 0;
+  /* button 리셋(이미지 있을 때 탭→이미지 뷰어, 웹 동작 보존) */
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+.hero:active {
+  transform: none; /* 전역 button:active 스케일 무력화(Flutter 히어로 스케일 없음) */
+}
+.heroGradient {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Flutter: LinearGradient(topLeft→bottomRight, [c.bg, c.primary@25%], stops [0.3,1.0]). */
+  background: linear-gradient(
+    to bottom right,
+    var(--bg) 30%,
+    rgba(56, 189, 248, 0.25) 100%
+  );
+}
+.heroCode {
+  font-family: var(--font-mono);
+  font-weight: 600; /* monoNum */
+  font-size: var(--fs-d1); /* 36 */
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: rgba(56, 189, 248, 0.3); /* primary 30% (Flutter c.primary@.3) */
+}
+
+/* ── 본문 컨테이너(가로 sp4, 상단 sp4, 하단 sp10) ── */
+.body {
+  padding: var(--sp4) var(--sp4) var(--sp10);
+}
+.error {
+  margin: 0 0 var(--sp4);
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 */
+  line-height: var(--lh-body-sm);
+  color: var(--danger);
+}
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--sp10) 0;
+}
+
+/* 타입·난이도 배지 행 */
+.badges {
+  display: flex;
+  align-items: center;
+  gap: var(--sp2);
+  margin-bottom: var(--sp3);
+}
+
+.title {
+  margin: 0 0 var(--sp1);
+  font-family: var(--font-sans);
+  font-size: var(--fs-title-l); /* 24 titleL */
+  font-weight: 700;
+  letter-spacing: var(--ls-title-l); /* -0.36 */
+  line-height: var(--lh-title-l); /* 1.25 */
+  color: var(--text);
+}
+.code {
+  /* Flutter '{subtitle} · {code}' — 웹은 subtitle 없어 code 만(데이터 보존). */
+  margin: 0 0 var(--sp6);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-mono-label); /* 11 monoLabel */
+  letter-spacing: var(--ls-mono-label); /* 1.98 */
+  line-height: 1;
+  color: var(--text-mute);
+}
+
+/* ── 메타 그리드 4셀(ScenarioMetaGrid), 셀 사이 세로 구분선 ── */
+.metaGrid {
+  display: flex;
+  margin-bottom: var(--sp6);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r4); /* 10 */
+  overflow: hidden; /* 모서리 반경에 셀 보더 클립 */
+}
+.metaCell {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp3) var(--sp2); /* v12 h8 */
+  text-align: center;
+}
+.metaCell:not(:last-child) {
+  border-right: var(--stroke-sm) solid var(--line);
+}
+.metaLabel {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-xs); /* 9 */
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--text-mute);
+  text-transform: uppercase;
+}
+.metaValue {
+  margin-top: var(--sp1);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-lg); /* 14 */
+  line-height: 1;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 섹션 공통(시놉시스 / 태그 / 평점·리뷰) ── */
+.section {
+  margin-bottom: var(--sp6);
+}
+.section:last-child {
+  margin-bottom: 0; /* 마지막 섹션은 body padding-bottom(sp10)이 처리 */
+}
+.sectionKicker {
+  margin-bottom: var(--sp3);
+}
+.synopsis {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 body */
+  line-height: 1.7; /* Flutter body height 1.7 */
+  color: var(--text-sub);
+}
+
+/* 태그 Wrap (#tag) */
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp2); /* spacing/runSpacing sp2 */
+}
+.tag {
+  padding: var(--sp1) var(--sp3); /* v sp1(4) h sp2+sp1(12) */
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r-pill);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-mono-label); /* 11 */
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--text-sub);
+  white-space: nowrap;
+}
+
+/* ── 평점 카드(ScenarioRatingCard) ── */
+.ratingCard {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--sp4);
+  padding: var(--sp4);
+  background: var(--bg-elev);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r4);
+}
+.ratingScore {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.ratingNum {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--fs-d2); /* 40 */
+  line-height: 1;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+.ratingPlays {
+  margin-top: var(--sp1);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-sm); /* 9.5 */
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--text-mute);
+}
+.ratingBars {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: var(--sp6);
+  display: flex;
+  flex-direction: column;
+}
+.ratingBarRow {
+  display: flex;
+  align-items: center;
+  padding: var(--row-gap) 0; /* 6 */
+}
+.ratingStar {
+  flex: none;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-sm); /* 9.5 */
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--text-mute);
+}
+.ratingTrack {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: var(--sp2);
+  height: var(--sp2); /* 8 */
+  border-radius: var(--r1); /* 2 */
+  overflow: hidden;
+  background: var(--bg-hover);
+}
+.ratingFill {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+}
+
+/* ── 리뷰 카드(ScenarioReviewCard) ── */
+.reviewCard {
+  margin-bottom: var(--sp3);
+  padding: var(--sp3);
+  background: var(--bg-elev);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r4);
+}
+.reviewHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp3); /* rating↔date sp3 (author 는 margin-right:auto 로 Spacer 대체) */
+  margin-bottom: var(--sp2);
+}
+.reviewAuthor {
+  margin-right: auto;
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 body */
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text);
+}
+.reviewRating {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-mono-label); /* 11 */
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--primary);
+}
+.reviewDate {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-sm); /* 9.5 */
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--text-mute);
+}
+.reviewBody {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 body */
+  line-height: 1.6;
+  color: var(--text-sub);
+}
+.spoiler {
+  display: flex;
+  align-items: center;
+  gap: var(--sp2);
+  width: 100%;
+  padding: var(--sp2) var(--sp3); /* v8 h12 */
+  background: var(--danger-soft);
+  border: var(--stroke-sm) solid var(--danger);
+  border-radius: var(--r2); /* 4 */
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: var(--danger);
+}
+.spoiler:active {
+  transform: none;
+}
+.spoilerIcon {
+  flex: none;
+}
+.spoiler span {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 bodySm */
+  line-height: var(--lh-body-sm);
+  color: var(--danger);
+}
+
+/* ── 하단 CTA(ScenarioBottomCta, SafeArea top:false) ── */
+.cta {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  padding: var(--sp3) var(--sp4);
+  /* SafeArea(bottom): 노치 대응 */
+  padding-bottom: max(var(--sp3), env(safe-area-inset-bottom));
+  background: var(--bg); /* 스크롤 콘텐츠가 비치지 않도록 불투명 */
+  border-top: var(--stroke-sm) solid var(--line-soft); /* sticky 분리용 하어라인(웹 보조) */
+}
+.notice {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--sp2);
+  padding: var(--sp2) var(--sp3); /* v8 h12 */
+  background: var(--bg-hover);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r3); /* 8 */
+}
+.noticeIcon {
+  flex: none;
+  color: var(--text-mute);
+}
+.noticeText {
+  margin-left: var(--sp2);
+  font-family: var(--font-sans);
+  font-size: var(--fs-md); /* 12 */
+  line-height: 1.45;
+  color: var(--text-mute);
+}
+.ctaRow {
+  display: flex;
+  align-items: stretch;
+  gap: var(--sp3);
+}
+.ctaPlay {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+}

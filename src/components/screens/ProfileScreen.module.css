@@ -1,0 +1,177 @@
+/* 정본: lib/screens/my_page_screen.dart
+ * 픽셀=Flutter, 데이터/동작=웹 보존(koo #4). tokens.css var 소비.
+ * 탭 화면(하단 네비) — 가로 패딩은 Shell <main>(20px) 상속, 섹션 간 간격은 Flutter SizedBox 매핑. */
+
+.profile {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── 헤더 (마이페이지 titleL + PROFILE eyebrow) ── */
+.head {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: var(--sp6); /* 헤더 → 프로필 카드 */
+}
+.title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-title-l); /* 24 titleL */
+  font-weight: 700;
+  letter-spacing: var(--ls-title-l);
+  line-height: var(--lh-title-l);
+  color: var(--text);
+}
+.eyebrow {
+  margin-top: 2px; /* Flutter SizedBox(height: 2) */
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: var(--fs-mono-label); /* 11 monoLabel */
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--text-mute);
+}
+
+/* ── 프로필 카드 (_ProfileCard) ── */
+.card {
+  display: flex;
+  align-items: center;
+  gap: var(--sp4); /* 아바타 ↔ 메타 */
+  margin: 0 0 var(--sp6); /* 프로필 카드 → 메뉴(또는 동기화 카드) */
+  padding: var(--sp4);
+  background: var(--bg-elev);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r6); /* 14 */
+}
+.avatar {
+  flex: none;
+}
+/* AssetImage .wrap 에 합쳐짐 — 흰 보더(이미지/폴백 공통, Flutter Border.all 0x24FFFFFF) */
+.avatarImg {
+  border: var(--stroke-sm) solid rgba(255, 255, 255, 0.14);
+}
+.avatarFallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Flutter tealBase → skyBase */
+  background: linear-gradient(135deg, var(--teal-base), var(--sky-base));
+  font-family: var(--font-sans);
+  font-weight: 700; /* titleM */
+  font-size: 20px; /* Flutter titleM copyWith(20) */
+  line-height: 1;
+  color: var(--ink950);
+}
+.cardMeta {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.name {
+  font-family: var(--font-sans);
+  font-size: var(--fs-title-m); /* 18 titleM */
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text);
+}
+.email {
+  margin-top: 3px; /* Flutter SizedBox(height: 3) */
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 10px; /* Flutter monoLabel copyWith(10) */
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1.2;
+  color: var(--text-mute);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── 동기화 에러 카드(웹 전용 — Flutter 엔 없음, koo #4 동작 보존) ── */
+.syncCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp2);
+  margin: 0 0 var(--sp6);
+  padding: var(--sp4);
+  background: var(--bg-elev);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r4); /* 10 */
+}
+.syncTitle {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 body */
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text);
+}
+.syncBody {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base); /* 13 bodySm */
+  line-height: var(--lh-body-sm);
+  color: var(--text-sub);
+}
+
+/* ── 메뉴 목록 (_MenuItem, separator sp2) ── */
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp2); /* Flutter 각 항목 Padding bottom sp2 */
+}
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: var(--sp3); /* 아이콘 ↔ 라벨 (chevron 은 라벨 신축으로 우측 정렬) */
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--sp3) var(--sp4); /* Flutter symmetric h sp4 v sp3 */
+  background: var(--bg-elev);
+  border: var(--stroke-sm) solid var(--line);
+  border-radius: var(--r3); /* 8 */
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: background-color var(--dur1) var(--ease-out);
+}
+.menuItem:hover {
+  background: var(--bg-hover);
+}
+.menuItem:active {
+  transform: none; /* 전역 button:active 스케일 무력화 */
+}
+.menuIcon {
+  flex: none;
+  color: var(--text-sub);
+}
+.menuLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 body */
+  line-height: 1.2;
+  color: var(--text);
+}
+.menuChevron {
+  flex: none;
+  color: var(--text-mute);
+}
+/* 파괴적 항목(로그아웃) — 아이콘/라벨 danger */
+.menuDanger .menuIcon,
+.menuDanger .menuLabel {
+  color: var(--danger);
+}
+
+/* ── 로그아웃 확인 모달 본문 ── */
+.modalBody {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg); /* 14 body */
+  line-height: 1.5;
+  color: var(--text-sub);
+}
