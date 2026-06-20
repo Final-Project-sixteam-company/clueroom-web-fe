@@ -164,6 +164,8 @@ VITE_QA_LOGIN_NICKNAME=ClueRoom QA
 
 QA 로그인은 통제된 QA 빌드에서만 사용합니다. `/api/auth/dev`를 호출하므로 백엔드도 `AUTH_DEV_LOGIN_ENABLED=true`여야 합니다. 공개 운영 트래픽에서는 `VITE_ENABLE_QA_LOGIN=false`와 `AUTH_DEV_LOGIN_ENABLED=false`를 함께 유지합니다.
 
+QA 빌드에서 `VITE_ENABLE_QA_LOGIN=true`를 켜더라도 기본 공개 루트(`/`)에는 QA 버튼이 노출되지 않습니다. 운영 QA가 필요하면 `https://www.clueroom.xyz/?qaLogin=1` 또는 `#qa-login`처럼 명시 진입 URL로 접근합니다.
+
 ## 로컬 실행
 
 ```bash
@@ -222,7 +224,9 @@ SKIP_GIT_UPDATE=1 bash scripts/deploy-web.sh
 - 심문 질문 1회 전송
 - 백엔드가 `aiQuota.stage != "NONE"`을 반환할 때 quota 안내가 표시되는지 확인
 - 북마크 토글
+- 저장한 사건 화면에서 방금 저장한 사건이 유지되는지 확인
 - 1~5 정수 리뷰 작성
+- 리뷰 등록 직후 상세 화면에 작성한 리뷰가 유지되는지 확인
 - 최종 추리 제출은 QA 승인된 테스트 세션에서만 수행
 
 자세한 기준: [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md)
@@ -236,6 +240,7 @@ SKIP_GIT_UPDATE=1 bash scripts/deploy-web.sh
 | Kakao redirect 오류 | Kakao Developers Web 플랫폼 도메인과 Redirect URI에 배포 origin이 등록되어 있는지 확인 |
 | CORS 403 | 백엔드 `CORS_ALLOWED_ORIGIN_PATTERNS`에 `https://www.clueroom.xyz`가 포함되어 있는지 확인 |
 | refresh 실패 | 요청에 `credentials: "include"`가 들어가고, 백엔드 cookie 설정이 운영 origin과 맞는지 확인 |
+| QA 버튼이 공개 루트에 보이지 않음 | 정상 동작입니다. QA 빌드에서는 `?qaLogin=1` 또는 `#qa-login`으로 진입 |
 | `npm test`가 0 tests로 끝남 | test script가 `node --test "src/**/*.test.ts"` 형태를 유지하는지 확인 |
 | 배포 스크립트가 dirty tree로 중단됨 | 배포 전 local 변경을 commit, stash, remove 중 하나로 정리 |
 

@@ -13,7 +13,7 @@ Apps in Toss 패키징과 Toss 로그인은 현재 범위에서 제외되었습�
 - Kakao authorization-code login via Kakao JavaScript SDK and backend code exchange
 - HttpOnly refresh cookie compatible auth flow
 - 401 refresh single-flight and retry
-- QA login entry for controlled QA builds
+- QA login entry for controlled QA builds, hidden on public `/` unless an explicit QA login URL is used
 - Scenario library
 - Scenario keyword search and sort/type/difficulty filters
 - Scenario detail
@@ -89,7 +89,7 @@ Apps in Toss 패키징과 Toss 로그인은 현재 범위에서 제외되었습�
 - Visual QA against latest tutor UI pass
 - Mobile scenario detail CTA regression on 390px viewport
 - Real Google and Kakao OAuth smoke after every production deploy
-- QA login disabled again before public traffic
+- QA login button hidden on public `/`; disable both web QA flag and backend dev login before public traffic
 - Web records API availability in production; local fallback must remain non-primary
 
 ## Build
