@@ -28,6 +28,7 @@ import type { AuthedRequest } from "../auth/useAuth";
 export type UseScenariosArgs = {
   authReady: boolean;
   authToken: string | null;
+  accountKey: string | null;
   authedRequest: AuthedRequest;
   optionalAuthRequest: AuthedRequest;
   setAuthError: (message: string | null) => void;
@@ -37,6 +38,7 @@ export type UseScenariosArgs = {
 export function useScenarios({
   authReady,
   authToken,
+  accountKey,
   authedRequest,
   optionalAuthRequest,
   setAuthError,
@@ -499,7 +501,7 @@ export function useScenarios({
     suppressedBookmarkIdsRef.current.clear();
     setBookmarkedScenarios([]);
     setBookmarkedScenarioIds([]);
-  }, [authToken]);
+  }, [accountKey]);
 
   return {
     scenarios,
