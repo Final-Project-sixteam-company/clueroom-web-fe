@@ -202,7 +202,7 @@ export function useScenarios({
         {
           method: "POST",
           body: JSON.stringify({
-            rating: Math.round(review.rating),
+            rating: review.rating,
             content: review.body,
             isSpoiler: review.isSpoiler,
           }),

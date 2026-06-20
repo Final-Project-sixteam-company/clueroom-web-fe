@@ -33,7 +33,7 @@
   color: var(--primary);
 }
 
-/* ── 슬라이더(1.0~5.0, 0.5 step) ── */
+/* ── 슬라이더(1~5, 정수 step) ── */
 .slider {
   display: block;
   width: 100%;

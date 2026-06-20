@@ -12,7 +12,7 @@
 //   ③ 증거 제시 = 웹 EvidencePickerDialog → 바텀시트 EvidencePresentSheet 로 픽셀 이식(정본 game_modal).
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, FileText, Send, Link2, X } from "lucide-react";
-import type { Suspect, Evidence, ChatMessage } from "../../../types";
+import type { Suspect, Evidence, ChatMessage, AiQuotaStatus } from "../../../types";
 import { Button, TextField, Spinner } from "../../ui";
 import { EvidencePresentSheet } from "./EvidencePresentSheet";
 import styles from "./InterrogationChatScreen.module.css";
@@ -23,6 +23,40 @@ const CANNED_QUESTIONS = [
   "피해자와 마지막으로 나눈 대화는 무엇인가요?",
   "이 진술과 맞지 않는 부분을 설명해 주세요.",
 ];
+
+function quotaActionLabel(action?: string) {
+  switch (action) {
+    case "OPEN_EVIDENCE_TIMELINE":
+      return "증거 정리";
+    case "OPEN_SUSPECT_TIMELINE_COMPARE":
+      return "타임라인 비교";
+    case "OPEN_HINT_OR_GUIDANCE":
+      return "힌트 확인";
+    case "OPEN_FINAL_DEDUCTION_CHECKLIST":
+      return "추리 점검";
+    case "OPEN_FINAL_DEDUCTION":
+      return "최종 추리";
+    default:
+      return "수사 정리";
+  }
+}
+
+function quotaFallbackMessage(action?: string) {
+  switch (action) {
+    case "OPEN_EVIDENCE_TIMELINE":
+      return "지금까지 해금한 증거와 타임라인을 한 번 정리해 보세요.";
+    case "OPEN_SUSPECT_TIMELINE_COMPARE":
+      return "용의자별 진술과 타임라인을 비교해 후보를 좁혀보세요.";
+    case "OPEN_HINT_OR_GUIDANCE":
+      return "증거 상세의 추천 질문, 함께 볼 증거, 힌트를 활용해 보세요.";
+    case "OPEN_FINAL_DEDUCTION_CHECKLIST":
+      return "범인·동기·수단·은폐 정황을 정리해 보세요.";
+    case "OPEN_FINAL_DEDUCTION":
+      return "추가 질문보다 증거를 정리하고 최종 추리를 진행해 보세요.";
+    default:
+      return "AI 심문 사용량이 늘고 있습니다. 증거와 타임라인을 함께 정리해 보세요.";
+  }
+}
 
 // 정본 SuspectBubble: 24 그라디언트 아바타(이니셜) + bgElev 말풍선(좌상 r1, 나머지 r4).
 function SuspectBubble({ text, name }: { text: string; name: string }) {
@@ -76,11 +110,13 @@ export interface InterrogationChatScreenProps {
   pendingEvidence?: Evidence;
   evidences: Evidence[];
   loading: boolean;
+  quotaStatus?: AiQuotaStatus | null;
   onBack: () => void;
   onPrefill: (question: string) => void;
   onAttachEvidence: (evidenceId: number) => void;
   onClearEvidence: () => void;
   onSend: () => void;
+  onQuotaAction?: (status: AiQuotaStatus) => void;
 }
 
 export function InterrogationChatScreen({
@@ -91,11 +127,13 @@ export function InterrogationChatScreen({
   pendingEvidence,
   evidences,
   loading,
+  quotaStatus,
   onBack,
   onPrefill,
   onAttachEvidence,
   onClearEvidence,
   onSend,
+  onQuotaAction,
 }: InterrogationChatScreenProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
@@ -107,6 +145,9 @@ export function InterrogationChatScreen({
   }, [messages.length, loading]);
 
   const canPresent = evidences.length > 0 && !loading;
+  const quotaMessage =
+    quotaStatus?.message?.trim() ||
+    (quotaStatus ? quotaFallbackMessage(quotaStatus.recommendedAction) : "");
 
   return (
     <section className={styles.screen}>
@@ -134,6 +175,26 @@ export function InterrogationChatScreen({
           <FileText size={20} strokeWidth={2} aria-hidden />
         </button>
       </header>
+
+      {quotaStatus ? (
+        <aside className={styles.quotaBanner} aria-live="polite">
+          <div className={styles.quotaText}>
+            <span className={styles.quotaKicker}>AI 호출 안내</span>
+            <span className={styles.quotaMessage}>{quotaMessage}</span>
+            <span className={styles.quotaMeta}>
+              오늘 이 사건 {quotaStatus.scenarioUsed}/{quotaStatus.scenarioLimit}회
+              사용 · 남은 {quotaStatus.remaining}회
+            </span>
+          </div>
+          <button
+            className={styles.quotaAction}
+            type="button"
+            onClick={() => onQuotaAction?.(quotaStatus)}
+          >
+            {quotaActionLabel(quotaStatus.recommendedAction)}
+          </button>
+        </aside>
+      ) : null}
 
       {/* ── 메시지 리스트 ── */}
       <div className={styles.messages} ref={listRef}>

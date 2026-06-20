@@ -502,7 +502,7 @@ export function normalizeReview(raw: unknown, fallbackScenarioId = 0): ScenarioR
         : typeof user?.nickname === "string" && user.nickname.trim()
           ? user.nickname.trim()
         : "나",
-    rating: Math.max(1, Math.min(5, Number(data.rating ?? 5))),
+    rating: Math.max(1, Math.min(5, Math.round(Number(data.rating ?? 5)))),
     body,
     createdAt,
     isSpoiler: data.isSpoiler === true,

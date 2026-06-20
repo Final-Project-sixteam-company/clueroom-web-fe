@@ -74,6 +74,60 @@
   text-overflow: ellipsis;
 }
 
+.quotaBanner {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--sp3);
+  margin: 0 var(--sp3) var(--sp2);
+  padding: var(--sp3);
+  background: var(--primary-soft);
+  border: var(--stroke-sm) solid rgba(56, 189, 248, 0.35);
+  border-radius: var(--r4);
+}
+.quotaText {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp1);
+}
+.quotaKicker {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xxs);
+  font-weight: 600;
+  letter-spacing: var(--ls-mono-label);
+  line-height: 1;
+  color: var(--primary);
+}
+.quotaMessage {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: var(--lh-body);
+  color: var(--text);
+}
+.quotaMeta {
+  font-family: var(--font-sans);
+  font-size: var(--fs-md);
+  line-height: 1.25;
+  color: var(--text-sub);
+}
+.quotaAction {
+  flex: none;
+  padding: var(--sp2) var(--sp3);
+  border: var(--stroke-sm) solid var(--primary);
+  border-radius: var(--r-pill);
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--primary-ink);
+  cursor: pointer;
+}
+.quotaAction:hover {
+  background: rgba(56, 189, 248, 0.12);
+}
+
 /* ── 메시지 리스트 ── */
 .messages {
   flex: 1 1 auto;

@@ -2,7 +2,7 @@
 
 > 작성일: 2026-06-19
 > 소스(정본): `../project-fe` (Flutter 앱 `clueroom`, Dart 91파일, **다크 전용**)
-> 타깃: `clueroom-toss-miniapp` (= npm `clueroom-web`, React 19 + Vite 6 + TS)
+> 타깃: `clueroom-web-fe` (= npm `clueroom-web`, React 19 + Vite 6 + TS)
 > 결정(2026-06-19, koo):
 > 1. **방식 = 현재 앱 리팩터링** — 모놀리식 `App.tsx`(5,565줄)를 Flutter 구조에 맞춰 모듈화 + 갭 보강
 > 2. **충실도 = 픽셀까지 완전 동일** — 색·간격·폰트·반경·모션을 Flutter와 1:1

@@ -1,9 +1,9 @@
 # 다음 세션 핸드오프 — ClueRoom Flutter→React 마이그레이션
 
-> **다음 세션 시작 프롬프트(복붙용)** — 아래 코드블록을 새 Claude Code 세션(작업 디렉토리 = `clueroom-toss-miniapp`)에 그대로 붙여넣으면 돼요. 상세 진행은 이 문서 아래 ✅ 섹션들이 정본이에요.
+> **다음 세션 시작 프롬프트(복붙용)** — 아래 코드블록을 새 Claude Code 세션(작업 디렉토리 = `clueroom-web-fe`)에 그대로 붙여넣으면 돼요. 상세 진행은 이 문서 아래 ✅ 섹션들이 정본이에요.
 
 ```text
-ClueRoom Flutter→React 마이그레이션을 이어서 진행합니다. 작업 디렉토리 = clueroom-toss-miniapp.
+ClueRoom Flutter→React 마이그레이션을 이어서 진행합니다. 작업 디렉토리 = clueroom-web-fe.
 
 ## 먼저 읽을 것 (정본)
 1. docs/NEXT_SESSION_HANDOFF.md — 진행 상태·결정·다음 작업의 정본 (특히 ✅ 섹션들).
@@ -51,7 +51,7 @@ ClueRoom Flutter→React 마이그레이션을 이어서 진행합니다. 작업
 
 ---
 
-ClueRoom Flutter 앱(`../project-fe`)을 이 React 웹앱(`clueroom-toss-miniapp`)으로 **픽셀까지 동일하게** 마이그레이션하는 작업을 이어서 합니다. 계획은 지난 세션에서 이미 수립·저장돼 있어요.
+ClueRoom Flutter 앱(`../project-fe`)을 이 React 웹앱(`clueroom-web-fe`)으로 **픽셀까지 동일하게** 마이그레이션하는 작업을 이어서 합니다. 계획은 지난 세션에서 이미 수립·저장돼 있어요.
 
 ## 먼저 읽을 것 (필수)
 1. `docs/REACT_WEB_MIGRATION_PLAN.md` — 전체 계획(모듈 매핑·토큰 표·서버통신 계약·컴포넌트 킷·화면 갭·7단계 순서·리스크·열린 질문). **이게 정본이에요.**
@@ -276,9 +276,9 @@ koo 지적("배포앱 https://www.clueroom.xyz 로그인에 Google·Kakao 세팅
 - **HintSheet**(`screens/case/HintSheet.tsx`): '힌트 요청' titleL + 감점 경고 + 누적 감점 박스 + 힌트 타일(사용완료/잠김/사용가능, 레벨별 라벨·level3 danger). SceneTab 의 힌트 kit Modal 교체. 데이터=웹 `hints` + `onUseHint`(App.useHint 엔드포인트) 보존.
 - **CaseBriefingSheet**(`screens/case/CaseBriefingSheet.tsx`): '사건 브리핑' titleL + 시나리오명 + 사건 개요 + 피해자 정보(InfoRow ×2) + 탐정 목표(danger 박스) + 닫기. CaseHubScreen 의 브리핑 kit Modal 교체. 데이터=`dashboard.briefing`(summary/victimName/foundLocation).
 - **EvidencePresentSheet**(기존 → Sheet 프리미티브 위로 재작성): '제시할 증거 선택' titleM + 닫기 X + 검색 + `_EvidencePickItem`(bg·r4, 34 썸네일 + 이름 + 위치). 진입/퇴장 모션 추가(이전 '기능 이식'의 모션 갭 해소). 호출부(InterrogationChatScreen)는 `open` prop 으로 항상 렌더(퇴장 애니메이션). 검색은 이름/위치/카테고리 매칭 보존(표시는 Flutter 대로 이름+위치).
-- **ReviewWriteSheet**(`screens/ReviewWriteSheet.tsx`): '리뷰 작성' titleM + 평점 슬라이더(★ 1.0~5.0, 0.5 step) + 본문(4줄) + 스포일러 스위치(danger) + 등록. App 의 옛 `ReviewDialog`(custom modal-shell) 교체. 닫힐 때 target=null 이 되므로 마지막 target 을 latch(퇴장 동안 콘텐츠 보존). onSubmit→addScenarioReview(저장 성공 시 닫힘) 동작 보존.
+- **ReviewWriteSheet**(`screens/ReviewWriteSheet.tsx`): '리뷰 작성' titleM + 평점 슬라이더(★ 1~5, 정수 step) + 본문(4줄) + 스포일러 스위치(danger) + 등록. App 의 옛 `ReviewDialog`(custom modal-shell) 교체. 닫힐 때 target=null 이 되므로 마지막 target 을 latch(퇴장 동안 콘텐츠 보존). onSubmit→addScenarioReview(저장 성공 시 닫힘) 동작 보존.
 - **정리**: SceneTab(힌트 Modal+죽은 CSS)·CaseHubScreen(브리핑 Modal+죽은 CSS, Kicker import) 제거. App 의 `ReviewDialog`+`TextArea` 함수 제거 → **App.tsx 1693 → 1598줄**. AbandonDialog(중단)·SubmitConfirm(제출)·Logout(프로필)은 바텀시트가 아니라 **dialog 라 kit Modal 유지**(정본도 showMSModal).
-- **⚠ koo 확인(의도적 선택, 한 줄로 뒤집기 쉬움)**: ① **드래그-투-dismiss 제스처 미구현**(scrim/ESC 로 닫힘) — 핸드오프 타깃은 '핸들 비주얼 + 모션'이라 제스처는 범위 밖. ② EvidencePresent **DraggableScrollableSheet 가변높이 스냅 미이식**(고정 75dvh + 내부 스크롤). ③ ReviewWrite 평점 **0.5 step 반별점 허용**(Flutter Slider div8 충실, 웹 옛 정수 1~5 대비 변경). ④ HintSheet **per-hint '사용 중...' busy 미추적**(웹 미배선) — 그 외 used/locked/available 상태는 정본대로. ⑤ EvidencePresent 아이템 메타는 Flutter 대로 **이름+위치만**(웹 옛 카테고리 표기 생략, 검색엔 카테고리 유지).
+- **⚠ koo 확인(의도적 선택, 한 줄로 뒤집기 쉬움)**: ① **드래그-투-dismiss 제스처 미구현**(scrim/ESC 로 닫힘) — 핸드오프 타깃은 '핸들 비주얼 + 모션'이라 제스처는 범위 밖. ② EvidencePresent **DraggableScrollableSheet 가변높이 스냅 미이식**(고정 75dvh + 내부 스크롤). ③ ReviewWrite 평점은 **백엔드 Integer 1~5 계약에 맞춰 정수 step**으로 제한. ④ HintSheet **per-hint '사용 중...' busy 미추적**(웹 미배선) — 그 외 used/locked/available 상태는 정본대로. ⑤ EvidencePresent 아이템 메타는 Flutter 대로 **이름+위치만**(웹 옛 카테고리 표기 생략, 검색엔 카테고리 유지).
 - **게이트 전부 통과**: `npm test` 12/12, `lint` 0(warn 0), `npx tsc -b` **0 errors**, `npm run build` 성공(메인 번들 css 100.21→104.90kB, js 338.76→341.66kB; Sheet+4시트 반영). 브라우저 육안 확인만 koo `npm run dev` → 현장 힌트 / HUD 브리핑 / 심문 증거제시 / 상세·결과 리뷰작성 진입으로 남음.
 
 ## ✅ Phase 4 — 기능 훅 분해 완료 (2026-06-20, 브랜치 `feat/react-migration-tokens`)

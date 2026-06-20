@@ -93,7 +93,7 @@ npm run build
 
 ```text
 로컬 PC Git Bash
-C:\java\assignment\spring\clueroom-toss-miniapp
+C:\java\assignment\spring\clueroom-web-fe
 ```
 
 사전 조건:

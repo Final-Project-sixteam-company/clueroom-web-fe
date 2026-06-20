@@ -184,6 +184,19 @@ export type InterrogationLog = {
   createdAt?: string;
 };
 
+export type AiQuotaStatus = {
+  scope?: string;
+  scenarioUsed: number;
+  scenarioLimit: number;
+  accountUsed: number;
+  accountLimit: number;
+  stage?: string;
+  recommendedAction?: string;
+  message?: string;
+  nextThreshold?: number | null;
+  remaining: number;
+};
+
 export type Suspect = {
   suspectId: number;
   name: string;

@@ -8,30 +8,36 @@
 }
 
 .row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  column-gap: var(--sp2);
   align-items: flex-start;
   padding: var(--timeline-row-pad-v) 0; /* v5 */
 }
 
 .time {
-  flex: none;
-  width: var(--timeline-col-w); /* 46 */
+  min-width: 0;
   font-family: var(--font-mono);
   font-weight: 700; /* 정본 w700 — JetBrains Mono 600 번들이라 렌더는 600 */
   font-size: var(--nav-label-fs); /* 11 */
   line-height: var(--lh-body-sm); /* 1.55 */
   color: var(--primary);
+  overflow-wrap: anywhere;
 }
 .conflictTime {
   color: var(--danger);
 }
 
 .content {
-  flex: 1 1 auto;
   min-width: 0;
-  margin-left: var(--sp2); /* 8 */
   display: flex;
   flex-direction: column;
+}
+
+@media (max-width: 360px) {
+  .row {
+    grid-template-columns: 80px minmax(0, 1fr);
+  }
 }
 
 .label {

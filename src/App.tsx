@@ -23,7 +23,7 @@ import {
   hasSeenOnboarding,
   markOnboardingSeen,
 } from "./onboarding/onboardingStorage";
-import type { View, RecordItem, ImagePreview, Scenario } from "./types";
+import type { View, RecordItem, ImagePreview, Scenario, AiQuotaStatus } from "./types";
 import { useRecords } from "./records/useRecords";
 import { useScenarios } from "./scenarios/useScenarios";
 import { useGameSession } from "./game/useGameSession";
@@ -137,6 +137,7 @@ function App() {
     pendingQuestionType,
     setPendingQuestionType,
     chatLoading,
+    aiQuotaStatus,
     unlockedEvidences,
     accusableSuspects,
     selectedCulpritId,
@@ -355,6 +356,30 @@ function App() {
             title: selectedScenario.title,
           }
         : null;
+
+  function handleAiQuotaAction(status: AiQuotaStatus) {
+    switch (status.recommendedAction) {
+      case "OPEN_EVIDENCE_TIMELINE":
+        setCaseTab("evidence");
+        setView("case");
+        return;
+      case "OPEN_SUSPECT_TIMELINE_COMPARE":
+        setCaseTab("timeline");
+        setView("case");
+        return;
+      case "OPEN_HINT_OR_GUIDANCE":
+        setCaseTab("scene");
+        setView("case");
+        return;
+      case "OPEN_FINAL_DEDUCTION_CHECKLIST":
+      case "OPEN_FINAL_DEDUCTION":
+        setView("submit");
+        return;
+      default:
+        setCaseTab("evidence");
+        setView("case");
+    }
+  }
 
   function openProfile() {
     if (!tokens) {
@@ -622,6 +647,7 @@ function App() {
           )}
           evidences={unlockedEvidences}
           loading={chatLoading}
+          quotaStatus={aiQuotaStatus}
           onBack={() => setView("case")}
           onPrefill={(q) => {
             setQuestion(q);
@@ -636,6 +662,7 @@ function App() {
             setPendingQuestionType("FREE");
           }}
           onSend={sendQuestion}
+          onQuotaAction={handleAiQuotaAction}
         />
       )}
 
