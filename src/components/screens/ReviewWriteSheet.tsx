@@ -4,10 +4,10 @@ import type { ReviewDraftTarget, ScenarioReview } from "../../types";
 import styles from "./ReviewWriteSheet.module.css";
 
 // 픽셀 정본: lib/components/review_write_sheet.dart (ReviewWriteSheet)
-//   제목('리뷰 작성' titleM) + 평점 슬라이더(★ 1.0~5.0, 0.5 step) + 본문(4줄) + 스포일러 스위치 + 등록.
+//   제목('리뷰 작성' titleM) + 평점 슬라이더(★ 1~5, 정수 step) + 본문(4줄) + 스포일러 스위치 + 등록.
 //   공유 Sheet 프리미티브(슬라이드 모션 + 핸들) 위. 데이터/동작은 웹 보존(koo #4):
 //   · 등록 → onSubmit(ScenarioReview) → App.addScenarioReview(저장 성공 시 target 클리어 = 닫힘).
-//   · 평점은 Flutter Slider(divisions 8 = 0.5 step) 충실 — 웹 옛 정수 1~5 대비 반별점 허용(픽셀 우선).
+//   · 백엔드 리뷰 계약은 Integer 1~5이므로 웹 입력도 정수 단위로 제한.
 //   · target 은 닫힐 때 null 이 되므로 마지막 유효 target 을 latch(퇴장 애니메이션 동안 콘텐츠 보존).
 
 export interface ReviewWriteSheetProps {
@@ -66,16 +66,16 @@ export function ReviewWriteSheet({
 
       <div className={styles.ratingRow}>
         <span className={styles.ratingLabel}>평점</span>
-        <span className={styles.ratingValue}>★ {rating.toFixed(1)}</span>
+        <span className={styles.ratingValue}>★ {rating}</span>
       </div>
       <input
         className={styles.slider}
         type="range"
         min={1}
         max={5}
-        step={0.5}
+        step={1}
         value={rating}
-        onChange={(e) => setRating(Number(e.target.value))}
+        onChange={(e) => setRating(Math.round(Number(e.target.value)))}
         aria-label="평점"
       />
 

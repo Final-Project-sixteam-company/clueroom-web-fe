@@ -12,7 +12,7 @@
 //   ③ 증거 제시 = 웹 EvidencePickerDialog → 바텀시트 EvidencePresentSheet 로 픽셀 이식(정본 game_modal).
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, FileText, Send, Link2, X } from "lucide-react";
-import type { Suspect, Evidence, ChatMessage } from "../../../types";
+import type { Suspect, Evidence, ChatMessage, AiQuotaStatus } from "../../../types";
 import { Button, TextField, Spinner } from "../../ui";
 import { EvidencePresentSheet } from "./EvidencePresentSheet";
 import styles from "./InterrogationChatScreen.module.css";
@@ -23,6 +23,23 @@ const CANNED_QUESTIONS = [
   "피해자와 마지막으로 나눈 대화는 무엇인가요?",
   "이 진술과 맞지 않는 부분을 설명해 주세요.",
 ];
+
+function quotaActionLabel(action?: string) {
+  switch (action) {
+    case "OPEN_EVIDENCE_TIMELINE":
+      return "증거 정리";
+    case "OPEN_SUSPECT_TIMELINE_COMPARE":
+      return "타임라인 비교";
+    case "OPEN_HINT_OR_GUIDANCE":
+      return "힌트 확인";
+    case "OPEN_FINAL_DEDUCTION_CHECKLIST":
+      return "추리 점검";
+    case "OPEN_FINAL_DEDUCTION":
+      return "최종 추리";
+    default:
+      return "수사 정리";
+  }
+}
 
 // 정본 SuspectBubble: 24 그라디언트 아바타(이니셜) + bgElev 말풍선(좌상 r1, 나머지 r4).
 function SuspectBubble({ text, name }: { text: string; name: string }) {
@@ -76,11 +93,13 @@ export interface InterrogationChatScreenProps {
   pendingEvidence?: Evidence;
   evidences: Evidence[];
   loading: boolean;
+  quotaStatus?: AiQuotaStatus | null;
   onBack: () => void;
   onPrefill: (question: string) => void;
   onAttachEvidence: (evidenceId: number) => void;
   onClearEvidence: () => void;
   onSend: () => void;
+  onQuotaAction?: (status: AiQuotaStatus) => void;
 }
 
 export function InterrogationChatScreen({
@@ -91,11 +110,13 @@ export function InterrogationChatScreen({
   pendingEvidence,
   evidences,
   loading,
+  quotaStatus,
   onBack,
   onPrefill,
   onAttachEvidence,
   onClearEvidence,
   onSend,
+  onQuotaAction,
 }: InterrogationChatScreenProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
@@ -134,6 +155,26 @@ export function InterrogationChatScreen({
           <FileText size={20} strokeWidth={2} aria-hidden />
         </button>
       </header>
+
+      {quotaStatus?.message ? (
+        <aside className={styles.quotaBanner} aria-live="polite">
+          <div className={styles.quotaText}>
+            <span className={styles.quotaKicker}>AI 호출 안내</span>
+            <span className={styles.quotaMessage}>{quotaStatus.message}</span>
+            <span className={styles.quotaMeta}>
+              오늘 이 사건 {quotaStatus.scenarioUsed}/{quotaStatus.scenarioLimit}회
+              사용 · 남은 {quotaStatus.remaining}회
+            </span>
+          </div>
+          <button
+            className={styles.quotaAction}
+            type="button"
+            onClick={() => onQuotaAction?.(quotaStatus)}
+          >
+            {quotaActionLabel(quotaStatus.recommendedAction)}
+          </button>
+        </aside>
+      ) : null}
 
       {/* ── 메시지 리스트 ── */}
       <div className={styles.messages} ref={listRef}>

@@ -1,86 +1,108 @@
-# ClueRoom Apps in Toss Porting Status
+# ClueRoom React Web Porting Status
 
-Last updated: 2026-06-16
+Last updated: 2026-06-20
+
+이 문서는 Flutter Android 앱 UX를 React/Vite 웹으로 이식한 현재 상태를 정리합니다.
+Apps in Toss 패키징과 Toss 로그인은 현재 범위에서 제외되었습니다.
 
 ## Implemented
 
-- Apps in Toss Web Framework project scaffold
-- `.ait` build
-- ClueRoom app icon and dark investigation visual style
-- Toss login frontend call with `appLogin()`
-- `/api/auth/toss` request wiring
-- local token storage through Apps in Toss `Storage`
-- startup refresh
-- protected API 401 refresh and retry
-- scenario library
-- scenario keyword search and sort/type/difficulty filters
-- scenario detail
-- local scenario bookmarks
-- local scenario reviews with spoiler masking
-- case briefing before session start
-- active session lookup before create
-- create-session 409 active-session fallback
-- active session recovery from local in-progress records
-- case scene tab
-- dashboard briefing
-- location board
-- scene map image with location markers
-- location detail image viewer
-- hints list and use-hint action
-- evidence list
-- evidence search and unlocked/locked filter
-- evidence detail
-- evidence guidance reading points
-- locked compare evidence masking
-- suggested question prefill navigation
-- suspect list
-- suspect search and suspect/witness filter
-- suspect detail
-- suspect interrogation logs
-- interrogation chat
-- searchable evidence-present picker in interrogation chat
-- evidence-presented question send
-- recommended question prefill-only behavior
-- final deduction submit
-- final deduction checklist and confirmation dialog
-- duplicate/final-submitted result recovery
-- result polling
-- result screen neutral empty state
-- session abandon
-- my page/profile screen
-- local investigation records screen
-- local records filters and detective grade summary
-- scenario/evidence image full-screen viewer
-- result scoring detail cards
-- result recommendation card rendering when backend provides data
-- post-result local review entry point
-- release checklist for Apps in Toss and Google Play artifact split
-- accessibility focus states, ARIA pressed states, and meaningful image alt text
+- React/Vite/TypeScript web app scaffold
+- Dark ClueRoom visual style and Flutter-inspired component tokens
+- Google OAuth via Google Identity Services
+- Kakao authorization-code login via Kakao JavaScript SDK and backend code exchange
+- HttpOnly refresh cookie compatible auth flow
+- 401 refresh single-flight and retry
+- QA login entry for controlled QA builds
+- Scenario library
+- Scenario keyword search and sort/type/difficulty filters
+- Scenario detail
+- Server-backed scenario bookmarks
+- Server-backed scenario reviews with spoiler masking
+- Integer 1-5 review rating input
+- Case briefing before session start
+- Active session lookup before create
+- Create-session 409 active-session fallback
+- Active session recovery from records
+- Case scene tab
+- Dashboard briefing
+- Location board
+- Scene map image with location markers
+- Location detail image viewer
+- Hints list and use-hint action
+- Evidence list
+- Evidence search and unlocked/locked filter
+- Evidence detail
+- Evidence guidance reading points
+- Locked compare evidence masking
+- Suggested question prefill navigation
+- Suspect list
+- Suspect search and suspect/witness filter
+- Suspect detail
+- Suspect interrogation logs
+- Interrogation chat
+- AI quota guidance banner and recommended action routing
+- Searchable evidence-present picker in interrogation chat
+- Evidence-presented question send
+- Recommended question prefill-only behavior
+- Final deduction submit
+- Final deduction checklist and confirmation dialog
+- Duplicate/final-submitted result recovery
+- Result polling and retry state
+- Result screen neutral empty state
+- Session abandon
+- My page/profile screen
+- Server-first investigation records with local fallback
+- Server-backed bookmarked scenario screen
+- Scenario/evidence image full-screen viewer
+- Result scoring detail cards
+- Result recommendation card rendering when backend provides data
+- Post-result review entry point
+- Accessibility focus states, ARIA pressed states, and meaningful image alt text
 
-## Waiting On Backend
+## Backend Contracts To Preserve
 
-- `POST /api/auth/toss`
-- Toss `authorizationCode` exchange
-- Toss `login-me` userKey lookup
-- TOSS provider user mapping
-- ClueRoom JWT issuance for Toss login
-- production CORS check for Apps in Toss WebView
-- production `/api/auth/me` response smoke from Toss-issued JWT
+- `POST /api/auth/oauth`
+- `POST /api/auth/oauth/kakao/code`
+- `POST /api/auth/refresh` with HttpOnly refresh cookie
+- `GET /api/auth/me`
+- `GET /api/scenarios`
+- `GET /api/scenarios/{id}`
+- `GET /api/scenarios/bookmarked`
+- `POST|DELETE /api/scenarios/{id}/bookmarks`
+- `GET|POST /api/scenarios/{id}/reviews`
+- `GET /api/play-sessions/active`
+- `POST /api/play-sessions`
+- `GET /api/play-sessions/{id}/dashboard`
+- `GET /api/play-sessions/{id}/evidences`
+- `GET /api/play-sessions/{id}/suspects`
+- `GET /api/play-sessions/{id}/timeline`
+- `GET /api/play-sessions/{id}/locations`
+- `GET /api/play-sessions/{id}/hints`
+- `POST /api/play-sessions/{id}/hints/{hintId}/use`
+- `GET|POST /api/play-sessions/{id}/interrogations`
+- `POST /api/play-sessions/{id}/final-deduction`
+- `GET /api/play-sessions/{id}/result`
 
-## Still To Port Or Recheck
+## Still To Recheck
 
-- actual Apps in Toss sandbox/device login E2E
-- backend-backed scenario review API if the product requires shared reviews
-- backend-backed records API if the product requires cross-device history
-- final store review metadata entry in external consoles
-- screen-reader QA in actual Toss WebView
-- visual QA against Flutter screens
+- Visual QA against latest tutor UI pass
+- Mobile scenario detail CTA regression on 390px viewport
+- Real Google and Kakao OAuth smoke after every production deploy
+- QA login disabled again before public traffic
+- Web records API availability in production; local fallback must remain non-primary
 
 ## Build
 
 ```bash
+npm test
 npm run lint
+npx tsc -b
 npm run build
 ```
 
-Upload `clueroom-toss-miniapp.ait` to Apps in Toss, not an Android `.aab`.
+Deploy static web assets with:
+
+```bash
+bash scripts/deploy-web.sh
+```

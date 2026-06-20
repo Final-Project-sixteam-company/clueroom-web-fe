@@ -310,7 +310,7 @@ function ReviewCard({ review }: { review: ScenarioReview }) {
     <article className={styles.reviewCard}>
       <div className={styles.reviewHead}>
         <span className={styles.reviewAuthor}>{review.authorName}</span>
-        <span className={styles.reviewRating}>★ {review.rating.toFixed(1)}</span>
+        <span className={styles.reviewRating}>★ {review.rating}</span>
         <span className={styles.reviewDate}>{formatReviewDate(review.createdAt)}</span>
       </div>
       {hidden ? (

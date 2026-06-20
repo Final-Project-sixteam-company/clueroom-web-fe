@@ -1,7 +1,8 @@
 import styles from "./TimelineList.module.css";
 
 // 픽셀 정본: lib/components/timeline_list.dart (TimelineList / _Row)
-//   컨테이너 bg+1px line+r4, pad 14×12. 행: time 칼럼 46 + 내용(label/desc/conflict).
+//   컨테이너 bg+1px line+r4, pad 14×12. 행: time 칼럼 + 내용(label/desc/conflict).
+//   운영 데이터에는 "21:05~21:25"처럼 긴 시간 범위가 있어 웹은 time 칼럼을 넓혀 겹침을 방지한다.
 //   웹 TimelineEvent 엔 conflict 가 없음 → 옵션 필드로 노출(있을 때만 danger 블록).
 //   Phase 5 에서 TimelineEvent({time,title,description}) → {time, label:title, description} 매핑.
 

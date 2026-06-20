@@ -25,6 +25,7 @@ import type {
   ChatMessage,
   Scenario,
   View,
+  AiQuotaStatus,
 } from "../types";
 import {
   normalizeEvidence,
@@ -91,6 +92,7 @@ export function useGameSession({
     "FREE" | "RECOMMENDED" | "EVIDENCE_PRESENTED"
   >("FREE");
   const [chatLoading, setChatLoading] = useState(false);
+  const [aiQuotaStatus, setAiQuotaStatus] = useState<AiQuotaStatus | null>(null);
 
   const [selectedCulpritId, setSelectedCulpritId] = useState<number | null>(
     null,
@@ -172,6 +174,7 @@ export function useGameSession({
 
       setSessionId(nextSessionId);
       setCaseTab("scene");
+      setAiQuotaStatus(null);
       setView("case");
       await saveInProgressRecord(nextSessionId, scenario);
       await loadCase(nextSessionId);
@@ -270,6 +273,7 @@ export function useGameSession({
     setLocations([]);
     setCaseMapImageUrl(undefined);
     setHints([]);
+    setAiQuotaStatus(null);
   }
 
   async function abandonSession() {
@@ -290,6 +294,7 @@ export function useGameSession({
       setLocations([]);
       setCaseMapImageUrl(undefined);
       setHints([]);
+      setAiQuotaStatus(null);
       setView("library");
     } catch (error) {
       if (error instanceof ApiError && error.code === "P003") {
@@ -438,6 +443,7 @@ export function useGameSession({
       const answer = await authedRequest<{
         answer?: string;
         unlockedEvidences?: { evidenceId: number; title: string }[];
+        aiQuota?: AiQuotaStatus | null;
       }>(`/api/play-sessions/${sessionId}/interrogations`, {
         method: "POST",
         body: JSON.stringify({
@@ -456,6 +462,9 @@ export function useGameSession({
           text: answer.answer ?? "답변을 받지 못했습니다.",
         },
       ]);
+      setAiQuotaStatus(
+        answer.aiQuota && answer.aiQuota.stage !== "NONE" ? answer.aiQuota : null,
+      );
       setPendingEvidenceId(null);
       setPendingQuestionType("FREE");
       await loadCase();
@@ -513,6 +522,7 @@ export function useGameSession({
     pendingQuestionType,
     setPendingQuestionType,
     chatLoading,
+    aiQuotaStatus,
     unlockedEvidences,
     accusableSuspects,
     selectedCulpritId,
