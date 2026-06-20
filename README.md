@@ -3,6 +3,10 @@
 ClueRoom Web은 Flutter Android 앱의 핵심 플레이 흐름을 일반 브라우저에서 실행할 수 있도록 이식한 React/Vite 웹 프론트엔드입니다. 운영 API(`https://api.clueroom.xyz`)와 같은 인증/플레이 계약을 사용하며, 웹 배포 URL은 `https://www.clueroom.xyz`입니다.
 
 <p align="center">
+  <img src="public/thumbnail_1932x828.png" alt="ClueRoom web cover" width="900">
+</p>
+
+<p align="center">
   <a href="https://www.clueroom.xyz"><img alt="Web" src="https://img.shields.io/badge/Web-www.clueroom.xyz-1f6feb?style=for-the-badge"></a>
   <a href="https://api.clueroom.xyz/actuator/health"><img alt="API Health" src="https://img.shields.io/badge/API-health%20200-2ea043?style=for-the-badge"></a>
   <img alt="React" src="https://img.shields.io/badge/React-19-61dafb?style=for-the-badge">
