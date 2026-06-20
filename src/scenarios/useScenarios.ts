@@ -73,6 +73,7 @@ export function useScenarios({
     null,
   );
   const pendingBookmarkedScenariosRef = useRef(new Map<number, Scenario>());
+  const confirmedBookmarkedScenariosRef = useRef(new Map<number, Scenario>());
 
   function persistBookmarks(ids: number[]) {
     const uniqueIds = [...new Set(ids)];
@@ -137,6 +138,7 @@ export function useScenarios({
       });
     } else {
       pendingBookmarkedScenariosRef.current.delete(scenarioId);
+      confirmedBookmarkedScenariosRef.current.delete(scenarioId);
     }
 
     persistBookmarks(next);
@@ -166,6 +168,14 @@ export function useScenarios({
       await authedRequest(`/api/scenarios/${scenarioId}/bookmarks`, {
         method: wasBookmarked ? "DELETE" : "POST",
       });
+      if (!wasBookmarked && source) {
+        confirmedBookmarkedScenariosRef.current.set(scenarioId, {
+          ...source,
+          isBookmarked: true,
+        });
+      } else {
+        confirmedBookmarkedScenariosRef.current.delete(scenarioId);
+      }
       setScenarioDetailError(null);
     } catch (error) {
       if (
@@ -173,11 +183,20 @@ export function useScenarios({
         ((error.status === 409 && !wasBookmarked) ||
           (error.status === 404 && wasBookmarked))
       ) {
+        if (!wasBookmarked && source) {
+          confirmedBookmarkedScenariosRef.current.set(scenarioId, {
+            ...source,
+            isBookmarked: true,
+          });
+        } else {
+          confirmedBookmarkedScenariosRef.current.delete(scenarioId);
+        }
         setScenarioDetailError(null);
         return;
       }
 
       pendingBookmarkedScenariosRef.current.delete(scenarioId);
+      confirmedBookmarkedScenariosRef.current.delete(scenarioId);
       persistBookmarks(bookmarkedScenarioIds);
       setScenarios((current) =>
         current.map((scenario) =>
@@ -377,7 +396,10 @@ export function useScenarios({
     setBookmarksError(null);
     setView("bookmarks");
     const optimisticAtRequestStart = Array.from(
-      pendingBookmarkedScenariosRef.current.values(),
+      mergeBookmarkedScenarioList(
+        Array.from(pendingBookmarkedScenariosRef.current.values()),
+        Array.from(confirmedBookmarkedScenariosRef.current.values()),
+      ),
     );
     try {
       const data = await authedRequest<
@@ -387,11 +409,18 @@ export function useScenarios({
       const normalized = list
         .map(normalizeScenario)
         .map((scenario) => ({ ...scenario, isBookmarked: true }));
+      normalized.forEach((scenario) => {
+        confirmedBookmarkedScenariosRef.current.delete(scenario.scenarioId);
+      });
       const currentlyPendingIds = new Set(
         pendingBookmarkedScenariosRef.current.keys(),
       );
+      const currentlyConfirmedIds = new Set(
+        confirmedBookmarkedScenariosRef.current.keys(),
+      );
       const optimistic = optimisticAtRequestStart.filter((scenario) =>
-        currentlyPendingIds.has(scenario.scenarioId),
+        currentlyPendingIds.has(scenario.scenarioId) ||
+        currentlyConfirmedIds.has(scenario.scenarioId),
       );
       const merged = mergeBookmarkedScenarioList(normalized, optimistic);
       setBookmarkedScenarios(merged);
