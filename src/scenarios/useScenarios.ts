@@ -493,6 +493,14 @@ export function useScenarios({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authReady, authToken]);
 
+  useEffect(() => {
+    pendingBookmarkedScenariosRef.current.clear();
+    confirmedBookmarkedScenariosRef.current.clear();
+    suppressedBookmarkIdsRef.current.clear();
+    setBookmarkedScenarios([]);
+    setBookmarkedScenarioIds([]);
+  }, [authToken]);
+
   return {
     scenarios,
     scenarioFilter,
