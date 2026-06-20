@@ -54,6 +54,18 @@ flowchart LR
   Result --> Review[리뷰]
 ```
 
+## 화면 증빙
+
+공개 README에는 스포일러 위험이 낮은 화면만 포함합니다. 심문 원문 기록, 타임라인 상세, 최종 결과 화면은 정답성/증거 흐름을 노출할 수 있어 제외했습니다.
+
+| 시나리오 라이브러리 | 시나리오 상세 |
+|---|---|
+| ![시나리오 라이브러리](docs/readme-assets/web-library.png) | ![시나리오 상세](docs/readme-assets/web-scenario-detail.png) |
+
+| 수사 허브 | 용의자 목록 |
+|---|---|
+| ![수사 허브](docs/readme-assets/web-case-hub.png) | ![용의자 목록](docs/readme-assets/web-suspects.png) |
+
 ## 웹 프론트 핵심
 
 ### 앱 흐름 기반 브라우저 웹
@@ -226,19 +238,6 @@ SKIP_GIT_UPDATE=1 bash scripts/deploy-web.sh
 | refresh 실패 | 요청에 `credentials: "include"`가 들어가고, 백엔드 cookie 설정이 운영 origin과 맞는지 확인 |
 | `npm test`가 0 tests로 끝남 | test script가 `node --test "src/**/*.test.ts"` 형태를 유지하는지 확인 |
 | 배포 스크립트가 dirty tree로 중단됨 | 배포 전 local 변경을 commit, stash, remove 중 하나로 정리 |
-
-## 최종 UI 확정 후 추가할 화면 증빙
-
-이 README는 깨진 이미지 placeholder를 일부러 넣지 않습니다. 튜터 UI와 QA 최종본이 확정되면 아래 파일을 `docs/readme-assets/`에 추가합니다.
-
-```text
-docs/readme-assets/web-library.png
-docs/readme-assets/web-scenario-detail.png
-docs/readme-assets/web-case-hub.png
-docs/readme-assets/web-interrogation-quota.png
-docs/readme-assets/web-timeline.png
-docs/readme-assets/web-result.png
-```
 
 ## 범위 경계
 
