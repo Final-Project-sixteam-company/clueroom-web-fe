@@ -96,20 +96,19 @@ Last updated: 2026-06-20
 
 ## Production QA Snapshot
 
-2026-06-20 production web smoke after PR #4 merge:
+2026-06-20 production web smoke after PR #7 merge:
 
 - Overall: `PARTIAL`
-- PASS: library list/search/filter/sort, scenario detail entry, 390px mobile `수사 시작` CTA, briefing-to-case entry, case tab switching, suspect detail, interrogation entry, recommended-question prefill-only behavior, direct question response, evidence-presented question send, final deduction validation, reload login persistence, no refresh token in localStorage.
-- PARTIAL/FAIL follow-up: public QA login exposure, bookmark toggle/list persistence, review post-visibility, OAuth access-expiry refresh-cookie retry, `aiQuota.message` missing fallback verification.
-- Public-safe report: backend project `docs/qa/archive/QA_WEB_PROD_SMOKE_REPORT_2026-06-20.md`.
+- PASS: public `/` hides QA login, Google/Kakao buttons are visible, library/detail/mobile CTA/case tabs/interrogation/final validation pass, bookmark add/remove and saved-cases list reflection pass, reload login persistence pass, no refresh token in localStorage.
+- PARTIAL follow-up: review success path requires a completed-case QA account or approved final-submit test session, OAuth access-expiry refresh-cookie retry remains unconfirmed, non-`NONE` `aiQuota` missing-message fallback remains unconfirmed.
+- Public-safe report: backend project `docs/qa/archive/QA_WEB_PROD_PR7_SMOKE_REPORT_2026-06-20.md`.
 
 ## Still To Recheck
 
 - Visual QA against latest tutor UI pass
-- Real Google and Kakao OAuth smoke after every production deploy
-- QA login button hidden on public `/`; disable both web QA flag and backend dev login before public traffic
-- Bookmark add/remove persistence after refresh and saved-cases server list reflection
-- Review POST immediate detail-screen visibility or reload/append behavior
+- Real Google and Kakao provider-login smoke after every production deploy
+- QA login button remains hidden on public `/`; disable both web QA flag and backend dev login before public traffic
+- Review success-path visibility with a completed-case QA account or approved test session
 - Access-token expiry retry with HttpOnly refresh cookie under OAuth login
 - `aiQuota.message` missing fallback copy/action under route-level regression
 - Web records API availability in production; local fallback must remain non-primary
