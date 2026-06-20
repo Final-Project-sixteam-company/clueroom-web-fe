@@ -41,6 +41,23 @@ function quotaActionLabel(action?: string) {
   }
 }
 
+function quotaFallbackMessage(action?: string) {
+  switch (action) {
+    case "OPEN_EVIDENCE_TIMELINE":
+      return "지금까지 해금한 증거와 타임라인을 한 번 정리해 보세요.";
+    case "OPEN_SUSPECT_TIMELINE_COMPARE":
+      return "용의자별 진술과 타임라인을 비교해 후보를 좁혀보세요.";
+    case "OPEN_HINT_OR_GUIDANCE":
+      return "증거 상세의 추천 질문, 함께 볼 증거, 힌트를 활용해 보세요.";
+    case "OPEN_FINAL_DEDUCTION_CHECKLIST":
+      return "범인·동기·수단·은폐 정황을 정리해 보세요.";
+    case "OPEN_FINAL_DEDUCTION":
+      return "추가 질문보다 증거를 정리하고 최종 추리를 진행해 보세요.";
+    default:
+      return "AI 심문 사용량이 늘고 있습니다. 증거와 타임라인을 함께 정리해 보세요.";
+  }
+}
+
 // 정본 SuspectBubble: 24 그라디언트 아바타(이니셜) + bgElev 말풍선(좌상 r1, 나머지 r4).
 function SuspectBubble({ text, name }: { text: string; name: string }) {
   const initial = name.length > 0 ? Array.from(name)[0] : "?";
@@ -128,6 +145,9 @@ export function InterrogationChatScreen({
   }, [messages.length, loading]);
 
   const canPresent = evidences.length > 0 && !loading;
+  const quotaMessage =
+    quotaStatus?.message?.trim() ||
+    (quotaStatus ? quotaFallbackMessage(quotaStatus.recommendedAction) : "");
 
   return (
     <section className={styles.screen}>
@@ -156,11 +176,11 @@ export function InterrogationChatScreen({
         </button>
       </header>
 
-      {quotaStatus?.message ? (
+      {quotaStatus ? (
         <aside className={styles.quotaBanner} aria-live="polite">
           <div className={styles.quotaText}>
             <span className={styles.quotaKicker}>AI 호출 안내</span>
-            <span className={styles.quotaMessage}>{quotaStatus.message}</span>
+            <span className={styles.quotaMessage}>{quotaMessage}</span>
             <span className={styles.quotaMeta}>
               오늘 이 사건 {quotaStatus.scenarioUsed}/{quotaStatus.scenarioLimit}회
               사용 · 남은 {quotaStatus.remaining}회
