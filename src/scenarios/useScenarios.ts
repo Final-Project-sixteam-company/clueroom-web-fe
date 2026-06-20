@@ -74,6 +74,7 @@ export function useScenarios({
   );
   const pendingBookmarkedScenariosRef = useRef(new Map<number, Scenario>());
   const confirmedBookmarkedScenariosRef = useRef(new Map<number, Scenario>());
+  const suppressedBookmarkIdsRef = useRef(new Set<number>());
 
   function persistBookmarks(ids: number[]) {
     const uniqueIds = [...new Set(ids)];
@@ -132,6 +133,7 @@ export function useScenarios({
       : [scenarioId, ...bookmarkedScenarioIds];
     const source = findScenarioSource(scenarioId);
     if (!wasBookmarked && source) {
+      suppressedBookmarkIdsRef.current.delete(scenarioId);
       pendingBookmarkedScenariosRef.current.set(scenarioId, {
         ...source,
         isBookmarked: true,
@@ -139,6 +141,7 @@ export function useScenarios({
     } else {
       pendingBookmarkedScenariosRef.current.delete(scenarioId);
       confirmedBookmarkedScenariosRef.current.delete(scenarioId);
+      suppressedBookmarkIdsRef.current.add(scenarioId);
     }
 
     persistBookmarks(next);
@@ -188,8 +191,10 @@ export function useScenarios({
             ...source,
             isBookmarked: true,
           });
+          suppressedBookmarkIdsRef.current.delete(scenarioId);
         } else {
           confirmedBookmarkedScenariosRef.current.delete(scenarioId);
+          suppressedBookmarkIdsRef.current.add(scenarioId);
         }
         setScenarioDetailError(null);
         return;
@@ -197,6 +202,7 @@ export function useScenarios({
 
       pendingBookmarkedScenariosRef.current.delete(scenarioId);
       confirmedBookmarkedScenariosRef.current.delete(scenarioId);
+      suppressedBookmarkIdsRef.current.delete(scenarioId);
       persistBookmarks(bookmarkedScenarioIds);
       setScenarios((current) =>
         current.map((scenario) =>
@@ -395,33 +401,33 @@ export function useScenarios({
     setBookmarksLoading(true);
     setBookmarksError(null);
     setView("bookmarks");
-    const optimisticAtRequestStart = Array.from(
-      mergeBookmarkedScenarioList(
-        Array.from(pendingBookmarkedScenariosRef.current.values()),
-        Array.from(confirmedBookmarkedScenariosRef.current.values()),
-      ),
-    );
     try {
       const data = await authedRequest<
         { content?: Record<string, unknown>[] } | Record<string, unknown>[]
       >("/api/scenarios/bookmarked", { query: { page: 0, size: 30 } });
       const list = Array.isArray(data) ? data : (data.content ?? []);
-      const normalized = list
+      const normalizedRaw = list
         .map(normalizeScenario)
         .map((scenario) => ({ ...scenario, isBookmarked: true }));
+      const serverIds = new Set(
+        normalizedRaw.map((scenario) => scenario.scenarioId),
+      );
+      suppressedBookmarkIdsRef.current.forEach((scenarioId) => {
+        if (!serverIds.has(scenarioId)) {
+          suppressedBookmarkIdsRef.current.delete(scenarioId);
+        }
+      });
+      const suppressedIds = new Set(suppressedBookmarkIdsRef.current);
+      const normalized = normalizedRaw.filter(
+        (scenario) => !suppressedIds.has(scenario.scenarioId),
+      );
       normalized.forEach((scenario) => {
         confirmedBookmarkedScenariosRef.current.delete(scenario.scenarioId);
       });
-      const currentlyPendingIds = new Set(
-        pendingBookmarkedScenariosRef.current.keys(),
-      );
-      const currentlyConfirmedIds = new Set(
-        confirmedBookmarkedScenariosRef.current.keys(),
-      );
-      const optimistic = optimisticAtRequestStart.filter((scenario) =>
-        currentlyPendingIds.has(scenario.scenarioId) ||
-        currentlyConfirmedIds.has(scenario.scenarioId),
-      );
+      const optimistic = mergeBookmarkedScenarioList(
+        Array.from(pendingBookmarkedScenariosRef.current.values()),
+        Array.from(confirmedBookmarkedScenariosRef.current.values()),
+      ).filter((scenario) => !suppressedIds.has(scenario.scenarioId));
       const merged = mergeBookmarkedScenarioList(normalized, optimistic);
       setBookmarkedScenarios(merged);
       setBookmarkedScenarioIds(merged.map((scenario) => scenario.scenarioId));
