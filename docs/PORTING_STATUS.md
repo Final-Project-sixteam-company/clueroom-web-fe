@@ -3,7 +3,7 @@
 Last updated: 2026-06-20
 
 이 문서는 Flutter Android 앱 UX를 React/Vite 웹으로 이식한 현재 상태를 정리합니다.
-Apps in Toss 패키징과 Toss 로그인은 현재 범위에서 제외되었습니다.
+외부 미니앱 패키징과 provider-specific miniapp login은 현재 범위에서 제외되었습니다.
 
 ## Implemented
 
@@ -55,10 +55,20 @@ Apps in Toss 패키징과 Toss 로그인은 현재 범위에서 제외되었습�
 - Server-first investigation records with local fallback
 - Server-backed bookmarked scenario screen
 - Scenario/evidence image full-screen viewer
+- Broken scenario/evidence API image fallback
 - Result scoring detail cards
 - Result recommendation card rendering when backend provides data
 - Post-result review entry point
 - Accessibility focus states, ARIA pressed states, and meaningful image alt text
+- Evidence detail safe fallback guidance when seed/API guidance is absent
+- Bookmark POST 409 handled as idempotent already-saved success
+- Mobile evidence card pointer target and minimum-height hardening
+- Final deduction evidence chip hit target hardening with `aria-pressed`
+- Final deduction 5+ character validation
+- Completed/submitted session guard before duplicate final submit
+- Timeline all/contradiction/statement filters
+- My-scenario tab placeholder
+- Result lookup fallback and retry state
 
 ## Backend Contracts To Preserve
 
@@ -84,12 +94,24 @@ Apps in Toss 패키징과 Toss 로그인은 현재 범위에서 제외되었습�
 - `POST /api/play-sessions/{id}/final-deduction`
 - `GET /api/play-sessions/{id}/result`
 
+## Production QA Snapshot
+
+2026-06-20 production web smoke after PR #4 merge:
+
+- Overall: `PARTIAL`
+- PASS: library list/search/filter/sort, scenario detail entry, 390px mobile `수사 시작` CTA, briefing-to-case entry, case tab switching, suspect detail, interrogation entry, recommended-question prefill-only behavior, direct question response, evidence-presented question send, final deduction validation, reload login persistence, no refresh token in localStorage.
+- PARTIAL/FAIL follow-up: public QA login exposure, bookmark toggle/list persistence, review post-visibility, OAuth access-expiry refresh-cookie retry, `aiQuota.message` missing fallback verification.
+- Public-safe report: backend project `docs/qa/archive/QA_WEB_PROD_SMOKE_REPORT_2026-06-20.md`.
+
 ## Still To Recheck
 
 - Visual QA against latest tutor UI pass
-- Mobile scenario detail CTA regression on 390px viewport
 - Real Google and Kakao OAuth smoke after every production deploy
 - QA login button hidden on public `/`; disable both web QA flag and backend dev login before public traffic
+- Bookmark add/remove persistence after refresh and saved-cases server list reflection
+- Review POST immediate detail-screen visibility or reload/append behavior
+- Access-token expiry retry with HttpOnly refresh cookie under OAuth login
+- `aiQuota.message` missing fallback copy/action under route-level regression
 - Web records API availability in production; local fallback must remain non-primary
 
 ## Build
