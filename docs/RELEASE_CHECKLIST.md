@@ -35,6 +35,8 @@ VITE_ENABLE_QA_LOGIN=false
 ```
 
 QA 검증 시간에만 `VITE_ENABLE_QA_LOGIN=true`를 사용할 수 있습니다.
+이 경우에도 기본 공개 루트(`/`)에는 QA 버튼이 노출되지 않아야 하며,
+QA 담당자는 `https://www.clueroom.xyz/?qaLogin=1` 또는 `#qa-login`으로 명시 진입합니다.
 공개 운영 트래픽 전에는 백엔드 `AUTH_DEV_LOGIN_ENABLED=false`와 웹 `VITE_ENABLE_QA_LOGIN=false`를 확인합니다.
 
 ## Backend Compatibility Gate
@@ -51,6 +53,7 @@ QA 검증 시간에만 `VITE_ENABLE_QA_LOGIN=true`를 사용할 수 있습니다
 - Final deduction submit waits for `/api/play-sessions/{sessionId}/result` or shows retry state.
 - Bookmarks and reviews use server APIs.
 - Review rating input is integer 1-5.
+- QA login button is hidden on `/` even when the QA build flag is enabled; it only appears on an explicit QA login URL.
 
 ## Deploy
 
@@ -80,7 +83,9 @@ After deploy:
 - Send one interrogation question.
 - Confirm no refresh token is stored in browser localStorage.
 - Toggle bookmark.
+- Open the bookmarked scenario screen and verify the saved scenario remains visible.
 - Create an integer review.
+- Verify the newly created review remains visible after submit.
 - Submit final deduction only in QA-approved test sessions.
 
 ## Artifact Boundary

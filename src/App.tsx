@@ -41,6 +41,7 @@ function App() {
   const {
     tokens,
     authToken,
+    authSessionKey,
     authReady,
     authError,
     setAuthError,
@@ -100,6 +101,7 @@ function App() {
   } = useScenarios({
     authReady,
     authToken,
+    accountKey: authSessionKey,
     authedRequest,
     optionalAuthRequest,
     setAuthError,

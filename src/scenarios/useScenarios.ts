@@ -6,7 +6,7 @@
 // setAuthError(인증 안내 메시지), setView(로그인/북마크/상세 화면 전환).
 // 이 함수들이 원래 인라인으로 하던 네비게이션을 그대로 보존하려고 setView 를 주입한다.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type {
   Scenario,
@@ -28,6 +28,7 @@ import type { AuthedRequest } from "../auth/useAuth";
 export type UseScenariosArgs = {
   authReady: boolean;
   authToken: string | null;
+  accountKey: string | null;
   authedRequest: AuthedRequest;
   optionalAuthRequest: AuthedRequest;
   setAuthError: (message: string | null) => void;
@@ -37,6 +38,7 @@ export type UseScenariosArgs = {
 export function useScenarios({
   authReady,
   authToken,
+  accountKey,
   authedRequest,
   optionalAuthRequest,
   setAuthError,
@@ -72,10 +74,52 @@ export function useScenarios({
   const [scenarioDetailError, setScenarioDetailError] = useState<string | null>(
     null,
   );
+  const pendingBookmarkedScenariosRef = useRef(new Map<number, Scenario>());
+  const confirmedBookmarkedScenariosRef = useRef(new Map<number, Scenario>());
+  const suppressedBookmarkIdsRef = useRef(new Set<number>());
 
   function persistBookmarks(ids: number[]) {
     const uniqueIds = [...new Set(ids)];
     setBookmarkedScenarioIds(uniqueIds);
+  }
+
+  function findScenarioSource(scenarioId: number) {
+    return (
+      (selectedScenario?.scenarioId === scenarioId ? selectedScenario : null) ??
+      scenarios.find((scenario) => scenario.scenarioId === scenarioId) ??
+      bookmarkedScenarios.find((scenario) => scenario.scenarioId === scenarioId) ??
+      null
+    );
+  }
+
+  function mergeBookmarkedScenarioList(
+    serverScenarios: Scenario[],
+    optimisticScenarios: Scenario[] = [],
+  ) {
+    const byId = new Map<number, Scenario>();
+    [...serverScenarios, ...optimisticScenarios].forEach((scenario) => {
+      byId.set(scenario.scenarioId, { ...scenario, isBookmarked: true });
+    });
+    return Array.from(byId.values());
+  }
+
+  function mergeScenarioReviews(
+    scenarioId: number,
+    serverReviews: ScenarioReview[],
+    preservedReviews: ScenarioReview[] = [],
+  ) {
+    const byId = new Map<string, ScenarioReview>();
+    serverReviews.forEach((review) => byId.set(review.reviewId, review));
+    preservedReviews.forEach((review) => {
+      if (!byId.has(review.reviewId)) {
+        byId.set(review.reviewId, review);
+      }
+    });
+
+    setScenarioReviews((current) => [
+      ...Array.from(byId.values()),
+      ...current.filter((review) => review.scenarioId !== scenarioId),
+    ]);
   }
 
   async function toggleScenarioBookmark(scenarioId: number) {
@@ -89,6 +133,19 @@ export function useScenarios({
     const next = wasBookmarked
       ? bookmarkedScenarioIds.filter((id) => id !== scenarioId)
       : [scenarioId, ...bookmarkedScenarioIds];
+    const source = findScenarioSource(scenarioId);
+    if (!wasBookmarked && source) {
+      suppressedBookmarkIdsRef.current.delete(scenarioId);
+      pendingBookmarkedScenariosRef.current.set(scenarioId, {
+        ...source,
+        isBookmarked: true,
+      });
+    } else {
+      pendingBookmarkedScenariosRef.current.delete(scenarioId);
+      confirmedBookmarkedScenariosRef.current.delete(scenarioId);
+      suppressedBookmarkIdsRef.current.add(scenarioId);
+    }
+
     persistBookmarks(next);
     setScenarios((current) =>
       current.map((scenario) =>
@@ -106,10 +163,6 @@ export function useScenarios({
       if (wasBookmarked) {
         return current.filter((scenario) => scenario.scenarioId !== scenarioId);
       }
-      const source =
-        selectedScenario?.scenarioId === scenarioId
-          ? selectedScenario
-          : scenarios.find((scenario) => scenario.scenarioId === scenarioId);
       if (!source || current.some((scenario) => scenario.scenarioId === scenarioId)) {
         return current;
       }
@@ -120,16 +173,38 @@ export function useScenarios({
       await authedRequest(`/api/scenarios/${scenarioId}/bookmarks`, {
         method: wasBookmarked ? "DELETE" : "POST",
       });
+      if (!wasBookmarked && source) {
+        confirmedBookmarkedScenariosRef.current.set(scenarioId, {
+          ...source,
+          isBookmarked: true,
+        });
+      } else {
+        confirmedBookmarkedScenariosRef.current.delete(scenarioId);
+      }
+      setScenarioDetailError(null);
     } catch (error) {
       if (
         error instanceof ApiError &&
         ((error.status === 409 && !wasBookmarked) ||
           (error.status === 404 && wasBookmarked))
       ) {
+        if (!wasBookmarked && source) {
+          confirmedBookmarkedScenariosRef.current.set(scenarioId, {
+            ...source,
+            isBookmarked: true,
+          });
+          suppressedBookmarkIdsRef.current.delete(scenarioId);
+        } else {
+          confirmedBookmarkedScenariosRef.current.delete(scenarioId);
+          suppressedBookmarkIdsRef.current.add(scenarioId);
+        }
         setScenarioDetailError(null);
         return;
       }
 
+      pendingBookmarkedScenariosRef.current.delete(scenarioId);
+      confirmedBookmarkedScenariosRef.current.delete(scenarioId);
+      suppressedBookmarkIdsRef.current.delete(scenarioId);
       persistBookmarks(bookmarkedScenarioIds);
       setScenarios((current) =>
         current.map((scenario) =>
@@ -147,10 +222,6 @@ export function useScenarios({
         if (!wasBookmarked) {
           return current.filter((scenario) => scenario.scenarioId !== scenarioId);
         }
-        const source =
-          selectedScenario?.scenarioId === scenarioId
-            ? selectedScenario
-            : scenarios.find((scenario) => scenario.scenarioId === scenarioId);
         if (!source || current.some((scenario) => scenario.scenarioId === scenarioId)) {
           return current;
         }
@@ -159,10 +230,15 @@ export function useScenarios({
       setScenarioDetailError(
         error instanceof Error ? error.message : "저장 상태를 바꾸지 못했습니다.",
       );
+    } finally {
+      pendingBookmarkedScenariosRef.current.delete(scenarioId);
     }
   }
 
-  async function loadScenarioReviews(scenarioId: number) {
+  async function loadScenarioReviews(
+    scenarioId: number,
+    preservedReviews: ScenarioReview[] = [],
+  ) {
     try {
       const data = await optionalAuthRequest<
         { content?: Record<string, unknown>[] } | Record<string, unknown>[]
@@ -178,11 +254,11 @@ export function useScenarios({
       const normalized = list
         .map((item) => normalizeReview(item, scenarioId))
         .filter((item): item is ScenarioReview => !!item);
-      setScenarioReviews((current) => [
-        ...normalized,
-        ...current.filter((review) => review.scenarioId !== scenarioId),
-      ]);
+      mergeScenarioReviews(scenarioId, normalized, preservedReviews);
     } catch (error) {
+      if (preservedReviews.length > 0) {
+        mergeScenarioReviews(scenarioId, [], preservedReviews);
+      }
       setScenarioDetailError(
         error instanceof Error ? error.message : "리뷰를 불러오지 못했습니다.",
       );
@@ -197,7 +273,7 @@ export function useScenarios({
     }
 
     try {
-      await authedRequest<{ reviewId: number }>(
+      const created = await authedRequest<Record<string, unknown>>(
         `/api/scenarios/${review.scenarioId}/reviews`,
         {
           method: "POST",
@@ -208,7 +284,23 @@ export function useScenarios({
           }),
         },
       );
-      await loadScenarioReviews(review.scenarioId);
+      const savedReview: ScenarioReview = {
+        ...review,
+        reviewId: String(created.reviewId ?? created.id ?? review.reviewId),
+        createdAt:
+          typeof created.createdAt === "string" && created.createdAt.trim()
+            ? created.createdAt
+            : review.createdAt,
+      };
+      setScenarioReviews((current) => [
+        savedReview,
+        ...current.filter(
+          (currentReview) =>
+            currentReview.scenarioId !== review.scenarioId ||
+            currentReview.reviewId !== savedReview.reviewId,
+        ),
+      ]);
+      await loadScenarioReviews(review.scenarioId, [savedReview]);
       await loadScenarios();
       setScenarioDetailError(null);
       return true;
@@ -316,16 +408,31 @@ export function useScenarios({
         { content?: Record<string, unknown>[] } | Record<string, unknown>[]
       >("/api/scenarios/bookmarked", { query: { page: 0, size: 30 } });
       const list = Array.isArray(data) ? data : (data.content ?? []);
-      const normalized = list
+      const normalizedRaw = list
         .map(normalizeScenario)
         .map((scenario) => ({ ...scenario, isBookmarked: true }));
-      setBookmarkedScenarios(normalized);
-      setBookmarkedScenarioIds((current) => [
-        ...new Set([
-          ...current,
-          ...normalized.map((scenario) => scenario.scenarioId),
-        ]),
-      ]);
+      const serverIds = new Set(
+        normalizedRaw.map((scenario) => scenario.scenarioId),
+      );
+      suppressedBookmarkIdsRef.current.forEach((scenarioId) => {
+        if (!serverIds.has(scenarioId)) {
+          suppressedBookmarkIdsRef.current.delete(scenarioId);
+        }
+      });
+      const suppressedIds = new Set(suppressedBookmarkIdsRef.current);
+      const normalized = normalizedRaw.filter(
+        (scenario) => !suppressedIds.has(scenario.scenarioId),
+      );
+      normalized.forEach((scenario) => {
+        confirmedBookmarkedScenariosRef.current.delete(scenario.scenarioId);
+      });
+      const optimistic = mergeBookmarkedScenarioList(
+        Array.from(pendingBookmarkedScenariosRef.current.values()),
+        Array.from(confirmedBookmarkedScenariosRef.current.values()),
+      ).filter((scenario) => !suppressedIds.has(scenario.scenarioId));
+      const merged = mergeBookmarkedScenarioList(normalized, optimistic);
+      setBookmarkedScenarios(merged);
+      setBookmarkedScenarioIds(merged.map((scenario) => scenario.scenarioId));
     } catch (error) {
       setBookmarksError(
         error instanceof Error
@@ -387,6 +494,14 @@ export function useScenarios({
     // Initial library load only; filter changes call applyScenarioFilter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authReady, authToken]);
+
+  useEffect(() => {
+    pendingBookmarkedScenariosRef.current.clear();
+    confirmedBookmarkedScenariosRef.current.clear();
+    suppressedBookmarkIdsRef.current.clear();
+    setBookmarkedScenarios([]);
+    setBookmarkedScenarioIds([]);
+  }, [accountKey]);
 
   return {
     scenarios,

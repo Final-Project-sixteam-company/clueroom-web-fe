@@ -8,8 +8,25 @@ export const KAKAO_JAVASCRIPT_KEY =
   import.meta.env.VITE_KAKAO_JAVASCRIPT_KEY ?? "";
 export const ENABLE_GOOGLE_LOGIN = !!GOOGLE_CLIENT_ID;
 export const ENABLE_KAKAO_LOGIN = !!KAKAO_JAVASCRIPT_KEY;
+
+function hasRuntimeLoginGate(kind: "dev" | "qa") {
+  if (import.meta.env.DEV) return true;
+  if (typeof window === "undefined") return false;
+
+  const params = new URLSearchParams(window.location.search);
+  const hash = window.location.hash.replace(/^#/, "").toLowerCase();
+  const camelParam = kind === "qa" ? "qaLogin" : "devLogin";
+  const kebabHash = kind === "qa" ? "qa-login" : "dev-login";
+  return (
+    params.get(camelParam) === "1" ||
+    params.get(kind) === "1" ||
+    hash === kebabHash
+  );
+}
+
 export const ENABLE_DEV_LOGIN =
-  import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_LOGIN === "true";
+  (import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEV_LOGIN === "true") &&
+  hasRuntimeLoginGate("dev");
 export const DEFAULT_QA_LOGIN_EMAIL = (
   import.meta.env.VITE_QA_LOGIN_EMAIL ?? ""
 ).trim();
@@ -17,7 +34,8 @@ export const QA_LOGIN_NICKNAME =
   (import.meta.env.VITE_QA_LOGIN_NICKNAME ?? "ClueRoom QA").trim() ||
   "ClueRoom QA";
 export const ENABLE_QA_LOGIN =
-  (import.meta.env.DEV || import.meta.env.VITE_ENABLE_QA_LOGIN === "true");
+  (import.meta.env.DEV || import.meta.env.VITE_ENABLE_QA_LOGIN === "true") &&
+  hasRuntimeLoginGate("qa");
 export const KAKAO_LOGIN_STATE = "clueroom-kakao-login";
 
 export const ACCESS_KEY = "clueroom.accessToken";
