@@ -29,7 +29,7 @@ Related visual asset: `start-up/docs/brochure-assets/clueroom_web_detail_pages_q
 | Item | Decision |
 |---|---|
 | Miniapp-specific login route | Removed from current web scope. Do not expose miniapp login copy or entry points in public web. |
-| `.ait` miniapp packaging | Removed from current web release scope. |
+| External miniapp package artifacts | Removed from current web release scope. |
 | Flutter-only create tab | Not part of current web nav. My-scenario tab is placeholder only. |
 | Separate recommended-question API | Not used. Evidence `guidance.suggestedQuestions` drives prefill-only chips. |
 | Frontend answer/culprit constants | Forbidden. Result details come only from backend result API after submission. |
