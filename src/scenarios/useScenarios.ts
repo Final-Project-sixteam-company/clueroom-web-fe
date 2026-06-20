@@ -265,7 +265,14 @@ export function useScenarios({
             ? created.createdAt
             : review.createdAt,
       };
-      mergeScenarioReviews(review.scenarioId, [], [savedReview]);
+      setScenarioReviews((current) => [
+        savedReview,
+        ...current.filter(
+          (currentReview) =>
+            currentReview.scenarioId !== review.scenarioId ||
+            currentReview.reviewId !== savedReview.reviewId,
+        ),
+      ]);
       await loadScenarioReviews(review.scenarioId, [savedReview]);
       await loadScenarios();
       setScenarioDetailError(null);
@@ -380,9 +387,11 @@ export function useScenarios({
       const normalized = list
         .map(normalizeScenario)
         .map((scenario) => ({ ...scenario, isBookmarked: true }));
-      const optimistic = mergeBookmarkedScenarioList(
-        optimisticAtRequestStart,
-        Array.from(pendingBookmarkedScenariosRef.current.values()),
+      const currentlyPendingIds = new Set(
+        pendingBookmarkedScenariosRef.current.keys(),
+      );
+      const optimistic = optimisticAtRequestStart.filter((scenario) =>
+        currentlyPendingIds.has(scenario.scenarioId),
       );
       const merged = mergeBookmarkedScenarioList(normalized, optimistic);
       setBookmarkedScenarios(merged);
