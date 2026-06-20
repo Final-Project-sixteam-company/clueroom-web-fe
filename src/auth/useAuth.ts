@@ -53,6 +53,7 @@ export type AuthedRequest = <T>(
 
 export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
   const [tokens, setTokens] = useState<Tokens | null>(null);
+  const [authSessionKey, setAuthSessionKey] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -61,8 +62,14 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
 
   const authToken = tokens?.accessToken ?? null;
   const refreshControllerRef = useRef<RefreshController | null>(null);
+  const authSessionSeqRef = useRef(0);
   const refreshController = (refreshControllerRef.current ??=
     createRefreshController());
+
+  function nextAuthSessionKey() {
+    authSessionSeqRef.current += 1;
+    return `session-${authSessionSeqRef.current}`;
+  }
 
   async function persistTokens(next: Tokens) {
     const browserTokens: Tokens = {
@@ -77,6 +84,7 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
   async function replaceAuthSession(next: Tokens) {
     refreshController.bumpGeneration();
     await persistTokens(next);
+    setAuthSessionKey(nextAuthSessionKey());
   }
 
   async function logout() {
@@ -91,6 +99,7 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
       await safeRemove(ACCESS_KEY);
       await safeRemove(REFRESH_KEY);
       setTokens(null);
+      setAuthSessionKey(null);
       setProfile(null);
       onLogout();
     }
@@ -109,6 +118,8 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
         await safeRemove(ACCESS_KEY);
         await safeRemove(REFRESH_KEY);
         setTokens(null);
+        setAuthSessionKey(null);
+        setProfile(null);
       },
     });
   }
@@ -249,6 +260,7 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
       const legacyRefreshToken = await safeGet(REFRESH_KEY);
       if (accessToken) {
         setTokens({ accessToken });
+        setAuthSessionKey(nextAuthSessionKey());
         await safeRemove(REFRESH_KEY);
       } else {
         const generation = refreshController.generation;
@@ -256,11 +268,13 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
           const next = await refreshSession(legacyRefreshToken);
           if (generation === refreshController.generation) {
             await persistTokens(next);
+            setAuthSessionKey(nextAuthSessionKey());
           }
         } catch {
           if (generation === refreshController.generation) {
             await safeRemove(ACCESS_KEY);
             await safeRemove(REFRESH_KEY);
+            setAuthSessionKey(null);
           }
         }
       }
@@ -273,6 +287,7 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
   return {
     tokens,
     authToken,
+    authSessionKey,
     authReady,
     authError,
     setAuthError,

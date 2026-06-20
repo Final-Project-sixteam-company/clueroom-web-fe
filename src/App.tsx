@@ -41,6 +41,7 @@ function App() {
   const {
     tokens,
     authToken,
+    authSessionKey,
     authReady,
     authError,
     setAuthError,
@@ -68,11 +69,6 @@ function App() {
     authToken,
     authedRequest,
   });
-  const accountKey = profile
-    ? String(profile.userId ?? profile.email ?? `${profile.provider ?? "USER"}:${profile.nickname}`)
-    : authToken
-      ? "authenticated"
-      : null;
 
   // Scenarios 도메인 — 라이브러리/상세/북마크/리뷰 상태 + 로더는 useScenarios 소유.
   // 인증 안내(setAuthError)·화면 전환(setView)은 주입해 함수의 인라인 네비를 1:1 보존.
@@ -105,7 +101,7 @@ function App() {
   } = useScenarios({
     authReady,
     authToken,
-    accountKey,
+    accountKey: authSessionKey,
     authedRequest,
     optionalAuthRequest,
     setAuthError,
