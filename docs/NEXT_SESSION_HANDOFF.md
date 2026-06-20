@@ -9,7 +9,8 @@ ClueRoom Flutter→React 마이그레이션을 이어서 진행합니다. 작업
 1. docs/NEXT_SESSION_HANDOFF.md — 진행 상태·결정·다음 작업의 정본 (특히 ✅ 섹션들).
 2. docs/REACT_WEB_MIGRATION_PLAN.md — 전체 계획(§9 단계 순서, §11 koo 확정값).
 3. docs/REACT_WEB_MIGRATION_GAMEPLAY_SPEC.md — 게임플레이 20화면 픽셀 명세(§2 CASE SCREEN 등 = 다음 작업 레퍼런스).
-4. 픽셀 정본: ../project-fe/lib/theme/*.dart, ../project-fe/lib/components/*.dart, ../project-fe/lib/screens/*.dart
+4. docs/DETAIL_PAGE_INVENTORY.md — 최신 웹 상세 화면 목록, 제외 범위, QA/Jira follow-up.
+5. 픽셀 정본: ../project-fe/lib/theme/*.dart, ../project-fe/lib/components/*.dart, ../project-fe/lib/screens/*.dart
 
 ## 지금까지 완료 (다시 분해하지 말 것)
 - Phase 1~3b: 디자인 토큰(src/theme/tokens.css)+self-host 폰트, 순수 레이어 분해(config/env·types·lib/storage·api/*), auth 훅 분리(src/auth/* — refreshController/withAuthRetry/useAuth + node:test 12종).
@@ -28,6 +29,7 @@ ClueRoom Flutter→React 마이그레이션을 이어서 진행합니다. 작업
   · 제출 SubmitScreen + 결과 ResultScreen(src/components/screens/ — submit/result_*.dart). **§9 게임 흐름 전부 이식 완료.** 제출=bare(back 바)+폼(헤더/진범 select/동기·방법·은폐 TextField/증거 셀렉터/체크리스트/제출 danger) + kit Modal 확인. 결과=bare('CASE CLOSED')+등급 헤더(display96 fade-in)/매칭 카드/맞춘·놓친/해설/확인된 증거/추천 사건/3버튼. prop 계약 동일 → 태그명만 교체. 옛 인라인 5함수 제거 → App.tsx 2125줄(세션 누적 −62%).
   · **비-게임 3종(2026-06-20)**: 기록 RecordsScreen(my_records_screen.dart — 탭, 등급카드+StatRow+필터칩+세션카드) · 내 정보 ProfileScreen(my_page_screen.dart — 탭, 프로필카드+메뉴, 로그아웃=kit Modal·준비중=kit Toast) · 북마크 BookmarksScreen(전용 정본 없음 — bare 자체 AppBar + 공유 ScenarioRow). **라이브러리 _ScenarioRow → domain/ScenarioRow 공유 추출**(Library/Bookmarks 공용). **ToastProvider 를 main.tsx 앱 루트에 마운트**. 옛 인라인 9함수 + recordsSource state 제거 → **App.tsx 1693줄(세션 누적 −70%)**. ✅ **전 화면 이식 완료.**
 - game_modals 바텀시트 정본화(2026-06-20): 공유 `Sheet` 프리미티브(ui, 드래그 핸들+슬라이드 모션) 위에 HintSheet·CaseBriefingSheet(신규, case/) · EvidencePresentSheet(모션 추가) · ReviewWriteSheet(App ReviewDialog 대체). 임시 kit Modal·ReviewDialog/TextArea 제거 → App.tsx 1598줄. AbandonDialog/SubmitConfirm/Logout 은 dialog 라 Modal 유지.
+- 운영 웹 QA 반영(2026-06-20): 모바일 390px 상세 CTA·라이브러리·브리핑·수사 탭·심문·최종추리 validation 은 PASS. 남은 release-risk 는 공개 QA 로그인 숨김(P1), 북마크 persistence, 리뷰 표시, OAuth refresh-cookie expiry 재시도, `aiQuota.message` fallback 확인. 상세 화면 목록은 `docs/DETAIL_PAGE_INVENTORY.md`가 최신 기준.
 
 ## ⚠ 알아둘 것
 - 게이트(완료 주장 전 필수): npm test && npm run lint && npx tsc -b && npm run build. tsc -b가 타입 게이트 정본(build=vite/esbuild라 타입체크 안 함). 현재 0 errors 유지.
@@ -41,7 +43,7 @@ ClueRoom Flutter→React 마이그레이션을 이어서 진행합니다. 작업
 - **Phase 4 기능 훅 분해 ✅**(커밋 `4958b33`): god-state → useRecords/useScenarios/useGameSession/useResult + 순수 caseTimer/pollWithRetry(node:test). App.tsx 1598 → 800줄.
 - **Phase 6 Splash/Onboarding ✅**(커밋 `3017450`): splash 2.2s + 분기(미시청→onboarding, 시청→home) / onboarding 5슬라이드(scroll-snap). 초기 view=splash, 플래그=localStorage.
 - **dead App.css 정리 ✅**(미커밋): 증거 기반 안전 삭제 — App.css 1671→259줄, 187 규칙 제거, CSS 번들 108.6→91.0kB. 실제 글로벌 className 12개(App.tsx Shell/ImageViewer)만 생존.
-- 남은 건 선택 마감(잔류 .button*/.timeline 마이크로 제거 · 갤러리 제거 · 푸시/PR) + koo 육안 QA.
+- 남은 건 운영 마감 QA: 공개 QA 로그인 비노출, 북마크 저장/해제 persistence, 리뷰 POST 후 표시, OAuth refresh-cookie expiry retry, `aiQuota.message` fallback. 선택 마감(잔류 .button*/.timeline 마이크로 제거 · 갤러리 제거 · 푸시/PR)은 별도 후순위.
 
 ## 작업 규칙
 - 완료 주장 전 4 게이트. tsc -b 0 유지. 이식은 Flutter 정본과 1:1 대조 가능하게(파일 상단 .dart 출처 주석).
