@@ -56,7 +56,7 @@
 /* ── variants ── */
 .primary {
   background: var(--primary);
-  color: var(--primary-ink);
+  color: var(--ink950);
 }
 .secondary {
   background: transparent;
