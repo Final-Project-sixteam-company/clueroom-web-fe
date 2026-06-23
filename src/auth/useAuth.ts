@@ -260,22 +260,20 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
         return;
       }
 
-      const accessToken = await safeGet(ACCESS_KEY);
       const legacyRefreshToken = await safeGet(REFRESH_KEY);
-      if (accessToken || legacyRefreshToken) {
-        const generation = refreshController.generation;
-        try {
-          // Stored access tokens can be expired or revoked. Verify the session
-          // with the refresh cookie before any auth-aware loaders attach Bearer.
-          const next = await refreshSession(legacyRefreshToken);
-          if (generation === refreshController.generation) {
-            await persistTokens(next);
-            setAuthSessionKey(nextAuthSessionKey());
-          }
-        } catch {
-          if (generation === refreshController.generation) {
-            await clearAuthSession();
-          }
+      const generation = refreshController.generation;
+      try {
+        // Stored access tokens can be expired or revoked. Also, JavaScript
+        // cannot inspect the HttpOnly refresh cookie, so try refresh even when
+        // localStorage is empty to restore cookie-only sessions.
+        const next = await refreshSession(legacyRefreshToken);
+        if (generation === refreshController.generation) {
+          await persistTokens(next);
+          setAuthSessionKey(nextAuthSessionKey());
+        }
+      } catch {
+        if (generation === refreshController.generation) {
+          await clearAuthSession();
         }
       }
       setAuthReady(true);
