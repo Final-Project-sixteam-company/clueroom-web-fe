@@ -71,6 +71,13 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
     return `session-${authSessionSeqRef.current}`;
   }
 
+  function isDefiniteAuthFailure(error: unknown) {
+    return (
+      error instanceof ApiError &&
+      (error.status === 401 || error.status === 403)
+    );
+  }
+
   async function persistTokens(next: Tokens) {
     const browserTokens: Tokens = {
       ...next,
@@ -79,6 +86,20 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
     await safeSet(ACCESS_KEY, next.accessToken);
     await safeRemove(REFRESH_KEY);
     setTokens(browserTokens);
+  }
+
+  async function clearAuthSession() {
+    await safeRemove(ACCESS_KEY);
+    await safeRemove(REFRESH_KEY);
+    setTokens(null);
+    setAuthSessionKey(null);
+    setProfile(null);
+  }
+
+  async function clearAuthSessionOnDefiniteFailure(error: unknown) {
+    if (isDefiniteAuthFailure(error)) {
+      await clearAuthSession();
+    }
   }
 
   async function replaceAuthSession(next: Tokens) {
@@ -96,11 +117,7 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
     } catch {
       // 서버 revoke 실패와 무관하게 로컬 로그아웃은 완료한다.
     } finally {
-      await safeRemove(ACCESS_KEY);
-      await safeRemove(REFRESH_KEY);
-      setTokens(null);
-      setAuthSessionKey(null);
-      setProfile(null);
+      await clearAuthSession();
       onLogout();
     }
   }
@@ -114,13 +131,7 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
       },
       extractToken: (next) => next.accessToken,
       persist: (next) => persistTokens(next),
-      clearOnFailure: async () => {
-        await safeRemove(ACCESS_KEY);
-        await safeRemove(REFRESH_KEY);
-        setTokens(null);
-        setAuthSessionKey(null);
-        setProfile(null);
-      },
+      handleFailure: clearAuthSessionOnDefiniteFailure,
     });
   }
 
@@ -256,25 +267,26 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
         return;
       }
 
-      const accessToken = await safeGet(ACCESS_KEY);
+      const storedAccessToken = await safeGet(ACCESS_KEY);
       const legacyRefreshToken = await safeGet(REFRESH_KEY);
-      if (accessToken) {
-        setTokens({ accessToken });
-        setAuthSessionKey(nextAuthSessionKey());
-        await safeRemove(REFRESH_KEY);
-      } else {
-        const generation = refreshController.generation;
-        try {
-          const next = await refreshSession(legacyRefreshToken);
-          if (generation === refreshController.generation) {
-            await persistTokens(next);
-            setAuthSessionKey(nextAuthSessionKey());
-          }
-        } catch {
-          if (generation === refreshController.generation) {
-            await safeRemove(ACCESS_KEY);
+      const generation = refreshController.generation;
+      try {
+        // Stored access tokens can be expired or revoked. Also, JavaScript
+        // cannot inspect the HttpOnly refresh cookie, so try refresh even when
+        // localStorage is empty to restore cookie-only sessions.
+        const next = await refreshSession(legacyRefreshToken);
+        if (generation === refreshController.generation) {
+          await persistTokens(next);
+          setAuthSessionKey(nextAuthSessionKey());
+        }
+      } catch (error) {
+        if (generation === refreshController.generation) {
+          if (isDefiniteAuthFailure(error)) {
+            await clearAuthSession();
+          } else if (storedAccessToken) {
             await safeRemove(REFRESH_KEY);
-            setAuthSessionKey(null);
+            setTokens({ accessToken: storedAccessToken });
+            setAuthSessionKey(nextAuthSessionKey());
           }
         }
       }
