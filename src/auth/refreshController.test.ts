@@ -16,9 +16,15 @@ function deferred<T>() {
 
 type Payload = { accessToken: string };
 
+type Calls = {
+  persist: Payload[];
+  handleFailure: number;
+  lastFailure?: unknown;
+};
+
 function handlersFor(
   fetchTokens: () => Promise<Payload>,
-  calls: { persist: Payload[]; clearOnFailure: number },
+  calls: Calls,
 ) {
   return {
     fetchTokens,
@@ -26,8 +32,9 @@ function handlersFor(
     persist: (p: Payload) => {
       calls.persist.push(p);
     },
-    clearOnFailure: () => {
-      calls.clearOnFailure += 1;
+    handleFailure: (error: unknown) => {
+      calls.handleFailure += 1;
+      calls.lastFailure = error;
     },
   };
 }
@@ -36,7 +43,7 @@ test("single-flight: concurrent refreshes share one in-flight promise and one fe
   const controller = createRefreshController();
   const gate = deferred<Payload>();
   let fetchCount = 0;
-  const calls = { persist: [] as Payload[], clearOnFailure: 0 };
+  const calls = { persist: [] as Payload[], handleFailure: 0 };
 
   const handlers = handlersFor(() => {
     fetchCount += 1;
@@ -59,7 +66,7 @@ test("single-flight: concurrent refreshes share one in-flight promise and one fe
 test("in-flight slot is released after settle, allowing a fresh refresh", async () => {
   const controller = createRefreshController();
   let fetchCount = 0;
-  const calls = { persist: [] as Payload[], clearOnFailure: 0 };
+  const calls = { persist: [] as Payload[], handleFailure: 0 };
   const handlers = handlersFor(async () => {
     fetchCount += 1;
     return { accessToken: `tok-${fetchCount}` };
@@ -76,7 +83,7 @@ test("in-flight slot is released after settle, allowing a fresh refresh", async 
 test("generation guard (success): a bump while in flight discards the result (no persist)", async () => {
   const controller = createRefreshController();
   const gate = deferred<Payload>();
-  const calls = { persist: [] as Payload[], clearOnFailure: 0 };
+  const calls = { persist: [] as Payload[], handleFailure: 0 };
   const handlers = handlersFor(() => gate.promise, calls);
 
   const pending = controller.refresh(handlers);
@@ -88,10 +95,10 @@ test("generation guard (success): a bump while in flight discards the result (no
   assert.equal(calls.persist.length, 0, "stale tokens must NOT be persisted");
 });
 
-test("generation guard (failure): a bump while in flight suppresses clearOnFailure", async () => {
+test("generation guard (failure): a bump while in flight suppresses handleFailure", async () => {
   const controller = createRefreshController();
   const gate = deferred<Payload>();
-  const calls = { persist: [] as Payload[], clearOnFailure: 0 };
+  const calls = { persist: [] as Payload[], handleFailure: 0 };
   const handlers = handlersFor(() => gate.promise, calls);
 
   const pending = controller.refresh(handlers);
@@ -101,7 +108,7 @@ test("generation guard (failure): a bump while in flight suppresses clearOnFailu
 
   assert.equal(result, null);
   assert.equal(
-    calls.clearOnFailure,
+    calls.handleFailure,
     0,
     "a stale failure must not clear the newer session's tokens",
   );
@@ -111,7 +118,7 @@ test("bumpGeneration() drops the stale in-flight slot after session replacement"
   const controller = createRefreshController();
   const gate1 = deferred<Payload>();
   let fetchCount = 0;
-  const calls = { persist: [] as Payload[], clearOnFailure: 0 };
+  const calls = { persist: [] as Payload[], handleFailure: 0 };
 
   const first = controller.refresh(
     handlersFor(() => {
@@ -142,24 +149,26 @@ test("bumpGeneration() drops the stale in-flight slot after session replacement"
   assert.deepEqual(calls.persist, [{ accessToken: "new-session" }]);
 });
 
-test("failure with unchanged generation clears tokens", async () => {
+test("failure with unchanged generation forwards the failure to the handler", async () => {
   const controller = createRefreshController();
-  const calls = { persist: [] as Payload[], clearOnFailure: 0 };
+  const calls = { persist: [] as Payload[], handleFailure: 0 };
+  const failure = new Error("refresh failed");
   const handlers = handlersFor(async () => {
-    throw new Error("refresh failed");
+    throw failure;
   }, calls);
 
   const result = await controller.refresh(handlers);
 
   assert.equal(result, null);
-  assert.equal(calls.clearOnFailure, 1, "a real failure must clear tokens once");
+  assert.equal(calls.handleFailure, 1, "a real failure must run the handler once");
+  assert.equal(calls.lastFailure, failure);
 });
 
 test("reset() drops the in-flight slot so the next refresh starts fresh", async () => {
   const controller = createRefreshController();
   const gate1 = deferred<Payload>();
   let fetchCount = 0;
-  const calls = { persist: [] as Payload[], clearOnFailure: 0 };
+  const calls = { persist: [] as Payload[], handleFailure: 0 };
 
   const first = controller.refresh(
     handlersFor(() => {

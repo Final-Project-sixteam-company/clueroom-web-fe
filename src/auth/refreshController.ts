@@ -8,7 +8,7 @@
 // - generation guard (success): if the generation changed while the refresh
 //   was in flight (session replaced / logged out), the result is stale -> do
 //   NOT persist it (would clobber the newer session).
-// - generation guard (failure): only clear local tokens if the generation is
+// - generation guard (failure): only run failure handling if the generation is
 //   unchanged; a newer session must survive a stale refresh failure.
 // - the in-flight slot is cleared only if it is still the current promise.
 
@@ -19,8 +19,8 @@ export type RefreshHandlers<T> = {
   extractToken: (payload: T) => string;
   /** Persists the new tokens. Called only when the generation is unchanged. */
   persist: (payload: T) => Promise<void> | void;
-  /** Clears local tokens after a failed refresh. Called only when generation is unchanged. */
-  clearOnFailure: () => Promise<void> | void;
+  /** Handles a failed refresh. Called only when generation is unchanged. */
+  handleFailure: (error: unknown) => Promise<void> | void;
 };
 
 export type RefreshController = {
@@ -52,8 +52,8 @@ export function createRefreshController(): RefreshController {
         if (startGeneration !== generation) return null; // superseded -> don't persist
         await handlers.persist(payload);
         return handlers.extractToken(payload);
-      } catch {
-        if (startGeneration === generation) await handlers.clearOnFailure();
+      } catch (error) {
+        if (startGeneration === generation) await handlers.handleFailure(error);
         return null;
       } finally {
         if (inFlightId === flightId) inFlight = null;

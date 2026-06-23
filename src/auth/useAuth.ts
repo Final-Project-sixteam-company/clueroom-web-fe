@@ -71,6 +71,13 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
     return `session-${authSessionSeqRef.current}`;
   }
 
+  function isDefiniteAuthFailure(error: unknown) {
+    return (
+      error instanceof ApiError &&
+      (error.status === 401 || error.status === 403)
+    );
+  }
+
   async function persistTokens(next: Tokens) {
     const browserTokens: Tokens = {
       ...next,
@@ -87,6 +94,12 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
     setTokens(null);
     setAuthSessionKey(null);
     setProfile(null);
+  }
+
+  async function clearAuthSessionOnDefiniteFailure(error: unknown) {
+    if (isDefiniteAuthFailure(error)) {
+      await clearAuthSession();
+    }
   }
 
   async function replaceAuthSession(next: Tokens) {
@@ -118,7 +131,7 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
       },
       extractToken: (next) => next.accessToken,
       persist: (next) => persistTokens(next),
-      clearOnFailure: clearAuthSession,
+      handleFailure: clearAuthSessionOnDefiniteFailure,
     });
   }
 
@@ -149,7 +162,6 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
       query?: Record<string, string | number | boolean>;
     } = {},
   ) {
-    const requestGeneration = refreshController.generation;
     return withAuthRetry<T>({
       getToken: async () => tokens?.accessToken ?? (await safeGet(ACCESS_KEY)),
       send: (token) => request<T>(path, { ...options, token }),
@@ -157,12 +169,7 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
       isUnauthorized: (error) =>
         error instanceof ApiError && error.status === 401,
       onMissingToken: () => request<T>(path, options),
-      onRefreshExhausted: async () => {
-        if (requestGeneration === refreshController.generation) {
-          await clearAuthSession();
-        }
-        return request<T>(path, options);
-      },
+      onRefreshExhausted: () => request<T>(path, options),
     });
   }
 
@@ -260,6 +267,7 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
         return;
       }
 
+      const storedAccessToken = await safeGet(ACCESS_KEY);
       const legacyRefreshToken = await safeGet(REFRESH_KEY);
       const generation = refreshController.generation;
       try {
@@ -271,9 +279,14 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
           await persistTokens(next);
           setAuthSessionKey(nextAuthSessionKey());
         }
-      } catch {
+      } catch (error) {
         if (generation === refreshController.generation) {
-          await clearAuthSession();
+          if (isDefiniteAuthFailure(error)) {
+            await clearAuthSession();
+          } else if (storedAccessToken) {
+            setTokens({ accessToken: storedAccessToken });
+            setAuthSessionKey(nextAuthSessionKey());
+          }
         }
       }
       setAuthReady(true);
