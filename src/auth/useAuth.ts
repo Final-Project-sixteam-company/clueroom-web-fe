@@ -81,6 +81,14 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
     setTokens(browserTokens);
   }
 
+  async function clearAuthSession() {
+    await safeRemove(ACCESS_KEY);
+    await safeRemove(REFRESH_KEY);
+    setTokens(null);
+    setAuthSessionKey(null);
+    setProfile(null);
+  }
+
   async function replaceAuthSession(next: Tokens) {
     refreshController.bumpGeneration();
     await persistTokens(next);
@@ -96,11 +104,7 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
     } catch {
       // 서버 revoke 실패와 무관하게 로컬 로그아웃은 완료한다.
     } finally {
-      await safeRemove(ACCESS_KEY);
-      await safeRemove(REFRESH_KEY);
-      setTokens(null);
-      setAuthSessionKey(null);
-      setProfile(null);
+      await clearAuthSession();
       onLogout();
     }
   }
@@ -114,13 +118,7 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
       },
       extractToken: (next) => next.accessToken,
       persist: (next) => persistTokens(next),
-      clearOnFailure: async () => {
-        await safeRemove(ACCESS_KEY);
-        await safeRemove(REFRESH_KEY);
-        setTokens(null);
-        setAuthSessionKey(null);
-        setProfile(null);
-      },
+      clearOnFailure: clearAuthSession,
     });
   }
 
@@ -158,7 +156,10 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
       isUnauthorized: (error) =>
         error instanceof ApiError && error.status === 401,
       onMissingToken: () => request<T>(path, options),
-      onRefreshExhausted: () => request<T>(path, options),
+      onRefreshExhausted: async () => {
+        await clearAuthSession();
+        return request<T>(path, options);
+      },
     });
   }
 
@@ -258,13 +259,11 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
 
       const accessToken = await safeGet(ACCESS_KEY);
       const legacyRefreshToken = await safeGet(REFRESH_KEY);
-      if (accessToken) {
-        setTokens({ accessToken });
-        setAuthSessionKey(nextAuthSessionKey());
-        await safeRemove(REFRESH_KEY);
-      } else {
+      if (accessToken || legacyRefreshToken) {
         const generation = refreshController.generation;
         try {
+          // Stored access tokens can be expired or revoked. Verify the session
+          // with the refresh cookie before any auth-aware loaders attach Bearer.
           const next = await refreshSession(legacyRefreshToken);
           if (generation === refreshController.generation) {
             await persistTokens(next);
@@ -272,9 +271,7 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
           }
         } catch {
           if (generation === refreshController.generation) {
-            await safeRemove(ACCESS_KEY);
-            await safeRemove(REFRESH_KEY);
-            setAuthSessionKey(null);
+            await clearAuthSession();
           }
         }
       }
