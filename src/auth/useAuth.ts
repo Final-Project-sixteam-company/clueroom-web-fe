@@ -284,6 +284,7 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
           if (isDefiniteAuthFailure(error)) {
             await clearAuthSession();
           } else if (storedAccessToken) {
+            await safeRemove(REFRESH_KEY);
             setTokens({ accessToken: storedAccessToken });
             setAuthSessionKey(nextAuthSessionKey());
           }
