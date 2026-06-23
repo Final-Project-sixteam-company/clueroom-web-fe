@@ -26,7 +26,7 @@ export type RefreshHandlers<T> = {
 export type RefreshController = {
   /** Current generation. Read to capture/compare for out-of-band guarded flows (e.g. bootstrap). */
   readonly generation: number;
-  /** Bump generation so any in-flight refresh result is treated as stale (e.g. session replaced). */
+  /** Bump generation and stop sharing any stale in-flight refresh (e.g. session replaced). */
   bumpGeneration: () => void;
   /** Bump generation AND drop the in-flight refresh (e.g. logout). */
   reset: () => void;
@@ -70,6 +70,7 @@ export function createRefreshController(): RefreshController {
     },
     bumpGeneration() {
       generation += 1;
+      inFlight = null;
     },
     reset() {
       generation += 1;

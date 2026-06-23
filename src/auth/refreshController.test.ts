@@ -107,6 +107,41 @@ test("generation guard (failure): a bump while in flight suppresses clearOnFailu
   );
 });
 
+test("bumpGeneration() drops the stale in-flight slot after session replacement", async () => {
+  const controller = createRefreshController();
+  const gate1 = deferred<Payload>();
+  let fetchCount = 0;
+  const calls = { persist: [] as Payload[], clearOnFailure: 0 };
+
+  const first = controller.refresh(
+    handlersFor(() => {
+      fetchCount += 1;
+      return gate1.promise;
+    }, calls),
+  );
+
+  controller.bumpGeneration(); // a new login/session replaced the old one
+
+  const gate2 = deferred<Payload>();
+  const second = controller.refresh(
+    handlersFor(() => {
+      fetchCount += 1;
+      return gate2.promise;
+    }, calls),
+  );
+
+  assert.notEqual(first, second, "new session must not share the stale flight");
+  assert.equal(fetchCount, 2, "session replacement must allow a fresh refresh");
+
+  gate1.resolve({ accessToken: "old-session" });
+  gate2.resolve({ accessToken: "new-session" });
+  const [r1, r2] = await Promise.all([first, second]);
+
+  assert.equal(r1, null, "old-session flight is stale after replacement");
+  assert.equal(r2, "new-session");
+  assert.deepEqual(calls.persist, [{ accessToken: "new-session" }]);
+});
+
 test("failure with unchanged generation clears tokens", async () => {
   const controller = createRefreshController();
   const calls = { persist: [] as Payload[], clearOnFailure: 0 };

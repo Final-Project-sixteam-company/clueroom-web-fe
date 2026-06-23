@@ -149,6 +149,7 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
       query?: Record<string, string | number | boolean>;
     } = {},
   ) {
+    const requestGeneration = refreshController.generation;
     return withAuthRetry<T>({
       getToken: async () => tokens?.accessToken ?? (await safeGet(ACCESS_KEY)),
       send: (token) => request<T>(path, { ...options, token }),
@@ -157,7 +158,9 @@ export function useAuth({ onAuthenticated, onLogout }: UseAuthArgs) {
         error instanceof ApiError && error.status === 401,
       onMissingToken: () => request<T>(path, options),
       onRefreshExhausted: async () => {
-        await clearAuthSession();
+        if (requestGeneration === refreshController.generation) {
+          await clearAuthSession();
+        }
         return request<T>(path, options);
       },
     });
